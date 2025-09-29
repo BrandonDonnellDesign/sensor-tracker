@@ -1,0 +1,267 @@
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/components/providers/auth-provider';
+import { SensorType } from '@/types/sensor';
+
+export default function NewSensorPage() {
+  const { user } = useAuth();
+  const router = useRouter();
+  
+  const [sensorType, setSensorType] = useState<SensorType>(SensorType.DEXCOM);
+  const [serialNumber, setSerialNumber] = useState('');
+  const [lotNumber, setLotNumber] = useState('');
+  const [dateAdded, setDateAdded] = useState(new Date().toISOString().split('T')[0]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!user?.id) {
+      setError('User not authenticated');
+      return;
+    }
+
+    // Validate required fields based on sensor type
+    if (sensorType === SensorType.DEXCOM && !lotNumber.trim()) {
+      setError('Lot number is required for Dexcom sensors');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const sensorData = {
+        user_id: user.id,
+        sensor_type: sensorType,
+        serial_number: serialNumber.trim(),
+        date_added: dateAdded,
+        is_problematic: false,
+        // Only include lot_number for Dexcom sensors
+        ...(sensorType === SensorType.DEXCOM && { lot_number: lotNumber.trim() })
+      };
+
+      console.log('Creating sensor with data:', sensorData);
+
+      const { data, error } = await supabase
+        .from('sensors')
+        .insert(sensorData)
+        .select();
+
+      console.log('Supabase response:', { data, error });
+
+      if (error) {
+        console.error('Supabase error details:', error);
+        throw error;
+      }
+
+      console.log('Sensor created successfully:', data);
+      router.push('/dashboard/sensors');
+    } catch (error) {
+      console.error('Error creating sensor:', error);
+      
+      // Better error handling
+      let errorMessage = 'Failed to create sensor';
+      
+      if (error && typeof error === 'object') {
+        if ('message' in error) {
+          errorMessage = error.message as string;
+        } else if ('details' in error) {
+          errorMessage = error.details as string;
+        } else if ('hint' in error) {
+          errorMessage = error.hint as string;
+        }
+      }
+      
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="max-w-3xl mx-auto space-y-8">
+      <div>
+        <Link 
+          href="/dashboard/sensors" 
+          className="inline-flex items-center text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 text-sm font-medium mb-6 transition-colors"
+        >
+          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          Back to Sensors
+        </Link>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-slate-100">Add New Sensor</h1>
+        <p className="text-lg text-gray-600 dark:text-slate-400 mt-2">Record a new CGM sensor for tracking and warranty purposes</p>
+      </div>
+
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-700 p-8">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {error && (
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-6">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg className="h-6 w-6 text-red-500 dark:text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-4">
+                  <h3 className="text-base font-semibold text-red-800 dark:text-red-200">Error</h3>
+                  <p className="text-sm text-red-700 dark:text-red-300 mt-1">{error}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div>
+            <label htmlFor="sensorType" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+              Sensor Type *
+            </label>
+            <select
+              id="sensorType"
+              required
+              className="input"
+              value={sensorType}
+              onChange={(e) => {
+                setSensorType(e.target.value as SensorType);
+                // Clear lot number when switching to Freestyle
+                if (e.target.value === SensorType.FREESTYLE) {
+                  setLotNumber('');
+                }
+              }}
+            >
+              <option value={SensorType.DEXCOM}>Dexcom</option>
+              <option value={SensorType.FREESTYLE}>Freestyle</option>
+            </select>
+            <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
+              Select your CGM sensor type
+            </p>
+          </div>
+
+          <div>
+            <label htmlFor="serialNumber" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+              Serial Number *
+            </label>
+            <input
+              type="text"
+              id="serialNumber"
+              required
+              className="input"
+              placeholder="Enter sensor serial number"
+              value={serialNumber}
+              onChange={(e) => setSerialNumber(e.target.value)}
+            />
+            <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
+              Usually found on the sensor packaging or applicator
+            </p>
+          </div>
+
+          {sensorType === SensorType.DEXCOM && (
+            <div>
+              <label htmlFor="lotNumber" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+                Lot Number *
+              </label>
+              <input
+                type="text"
+                id="lotNumber"
+                required
+                className="input"
+                placeholder="Enter lot number"
+                value={lotNumber}
+                onChange={(e) => setLotNumber(e.target.value)}
+              />
+              <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
+                Found on the sensor packaging (required for Dexcom sensors)
+              </p>
+            </div>
+          )}
+
+          <div>
+            <label htmlFor="dateAdded" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+              Date Applied
+            </label>
+            <input
+              type="date"
+              id="dateAdded"
+              className="input"
+              value={dateAdded}
+              onChange={(e) => setDateAdded(e.target.value)}
+            />
+            <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
+              When you applied this sensor
+            </p>
+          </div>
+
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-2xl p-6">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-6 w-6 text-blue-500 dark:text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-4">
+                <h3 className="text-base font-semibold text-blue-800 dark:text-blue-200">Quick Help</h3>
+                <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                  Photo upload functionality will be available in a future update. If you experience sensor issues, you can request replacements:
+                </p>
+                <div className="mt-3 space-y-2">
+                  <a
+                    href="https://dexcom.custhelp.com/app/webform"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center text-sm text-blue-800 dark:text-blue-200 hover:text-blue-900 dark:hover:text-blue-100 underline"
+                  >
+                    Dexcom Sensor Replacement
+                    <svg className="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                  </a>
+                  <br />
+                  <a
+                    href="https://www.freestyle.abbott/us-en/support/sensorsupportrequest.html"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center text-sm text-blue-800 dark:text-blue-200 hover:text-blue-900 dark:hover:text-blue-100 underline"
+                  >
+                    Freestyle Sensor Replacement
+                    <svg className="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end space-x-3">
+            <Link
+              href="/dashboard/sensors"
+              className="btn-secondary"
+            >
+              Cancel
+            </Link>
+            <button
+              type="submit"
+              disabled={loading || !serialNumber.trim() || (sensorType === SensorType.DEXCOM && !lotNumber.trim())}
+              className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? (
+                <div className="flex items-center">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Adding...
+                </div>
+              ) : (
+                'Add Sensor'
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}

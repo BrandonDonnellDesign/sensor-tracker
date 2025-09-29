@@ -1,0 +1,32 @@
+{
+  "name": "dexcom-sensor-tracker",
+  "version": "1.0.0",
+  "description": "Cross-platform Dexcom sensor tracking application",
+  "private": true,
+
+  "scripts": {
+    "install:all": "npm install && npm run install:backend && npm run install:mobile && npm run install:web",
+    "install:backend": "cd backend && npm install",
+    "install:mobile": "cd mobile && npm install",
+    "install:web": "cd web && npm install",
+    "build": "npm run build:shared && npm run build:backend && npm run build:web",
+    "build:shared": "cd shared && npm run build",
+    "build:backend": "cd backend && npm run build",
+    "build:web": "cd web && npm run build",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:web": "cd web && npm run dev",
+    "start:mobile": "cd mobile && npm start",
+    "test": "npm run test:shared && npm run test:backend && npm run test:web",
+    "test:shared": "cd shared && npm test",
+    "test:backend": "cd backend && npm test",
+    "test:web": "cd web && npm test"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}

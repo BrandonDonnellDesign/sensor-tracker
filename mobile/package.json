@@ -1,0 +1,58 @@
+{
+  "name": "@dexcom-tracker/mobile",
+  "version": "1.0.0",
+  "description": "React Native mobile app for Dexcom Sensor Tracker",
+  "main": "index.js",
+  "scripts": {
+    "android": "react-native run-android",
+    "ios": "react-native run-ios",
+    "start": "react-native start",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
+    "build:android": "cd android && ./gradlew assembleRelease",
+    "build:ios": "cd ios && xcodebuild -workspace DexcomTracker.xcworkspace -scheme DexcomTracker -configuration Release -destination generic/platform=iOS -archivePath DexcomTracker.xcarchive archive",
+    "clean": "react-native clean-project-auto",
+    "pods": "cd ios && pod install"
+  },
+  "dependencies": {
+    "@dexcom-tracker/shared": "file:../shared",
+    "react": "18.2.0",
+    "react-native": "^0.73.0",
+    "@react-navigation/native": "^6.1.9",
+    "@react-navigation/stack": "^6.3.20",
+    "@react-navigation/bottom-tabs": "^6.5.11",
+    "react-native-screens": "^3.29.0",
+    "react-native-safe-area-context": "^4.8.2",
+    "react-native-gesture-handler": "^2.14.1",
+    "react-native-sqlite-storage": "^6.0.1",
+    "react-native-image-picker": "^7.1.0",
+    "react-native-keychain": "^8.2.0",
+    "react-native-fs": "^2.20.0",
+    "react-native-vector-icons": "^10.0.3",
+    "@react-native-async-storage/async-storage": "^1.21.0",
+    "react-native-permissions": "^4.1.0",
+    "@bam.tech/react-native-image-resizer": "^3.0.4"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.23.6",
+    "@babel/preset-env": "^7.23.6",
+    "@babel/runtime": "^7.23.6",
+    "@react-native/eslint-config": "^0.73.0",
+    "@react-native/metro-config": "^0.73.0",
+    "@tsconfig/react-native": "^3.0.2",
+    "@types/react": "^18.2.45",
+    "@types/react-test-renderer": "^18.0.7",
+    "babel-jest": "^29.7.0",
+    "eslint": "^8.56.0",
+    "jest": "^29.7.0",
+    "metro-react-native-babel-preset": "^0.77.0",
+    "prettier": "^3.1.1",
+    "react-test-renderer": "18.2.0",
+    "typescript": "^5.3.0",
+    "babel-plugin-module-resolver": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

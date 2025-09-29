@@ -1,0 +1,19 @@
+{
+  "name": "DexcomTracker",
+  "displayName": "Dexcom Sensor Tracker",
+  "version": "1.0.0",
+  "versionCode": 1,
+  "buildNumber": 1,
+  "orientation": "portrait",
+  "icon": "./assets/icon.png",
+  "splash": {
+    "image": "./assets/splash.png",
+    "resizeMode": "contain",
+    "backgroundColor": "#0ea5e9"
+  },
+  "permissions": [
+    "CAMERA",
+    "READ_EXTERNAL_STORAGE",
+    "WRITE_EXTERNAL_STORAGE"
+  ]
+}
