@@ -65,7 +65,7 @@ export default function RegisterPage() {
               Check your email
             </h2>
             <p className="mt-2 text-center text-sm text-gray-600">
-              We've sent you a confirmation link at <strong>{email}</strong>
+              We&apos;ve sent you a confirmation link at <strong>{email}</strong>
             </p>
             <p className="mt-4 text-center text-sm text-gray-600">
               Click the link in the email to activate your account, then{' '}

@@ -72,8 +72,12 @@ class ApiClient {
             const refreshResponse = await this.refreshToken(refreshToken);
             localStorage.setItem('accessToken', refreshResponse.accessToken);
             // Retry the original request
+            // The DOM Response type doesn't expose the original request method.
+            // Default to GET for retries. If retrying non-GET requests is needed
+            // in the future, change handleResponse to accept the original
+            // RequestInit and re-use it here.
             const retryResponse = await fetch(response.url, {
-              method: response.method || 'GET',
+              method: 'GET',
               headers: this.getAuthHeaders(),
             });
             const retryData: ApiResponse<T> = await retryResponse.json();

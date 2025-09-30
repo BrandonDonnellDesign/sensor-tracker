@@ -149,7 +149,7 @@ CREATE TRIGGER update_photos_updated_at
               <div className="ml-3">
                 <h3 className="text-sm font-medium text-yellow-800">Database Tables Missing</h3>
                 <p className="text-sm text-yellow-700 mt-1">
-                  The sensors table doesn't exist in your Supabase database. You need to run the SQL schema to create it.
+                  The sensors table doesn&apos;t exist in your Supabase database. You need to run the SQL schema to create it.
                 </p>
               </div>
             </div>
@@ -161,9 +161,9 @@ CREATE TRIGGER update_photos_updated_at
               <ol className="list-decimal list-inside space-y-2 text-gray-700">
                 <li>Go to your <a href="https://supabase.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-500 underline">Supabase Dashboard</a></li>
                 <li>Navigate to <strong>SQL Editor</strong> in the left sidebar</li>
-                <li>Click <strong>"New Query"</strong></li>
+                <li>Click <strong>&quot;New Query&quot;</strong></li>
                 <li>Copy the SQL schema below and paste it into the editor</li>
-                <li>Click <strong>"Run"</strong> to execute the schema</li>
+                <li>Click <strong>&quot;Run&quot;</strong> to execute the schema</li>
                 <li>Return here and test the connection</li>
               </ol>
             </div>
