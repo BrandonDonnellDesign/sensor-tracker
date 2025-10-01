@@ -1,0 +1,64 @@
+# Netlify configuration for Next.js app
+# Uses the Netlify Next.js plugin to build and serve Next sites.
+
+[build]
+  command = "npm run build"
+  publish = ".next"
+  functions = "./netlify/functions"
+
+# Enable the official Netlify Next plugin (make sure it's installed in your project)
+# If you're using the new `@netlify/plugin-nextjs` plugin, Netlify will handle
+# building and routing automatically.
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+# Redirects and rewrites
+# - All requests should be served by Next's renderer where appropriate.
+# - Static assets are served directly from Netlify's CDN.
+
+[[redirects]]
+  from = "/*"
+  to = "/.netlify/functions/next-handler"
+  status = 200
+  force = false
+
+# Headers
+# Add recommended security headers and caching rules for assets.
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    X-XSS-Protection = "1; mode=block"
+    Strict-Transport-Security = "max-age=63072000; includeSubDomains; preload"
+
+# Cache control for common static asset types
+[[headers]]
+  for = "/_next/static/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/static/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Environment variables can be set on Netlify's UI or via the Netlify CLI
+# If you want to set defaults for local builds, you can add an [context] block.
+
+[context.production.environment]
+  NODE_ENV = "production"
+
+# Example of branch deploy override (optional)
+#[context.deploy-preview.environment]
+#  NEXT_PUBLIC_API_URL = "https://staging-api.example.com"
+
+# Notes:
+# - Ensure `@netlify/plugin-nextjs` is installed as a dependency in your `web`
+#   package.json before deploying. Netlify's docs recommend adding the plugin
+#   and leaving the rest to the plugin, which will set up serverless functions
+#   and routing automatically.
+# - If you use Next middleware or Edge runtimes, confirm plugin support and
+#   check Netlify docs for any extra configuration.
