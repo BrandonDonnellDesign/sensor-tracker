@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "description": "Cross-platform Dexcom sensor tracking application",
   "private": true,
-
   "scripts": {
     "install:all": "npm install && npm run install:backend && npm run install:mobile && npm run install:web",
     "install:backend": "cd backend && npm install",
@@ -28,5 +27,8 @@
   "engines": {
     "node": ">=18.0.0",
     "npm": ">=9.0.0"
+  },
+  "dependencies": {
+    "@heroicons/react": "^2.2.0"
   }
 }

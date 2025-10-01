@@ -40,6 +40,7 @@ export function Sidebar() {
   const pathname = usePathname();
   const { user, signOut } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
 
   return (
@@ -58,7 +59,8 @@ export function Sidebar() {
 
       {/* Sidebar */}
       <div className={clsx(
-        'fixed inset-y-0 left-0 z-40 w-72 bg-white dark:bg-slate-900 shadow-xl border-r border-gray-200 dark:border-slate-800 transform transition-all duration-300 ease-in-out lg:translate-x-0',
+        'fixed inset-y-0 left-0 z-40 bg-white dark:bg-slate-900 shadow-xl border-r border-gray-200 dark:border-slate-800 transform transition-all duration-300 ease-in-out lg:translate-x-0',
+        isCollapsed ? 'w-20' : 'w-72',
         isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
       )}>
         <div className="flex flex-col h-full">
@@ -70,7 +72,10 @@ export function Sidebar() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
               </div>
-              <h1 className="text-lg font-bold text-gray-900 dark:text-slate-100">Sensor Tracker</h1>
+              <h1 className={clsx(
+                'text-lg font-bold text-gray-900 dark:text-slate-100 transition-opacity duration-200',
+                isCollapsed ? 'opacity-0 hidden' : 'opacity-100'
+              )}>Sensor Tracker</h1>
             </div>
           </div>
 
@@ -96,45 +101,29 @@ export function Sidebar() {
                   )}>
                     {icons[item.icon as keyof typeof icons]}
                   </div>
-                  <span className="ml-3">{item.name}</span>
+                  <span className={clsx(
+                    'ml-3 transition-opacity duration-200',
+                    isCollapsed ? 'opacity-0 hidden' : 'opacity-100'
+                  )}>{item.name}</span>
                 </Link>
               );
             })}
           </nav>
 
-          {/* Bottom Section */}
-          <div className="border-t border-gray-200 dark:border-slate-800 p-4 space-y-3">
-            {/* Theme Toggle */}
-            <div className="flex justify-center">
-              <ThemeToggle />
-            </div>
-
-            {/* User Profile */}
-            <div className="flex items-center space-x-3 px-4 py-3 bg-gray-50 dark:bg-slate-800 rounded-xl">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                <span className="text-sm font-semibold text-white">
-                  {user?.email?.charAt(0).toUpperCase()}
-                </span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 dark:text-slate-100 truncate">
-                  {user?.email}
-                </p>
-                <p className="text-xs text-gray-500 dark:text-slate-400">
-                  CGM User
-                </p>
-              </div>
-            </div>
-
-            {/* Sign Out */}
+          {/* Bottom section with collapse toggle */}
+          <div className="p-4 border-t border-gray-200 dark:border-slate-800">
             <button
-              onClick={signOut}
-              className="w-full flex items-center px-4 py-3 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all duration-200"
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              className="p-2 rounded-lg text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors w-full flex justify-center"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              <svg
+                className={clsx('w-5 h-5 transition-transform duration-200', isCollapsed ? 'rotate-180' : '')}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
               </svg>
-              <span className="ml-3">Sign Out</span>
             </button>
           </div>
         </div>

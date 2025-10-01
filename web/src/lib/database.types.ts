@@ -61,25 +61,43 @@ export interface Database {
       }
       profiles: {
         Row: {
-          created_at: string
-          email: string
           id: string
-          last_sync_at: string | null
+          username: string | null
+          full_name: string | null
+          timezone: string | null
+          avatar_url: string | null
+          notifications_enabled: boolean
+          dark_mode_enabled: boolean
+          glucose_unit: 'mg/dL' | 'mmol/L'
+          created_at: string
           updated_at: string
+          last_sync_at: string | null
         }
         Insert: {
-          created_at?: string
-          email: string
           id: string
-          last_sync_at?: string | null
+          username?: string | null
+          full_name?: string | null
+          timezone?: string | null
+          avatar_url?: string | null
+          notifications_enabled?: boolean
+          dark_mode_enabled?: boolean
+          glucose_unit?: 'mg/dL' | 'mmol/L'
+          created_at?: string
           updated_at?: string
+          last_sync_at?: string | null
         }
         Update: {
-          created_at?: string
-          email?: string
           id?: string
-          last_sync_at?: string | null
+          username?: string | null
+          full_name?: string | null
+          timezone?: string | null
+          avatar_url?: string | null
+          notifications_enabled?: boolean
+          dark_mode_enabled?: boolean
+          glucose_unit?: 'mg/dL' | 'mmol/L'
+          created_at?: string
           updated_at?: string
+          last_sync_at?: string | null
         }
         Relationships: [
           {
