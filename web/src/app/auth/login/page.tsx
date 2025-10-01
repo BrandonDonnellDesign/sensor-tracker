@@ -219,21 +219,6 @@ export default function LoginPage() {
               >
                 Forgot your password?
               </Link>
-              <div className="text-xs text-gray-500">
-                <Link
-                  href="/test-auth"
-                  className="text-blue-600 hover:text-blue-500"
-                >
-                  Test Auth Status
-                </Link>
-                {' | '}
-                <Link
-                  href="/debug"
-                  className="text-blue-600 hover:text-blue-500"
-                >
-                  Debug Page
-                </Link>
-              </div>
             </div>
           </form>
         </div>
