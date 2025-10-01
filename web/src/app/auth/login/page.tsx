@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/components/providers/auth-provider';
+import { GoogleLoginButton } from '@/components/auth/google-login-button';
 
 export default function LoginPage() {
   const { signIn, user, loading: authLoading } = useAuth();
@@ -219,6 +220,21 @@ export default function LoginPage() {
               >
                 Forgot your password?
               </Link>
+            </div>
+
+            <div className="relative mt-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-300 dark:border-slate-600"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 text-gray-500 dark:text-slate-400 bg-white dark:bg-slate-800">
+                  Or continue with
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-6">
+              <GoogleLoginButton />
             </div>
           </form>
         </div>

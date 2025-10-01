@@ -9,6 +9,7 @@ type AuthContextType = {
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ user: User | null; session: Session | null; error: AuthError | null }>;
   signUp: (email: string, password: string) => Promise<{ user: User | null; session: Session | null; error: AuthError | null }>;
+  signInWithGoogle: () => Promise<{ user: User | null; session: Session | null; error: AuthError | null }>;
   signOut: () => Promise<void>;
 };
 
@@ -66,8 +67,18 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     setUser(null);
   };
 
+  const signInWithGoogle = async () => {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/dashboard`
+      }
+    });
+    return { user: null, session: null, error };
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut, signInWithGoogle }}>
       {children}
     </AuthContext.Provider>
   );
