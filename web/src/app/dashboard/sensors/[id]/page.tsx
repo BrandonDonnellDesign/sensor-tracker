@@ -1,13 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/components/providers/auth-provider';
 import { Database } from '@/lib/database.types';
+import ImageUpload from '@/components/sensors/image-upload';
+import PhotoGallery from '@/components/sensors/photo-gallery';
 
 type Sensor = Database['public']['Tables']['sensors']['Row'];
+type SensorPhoto = Database['public']['Tables']['sensor_photos']['Row'];
 
 export default function SensorDetailPage() {
   const { user } = useAuth();
@@ -29,34 +32,59 @@ export default function SensorDetailPage() {
   const [newLotNumber, setNewLotNumber] = useState('');
   const [editingNotes, setEditingNotes] = useState(false);
   const [newIssueNotes, setNewIssueNotes] = useState('');
+  const [photos, setPhotos] = useState<SensorPhoto[]>([]);
+  const [loadingPhotos, setLoadingPhotos] = useState(true);
+
+  const fetchSensor = useCallback(async () => {
+    if (!user?.id || !sensorId) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('sensors')
+        .select('*')
+        .eq('id', sensorId)
+        .eq('user_id', user.id) // Ensure user can only view their own sensors
+        .eq('is_deleted', false) // Don't show deleted sensors
+        .single();
+
+      if (error) throw error;
+      setSensor(data);
+    } catch (error) {
+      console.error('Error fetching sensor:', error);
+      setError(
+        error instanceof Error ? error.message : 'Failed to fetch sensor'
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.id, sensorId]);
+
+  const fetchPhotos = useCallback(async () => {
+    if (!user?.id || !sensorId) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('sensor_photos')
+        .select('*')
+        .eq('sensor_id', sensorId)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+      setPhotos(data);
+    } catch (error) {
+      console.error('Error fetching photos:', error);
+      // Don't set error state as it might override more important sensor errors
+    } finally {
+      setLoadingPhotos(false);
+    }
+  }, [user?.id, sensorId]);
 
   useEffect(() => {
-    const fetchSensor = async () => {
-      if (!user?.id || !sensorId) return;
-
-      try {
-        const { data, error } = await supabase
-          .from('sensors')
-          .select('*')
-          .eq('id', sensorId)
-          .eq('user_id', user.id) // Ensure user can only view their own sensors
-          .eq('is_deleted', false) // Don't show deleted sensors
-          .single();
-
-        if (error) throw error;
-        setSensor(data);
-      } catch (error) {
-        console.error('Error fetching sensor:', error);
-        setError(
-          error instanceof Error ? error.message : 'Failed to fetch sensor'
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchSensor();
-  }, [user?.id, sensorId]);
+    fetchPhotos();
+  }, [fetchSensor, fetchPhotos]);
+
+
 
   const toggleProblematic = async () => {
     if (!sensor || !user?.id) return; // Early return if sensor or user ID is missing
@@ -382,31 +410,75 @@ export default function SensorDetailPage() {
             )}
           </div>
 
-          {/* Photos placeholder */}
+          {/* Photos section */}
           <div className='card'>
-            <h2 className='text-lg font-semibold mb-4'>Photos</h2>
-            <div className='text-center py-8 bg-gray-50 rounded-lg'>
-              <svg
-                className='mx-auto h-12 w-12 text-gray-400'
-                fill='none'
-                viewBox='0 0 24 24'
-                stroke='currentColor'>
-                <path
-                  strokeLinecap='round'
-                  strokeLinejoin='round'
-                  strokeWidth={2}
-                  d='M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z'
-                />
-                <path
-                  strokeLinecap='round'
-                  strokeLinejoin='round'
-                  strokeWidth={2}
-                  d='M15 13a3 3 0 11-6 0 3 3 0 016 0z'
-                />
-              </svg>
-              <p className='mt-2 text-sm text-gray-500'>
-                Photo upload coming soon
-              </p>
+            <div className='flex items-center justify-between mb-4'>
+              <h2 className='text-lg font-semibold'>Photos</h2>
+              <span className='text-sm text-gray-500'>
+                {photos.length} photo{photos.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+            
+            {loadingPhotos ? (
+              <div className='text-center py-8'>
+                <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto'></div>
+                <p className='text-sm text-gray-500 mt-2'>Loading photos...</p>
+              </div>
+            ) : photos.length > 0 ? (
+              <PhotoGallery
+                photos={photos}
+                sensorId={sensorId}
+                userId={user?.id || ''}
+                onPhotoDeleted={(photoId) => {
+                  setPhotos((prev) => prev.filter((p) => p.id !== photoId));
+                }}
+              />
+            ) : (
+              <div className='text-center py-8 bg-gray-50 dark:bg-slate-800/50 rounded-lg'>
+                <svg
+                  className='mx-auto h-12 w-12 text-gray-400 dark:text-slate-500'
+                  fill='none'
+                  viewBox='0 0 24 24'
+                  stroke='currentColor'
+                >
+                  <path
+                    strokeLinecap='round'
+                    strokeLinejoin='round'
+                    strokeWidth={2}
+                    d='M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z'
+                  />
+                  <path
+                    strokeLinecap='round'
+                    strokeLinejoin='round'
+                    strokeWidth={2}
+                    d='M15 13a3 3 0 11-6 0 3 3 0 016 0z'
+                  />
+                </svg>
+                <p className='mt-2 text-sm text-gray-500 dark:text-slate-400'>
+                  No photos added yet
+                </p>
+              </div>
+            )}
+
+            <div className='mt-6 pt-6 border-t border-gray-200 dark:border-slate-700'>
+              <h3 className='text-sm font-medium text-gray-700 dark:text-slate-300 mb-4'>
+                Add New Photo
+              </h3>
+              <ImageUpload
+                sensorId={sensorId}
+                userId={user?.id || ''}
+                onUploadComplete={(path) => {
+                  const newPhoto: SensorPhoto = {
+                    id: crypto.randomUUID(),
+                    sensor_id: sensorId,
+                    file_path: Array.isArray(path) ? path[0] : path,
+                    created_at: new Date().toISOString(),
+                    user_id: user?.id || ''
+                  };
+                  setPhotos((prev) => [...prev, newPhoto]);
+                }}
+                onError={(error) => setError(error)}
+              />
             </div>
           </div>
         </div>

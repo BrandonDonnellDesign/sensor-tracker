@@ -6,12 +6,14 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/components/providers/auth-provider';
 import { SensorType } from '@/types/sensor';
+import ImageUpload from '@/components/sensors/image-upload';
 
 export default function NewSensorPage() {
   const { user } = useAuth();
   const router = useRouter();
   
   const [sensorType, setSensorType] = useState<SensorType>(SensorType.DEXCOM);
+  const [initialPhotos, setInitialPhotos] = useState<string[]>([]);
   const [serialNumber, setSerialNumber] = useState('');
   const [lotNumber, setLotNumber] = useState('');
   const [dateAdded, setDateAdded] = useState(new Date().toISOString().split('T')[0]);
@@ -26,7 +28,6 @@ export default function NewSensorPage() {
       return;
     }
 
-    // Validate required fields based on sensor type
     if (sensorType === SensorType.DEXCOM && !lotNumber.trim()) {
       setError('Lot number is required for Dexcom sensors');
       return;
@@ -36,48 +37,89 @@ export default function NewSensorPage() {
     setError(null);
 
     try {
-      const sensorData = {
+      const sensorData: any = {
         user_id: user.id,
         sensor_type: sensorType,
         serial_number: serialNumber.trim(),
         date_added: dateAdded,
         is_problematic: false,
-        // Only include lot_number for Dexcom sensors
-        ...(sensorType === SensorType.DEXCOM && { lot_number: lotNumber.trim() })
+        ...(sensorType === SensorType.DEXCOM && { lot_number: lotNumber.trim() }),
       };
-
-      console.log('Creating sensor with data:', sensorData);
 
       const { data, error } = await supabase
         .from('sensors')
-        .insert(sensorData)
+        .insert([sensorData]) // ✅ must be array
         .select();
 
-      console.log('Supabase response:', { data, error });
+      const createdSensor = data?.[0];
+      if (createdSensor?.id && initialPhotos.length > 0) {
+        console.log('Processing photos for new sensor:', initialPhotos);
+        
+        // For each photo path, move the file to the correct location and create DB record
+        await Promise.all(
+          initialPhotos.map(async (filePath) => {
+            try {
+              // Extract the file name from the temp path
+              const tempParts = filePath.split('/');
+              const fileName = tempParts[tempParts.length - 1];
+              
+              // Construct the new path
+              const newPath = `${user.id}/${createdSensor.id}/${fileName}`;
+              
+              console.log('Moving file:', { from: filePath, to: newPath });
+              
+              // Copy file to new location
+              const { data: copyData, error: copyError } = await supabase
+                .storage
+                .from('sensor_photos')
+                .copy(filePath, newPath);
 
-      if (error) {
-        console.error('Supabase error details:', error);
-        throw error;
+              if (copyError) {
+                console.error('Copy error:', copyError);
+                throw copyError;
+              }
+
+              // Create database record for the new location
+              const { error: dbError } = await supabase
+                .from('sensor_photos')
+                .insert({
+                  sensor_id: createdSensor.id,
+                  file_path: newPath,
+                  user_id: user.id,
+                });
+
+              if (dbError) {
+                // If database insert fails, remove the copied file
+                await supabase.storage
+                  .from('sensor_photos')
+                  .remove([newPath]);
+                console.error('Database error:', dbError);
+                throw dbError;
+              }
+
+              // Remove the temp file
+              await supabase.storage
+                .from('sensor_photos')
+                .remove([filePath]);
+              
+              console.log('Successfully processed photo:', newPath);
+            } catch (err) {
+              console.error('Error processing photo:', err);
+              throw err;
+            }
+          })
+        );
       }
 
-      console.log('Sensor created successfully:', data);
+      if (error) throw error;
+
       router.push('/dashboard/sensors');
-    } catch (error) {
-      console.error('Error creating sensor:', error);
-      
-      // Better error handling
+    } catch (err: any) {
+      console.error('Error creating sensor:', err);
       let errorMessage = 'Failed to create sensor';
-      
-      if (error && typeof error === 'object') {
-        if ('message' in error) {
-          errorMessage = error.message as string;
-        } else if ('details' in error) {
-          errorMessage = error.details as string;
-        } else if ('hint' in error) {
-          errorMessage = error.hint as string;
-        }
-      }
-      
+      if (err?.message) errorMessage = err.message;
+      else if (err?.details) errorMessage = err.details;
+      else if (err?.hint) errorMessage = err.hint;
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -128,15 +170,13 @@ export default function NewSensorPage() {
               className="input"
               value={sensorType}
               onChange={(e) => {
-                setSensorType(e.target.value as SensorType);
-                // Clear lot number when switching to Freestyle
-                if (e.target.value === SensorType.FREESTYLE) {
-                  setLotNumber('');
-                }
+                const value = e.target.value as keyof typeof SensorType;
+                setSensorType(SensorType[value]);
+                if (value === "FREESTYLE") setLotNumber('');
               }}
             >
-              <option value={SensorType.DEXCOM}>Dexcom</option>
-              <option value={SensorType.FREESTYLE}>Freestyle</option>
+              <option value="DEXCOM">Dexcom</option>
+              <option value="FREESTYLE">Freestyle</option>
             </select>
             <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
               Select your CGM sensor type
@@ -197,68 +237,93 @@ export default function NewSensorPage() {
             </p>
           </div>
 
-          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-2xl p-6">
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <svg className="h-6 w-6 text-blue-500 dark:text-blue-400" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <div className="ml-4">
-                <h3 className="text-base font-semibold text-blue-800 dark:text-blue-200">Quick Help</h3>
-                <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
-                  Photo upload functionality will be available in a future update. If you experience sensor issues, you can request replacements:
+          <div className="space-y-6">
+            <div className="bg-gray-50 dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-2xl p-6">
+              <h3 className="text-base font-semibold text-gray-900 dark:text-slate-100 mb-4">Upload Photos</h3>
+              <div className="space-y-4">
+                <p className="text-sm text-gray-600 dark:text-slate-400">
+                  Upload photos of your sensor packaging or any issues you want to document.
+                  {initialPhotos.length > 0 && (
+                    <span className="ml-2 text-green-600 dark:text-green-400">
+                      ({initialPhotos.length} photo{initialPhotos.length !== 1 ? 's' : ''} added)
+                    </span>
+                  )}
                 </p>
-                <div className="mt-3 space-y-2">
-                  <a
-                    href="https://dexcom.custhelp.com/app/webform"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center text-sm text-blue-800 dark:text-blue-200 hover:text-blue-900 dark:hover:text-blue-100 underline"
-                  >
-                    Dexcom Sensor Replacement
-                    <svg className="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                    </svg>
-                  </a>
-                  <br />
-                  <a
-                    href="https://www.freestyle.abbott/us-en/support/sensorsupportrequest.html"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center text-sm text-blue-800 dark:text-blue-200 hover:text-blue-900 dark:hover:text-blue-100 underline"
-                  >
-                    Freestyle Sensor Replacement
-                    <svg className="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                    </svg>
-                  </a>
+                <ImageUpload
+                  sensorId={null}
+                  userId={user?.id || ''}
+                  skipDatabase={true}
+                  onUploadComplete={(paths) => {
+                    setInitialPhotos((prev) => [...prev, ...paths]);
+                  }}
+                  onError={(error) => setError(error)}
+                />
+              </div>
+            </div>
+
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-2xl p-6">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg className="h-6 w-6 text-blue-500 dark:text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-4">
+                  <h3 className="text-base font-semibold text-blue-800 dark:text-blue-200">Quick Help</h3>
+                  <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                    Photo upload functionality will be available in a future update. If you experience sensor issues, you can request replacements:
+                  </p>
+                  <div className="mt-3 space-y-2">
+                    <a
+                      href="https://dexcom.custhelp.com/app/webform"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center text-sm text-blue-800 dark:text-blue-200 hover:text-blue-900 dark:hover:text-blue-100 underline"
+                    >
+                      Dexcom Sensor Replacement
+                      <svg className="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                      </svg>
+                    </a>
+                    <br />
+                    <a
+                      href="https://www.freestyle.abbott/us-en/support/sensorsupportrequest.html"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center text-sm text-blue-800 dark:text-blue-200 hover:text-blue-900 dark:hover:text-blue-100 underline"
+                    >
+                      Freestyle Sensor Replacement
+                      <svg className="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                      </svg>
+                    </a>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          <div className="flex justify-end space-x-3">
-            <Link
-              href="/dashboard/sensors"
-              className="btn-secondary"
-            >
-              Cancel
-            </Link>
-            <button
-              type="submit"
-              disabled={loading || !serialNumber.trim() || (sensorType === SensorType.DEXCOM && !lotNumber.trim())}
-              className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? (
-                <div className="flex items-center">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Adding...
-                </div>
-              ) : (
-                'Add Sensor'
-              )}
-            </button>
+            <div className="flex justify-end space-x-3">
+              <Link
+                href="/dashboard/sensors"
+                className="btn-secondary"
+              >
+                Cancel
+              </Link>
+              <button
+                type="submit"
+                disabled={loading || !serialNumber.trim() || (sensorType === SensorType.DEXCOM && !lotNumber.trim())}
+                className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? (
+                  <div className="flex items-center">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Adding...
+                  </div>
+                ) : (
+                  'Add Sensor'
+                )}
+              </button>
+            </div>
           </div>
         </form>
       </div>

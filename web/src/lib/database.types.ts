@@ -9,6 +9,43 @@ export type Json =
 export interface Database {
   public: {
     Tables: {
+      sensor_photos: {
+        Row: {
+          id: string
+          sensor_id: string
+          file_path: string
+          created_at: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          sensor_id: string
+          file_path: string
+          created_at?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          sensor_id?: string
+          file_path?: string
+          created_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sensor_photos_sensor_id_fkey"
+            columns: ["sensor_id"]
+            referencedRelation: "sensors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sensor_photos_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      },
       photos: {
         Row: {
           created_at: string
