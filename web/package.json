@@ -14,6 +14,7 @@
     "db:generate": "supabase gen types typescript --project-id $SUPABASE_PROJECT_ID --schema public > src/lib/database.types.ts",
     "db:reset": "supabase db reset",
     "db:migrate": "supabase migration up",
+    "admin:setup": "node ../../scripts/setup-admin.js",
     "supabase:start": "supabase start",
     "supabase:stop": "supabase stop"
   },
@@ -53,7 +54,7 @@
     "eslint-config-next": "^15.0.0",
     "jest": "^29.0.0",
     "jest-environment-jsdom": "^29.0.0",
-    "supabase": "^1.100.0",
+    "supabase": "^1.226.4",
     "typescript": "^5.2.0"
   },
   "engines": {

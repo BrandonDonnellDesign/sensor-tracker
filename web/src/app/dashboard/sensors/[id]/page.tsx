@@ -12,6 +12,14 @@ import PhotoGallery from '@/components/sensors/photo-gallery';
 type Sensor = Database['public']['Tables']['sensors']['Row'];
 type SensorPhoto = Database['public']['Tables']['sensor_photos']['Row'];
 
+interface SensorModel {
+  id: string;
+  manufacturer: string;
+  model_name: string;
+  duration_days: number;
+  is_active: boolean;
+}
+
 export default function SensorDetailPage() {
   const { user } = useAuth();
   const params = useParams();
@@ -34,14 +42,20 @@ export default function SensorDetailPage() {
   const [newIssueNotes, setNewIssueNotes] = useState('');
   const [photos, setPhotos] = useState<SensorPhoto[]>([]);
   const [loadingPhotos, setLoadingPhotos] = useState(true);
+  const [sensorModels, setSensorModels] = useState<SensorModel[]>([]);
+  const [editingSensorModel, setEditingSensorModel] = useState(false);
+  const [newSensorModelId, setNewSensorModelId] = useState('');
 
   const fetchSensor = useCallback(async () => {
     if (!user?.id || !sensorId) return;
 
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('sensors')
-        .select('*')
+        .select(`
+          *,
+          sensorModel:sensor_models(*)
+        `)
         .eq('id', sensorId)
         .eq('user_id', user.id) // Ensure user can only view their own sensors
         .eq('is_deleted', false) // Don't show deleted sensors
@@ -83,6 +97,27 @@ export default function SensorDetailPage() {
     fetchSensor();
     fetchPhotos();
   }, [fetchSensor, fetchPhotos]);
+
+  // Fetch available sensor models
+  useEffect(() => {
+    const fetchSensorModels = async () => {
+      const { data, error } = await (supabase as any)
+        .from('sensor_models')
+        .select('*')
+        .eq('is_active', true)
+        .order('manufacturer', { ascending: true })
+        .order('model_name', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching sensor models:', error);
+        return;
+      }
+
+      setSensorModels(data || []);
+    };
+
+    fetchSensorModels();
+  }, []);
 
 
 
@@ -155,6 +190,47 @@ export default function SensorDetailPage() {
     if (sensor) {
       setNewDateAdded(formatDateForInput(sensor.date_added));
       setEditingDate(true);
+    }
+  };
+
+  const updateSensorModel = async () => {
+    if (!sensor || !user?.id || !newSensorModelId) return;
+
+    setUpdating(true);
+    try {
+      const { error } = await (supabase as any)
+        .from('sensors')
+        .update({ sensor_model_id: newSensorModelId })
+        .eq('id', sensor.id)
+        .eq('user_id', user.id); // Ensure user can only update their own sensors
+
+      if (error) throw error;
+
+      // Update local state - we need to refetch to get the updated sensor model data
+      await fetchSensor();
+      setEditingSensorModel(false);
+      setNewSensorModelId('');
+    } catch (error) {
+      console.error('Error updating sensor model:', error);
+      setError(
+        error instanceof Error ? error.message : 'Failed to update sensor model'
+      );
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const cancelSensorModelEdit = () => {
+    setEditingSensorModel(false);
+    setNewSensorModelId('');
+  };
+
+  const startSensorModelEdit = () => {
+    if (sensor) {
+      // For backward compatibility, try to get sensor_model_id, otherwise it might be null
+      const currentModelId = (sensor as any).sensor_model_id || '';
+      setNewSensorModelId(currentModelId);
+      setEditingSensorModel(true);
     }
   };
 
@@ -269,7 +345,10 @@ export default function SensorDetailPage() {
               {sensor.serial_number}
             </h1>
             <p className='text-lg text-gray-600 dark:text-slate-400 mt-2'>
-              Sensor Details & Management
+              {(sensor as any).sensorModel
+                ? `${(sensor as any).sensorModel.manufacturer} ${(sensor as any).sensorModel.model_name} • Sensor Details & Management`
+                : sensor.sensor_type === 'dexcom' ? 'Dexcom • Sensor Details & Management' : 'Abbott FreeStyle Libre • Sensor Details & Management'
+              }
             </p>
           </div>
           <div className='flex items-center space-x-3'>
@@ -298,17 +377,53 @@ export default function SensorDetailPage() {
             <dl className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
               <div>
                 <dt className='text-sm font-medium text-gray-500 dark:text-slate-400'>
-                  Sensor Type
+                  Sensor Model
                 </dt>
                 <dd className='mt-1'>
-                  <span
-                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      sensor.sensor_type === 'dexcom'
-                        ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300'
-                        : 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300'
-                    }`}>
-                    {sensor.sensor_type === 'dexcom' ? 'Dexcom' : 'Freestyle'}
-                  </span>
+                  {editingSensorModel ? (
+                    <div className='flex items-center space-x-2'>
+                      <select
+                        value={newSensorModelId}
+                        onChange={(e) => setNewSensorModelId(e.target.value)}
+                        className='text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500'
+                      >
+                        <option value="">Select a sensor model...</option>
+                        {sensorModels.map((model) => (
+                          <option key={model.id} value={model.id}>
+                            {model.manufacturer} {model.model_name} ({model.duration_days} days)
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        onClick={updateSensorModel}
+                        disabled={updating || !newSensorModelId}
+                        className='text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed'>
+                        {updating ? 'Saving...' : 'Save'}
+                      </button>
+                      <button
+                        onClick={cancelSensorModelEdit}
+                        disabled={updating}
+                        className='text-xs bg-gray-600 text-white px-2 py-1 rounded hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed'>
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <div className='flex items-center space-x-2'>
+                      <span className='inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300'>
+                        {(sensor as any).sensorModel
+                          ? `${(sensor as any).sensorModel.manufacturer} ${(sensor as any).sensorModel.model_name}`
+                          : sensor.sensor_type === 'dexcom' ? 'Dexcom G6' : 'Abbott FreeStyle Libre'
+                        }
+                      </span>
+                      {sensorModels.length > 0 && (
+                        <button
+                          onClick={startSensorModelEdit}
+                          className='text-xs text-blue-600 hover:text-blue-500 underline'>
+                          Edit
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </dd>
               </div>
               <div>
@@ -326,6 +441,16 @@ export default function SensorDetailPage() {
                   </dt>
                   <dd className='mt-1 text-sm text-gray-900 dark:text-slate-100 font-mono'>
                     {sensor.lot_number}
+                  </dd>
+                </div>
+              )}
+              {(!(sensor as any).sensorModel || (sensor as any).sensorModel?.manufacturer !== 'Dexcom') && !sensor.lot_number && (
+                <div>
+                  <dt className='text-sm font-medium text-gray-500 dark:text-slate-400'>
+                    Lot Number
+                  </dt>
+                  <dd className='mt-1 text-sm text-gray-500 dark:text-slate-400 italic'>
+                    Not required for this sensor type
                   </dd>
                 </div>
               )}

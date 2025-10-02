@@ -8,7 +8,13 @@ import { RecentSensors } from '@/components/dashboard/recent-sensors';
 import { QuickActions } from '@/components/dashboard/quick-actions';
 import { Database } from '@/lib/database.types';
 
-type Sensor = Database['public']['Tables']['sensors']['Row'];
+type Sensor = Database['public']['Tables']['sensors']['Row'] & {
+  sensorModel?: {
+    manufacturer: string;
+    model_name: string;
+    duration_days: number;
+  };
+};
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -21,12 +27,16 @@ export default function DashboardPage() {
     
     try {
       setError(null);
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('sensors')
-        .select('*')
+        .select(`
+          *,
+          sensorModel:sensor_models(*)
+        `)
         .eq('user_id', user.id)
         .eq('is_deleted', false)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(5); // Only get recent sensors for dashboard
 
       if (error) throw error;
       setSensors(data || []);

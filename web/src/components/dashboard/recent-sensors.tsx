@@ -1,7 +1,15 @@
 import Link from 'next/link';
 import { Database } from '@/lib/database.types';
+import { getSensorExpirationInfo, formatDaysLeft } from '../../../../shared/src/utils/sensorExpiration';
+import { SensorType } from '../../../../shared/src/models/Sensor';
 
-type Sensor = Database['public']['Tables']['sensors']['Row'];
+type Sensor = Database['public']['Tables']['sensors']['Row'] & {
+  sensorModel?: {
+    manufacturer: string;
+    model_name: string;
+    duration_days: number;
+  };
+};
 
 interface RecentSensorsProps {
   sensors: Sensor[];
@@ -52,33 +60,90 @@ export function RecentSensors({ sensors, onRefresh }: RecentSensorsProps) {
         </div>
       ) : (
         <div className="space-y-3">
-          {sensors.map((sensor) => (
-            <Link
-              key={sensor.id}
-              href={`/dashboard/sensors/${sensor.id}`}
-              className="block p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className={`w-3 h-3 rounded-full ${sensor.is_problematic ? 'bg-red-400' : 'bg-green-400'}`} />
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">{sensor.serial_number}</p>
-                    <p className="text-xs text-gray-500">Lot: {sensor.lot_number}</p>
+          {sensors.map((sensor) => {
+            // Use sensorModel if available, otherwise fall back to sensor_type for backward compatibility
+            const sensorModel: any = sensor.sensorModel ? {
+              ...sensor.sensorModel,
+              modelName: sensor.sensorModel.model_name,
+              durationDays: sensor.sensorModel.duration_days,
+            } : {
+              id: 'fallback',
+              manufacturer: (sensor as any).sensor_type === 'dexcom' ? 'Dexcom' : 'Abbott',
+              modelName: (sensor as any).sensor_type === 'dexcom' ? 'G6' : 'FreeStyle Libre',
+              durationDays: (sensor as any).sensor_type === 'dexcom' ? 10 : 14,
+              isActive: true,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            };
+            
+            const sensorExpInfo = getSensorExpirationInfo(
+              new Date(sensor.date_added),
+              sensorModel
+            );
+            
+            const getStatusColor = () => {
+              if (sensor.is_problematic) return 'bg-red-400';
+              if (sensorExpInfo.isExpired) return 'bg-gray-400';
+              if (sensorExpInfo.expirationStatus === 'critical') return 'bg-red-500';
+              if (sensorExpInfo.expirationStatus === 'warning') return 'bg-yellow-400';
+              return 'bg-green-400';
+            };
+            
+            const getCardStyle = () => {
+              if (sensorExpInfo.isExpired) return 'block p-3 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors';
+              if (sensorExpInfo.expirationStatus === 'critical') return 'block p-3 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors';
+              if (sensorExpInfo.expirationStatus === 'warning') return 'block p-3 bg-yellow-50 border border-yellow-200 rounded-lg hover:bg-yellow-100 transition-colors';
+              return 'block p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors';
+            };
+
+            return (
+              <Link
+                key={sensor.id}
+                href={`/dashboard/sensors/${sensor.id}`}
+                className={getCardStyle()}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className={`w-3 h-3 rounded-full ${getStatusColor()}`} />
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">{sensor.serial_number}</p>
+                      <p className="text-xs text-gray-500">
+                        {sensorModel.manufacturer} {sensorModel.modelName}
+                        {sensor.lot_number && ` • Lot: ${sensor.lot_number}`}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-gray-500">
+                      {formatDaysLeft(sensorExpInfo.daysLeft)}
+                    </p>
+                    <div className="flex items-center space-x-1 mt-1">
+                      {sensor.is_problematic && (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                          Issue
+                        </span>
+                      )}
+                      {sensorExpInfo.isExpired && (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                          Expired
+                        </span>
+                      )}
+                      {sensorExpInfo.expirationStatus === 'critical' && !sensorExpInfo.isExpired && (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                          Critical
+                        </span>
+                      )}
+                      {sensorExpInfo.expirationStatus === 'warning' && (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                          Expiring
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-xs text-gray-500">
-                    {formatDate(sensor.date_added)}
-                  </p>
-                  {sensor.is_problematic && (
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 mt-1">
-                      Issue
-                    </span>
-                  )}
-                </div>
-              </div>
-            </Link>
-          ))}
+              </Link>
+            );
+          })}
         </div>
       )}
     </div>

@@ -1,24 +1,67 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/components/providers/auth-provider';
-import { SensorType } from '@/types/sensor';
 import ImageUpload from '@/components/sensors/image-upload';
+
+interface SensorModel {
+  id: string;
+  manufacturer: string;
+  model_name: string;
+  duration_days: number;
+  is_active: boolean;
+}
 
 export default function NewSensorPage() {
   const { user } = useAuth();
   const router = useRouter();
   
-  const [sensorType, setSensorType] = useState<SensorType>(SensorType.DEXCOM);
+  const [sensorModels, setSensorModels] = useState<SensorModel[]>([]);
+  const [selectedSensorModelId, setSelectedSensorModelId] = useState<string>('');
+  const [selectedSensorModel, setSelectedSensorModel] = useState<SensorModel | null>(null);
   const [initialPhotos, setInitialPhotos] = useState<string[]>([]);
   const [serialNumber, setSerialNumber] = useState('');
   const [lotNumber, setLotNumber] = useState('');
   const [dateAdded, setDateAdded] = useState(new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Fetch available sensor models
+  useEffect(() => {
+    const fetchSensorModels = async () => {
+      const { data, error } = await (supabase as any)
+        .from('sensor_models')
+        .select('*')
+        .eq('is_active', true)
+        .order('manufacturer', { ascending: true })
+        .order('model_name', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching sensor models:', error);
+        setError('Failed to load sensor models. Please ensure the database is properly set up.');
+        return;
+      }
+
+      setSensorModels((data as SensorModel[]) || []);
+      // Set default selection to first Dexcom model if available
+      const defaultModel = (data as SensorModel[])?.find(model => model.manufacturer === 'Dexcom');
+      if (defaultModel) {
+        setSelectedSensorModelId(defaultModel.id);
+        setSelectedSensorModel(defaultModel);
+      }
+    };
+
+    fetchSensorModels();
+  }, []);
+
+  // Update selected sensor model when selection changes
+  useEffect(() => {
+    const model = sensorModels.find(m => m.id === selectedSensorModelId);
+    setSelectedSensorModel(model || null);
+  }, [selectedSensorModelId, sensorModels]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,7 +71,7 @@ export default function NewSensorPage() {
       return;
     }
 
-    if (sensorType === SensorType.DEXCOM && !lotNumber.trim()) {
+    if (selectedSensorModel?.manufacturer === 'Dexcom' && !lotNumber.trim()) {
       setError('Lot number is required for Dexcom sensors');
       return;
     }
@@ -39,11 +82,11 @@ export default function NewSensorPage() {
     try {
       const sensorData: any = {
         user_id: user.id,
-        sensor_type: sensorType,
+        sensor_model_id: selectedSensorModelId,
         serial_number: serialNumber.trim(),
         date_added: dateAdded,
         is_problematic: false,
-        ...(sensorType === SensorType.DEXCOM && { lot_number: lotNumber.trim() }),
+        ...(selectedSensorModel?.manufacturer === 'Dexcom' && { lot_number: lotNumber.trim() }),
       };
 
       const { data, error } = await supabase
@@ -161,25 +204,32 @@ export default function NewSensorPage() {
           )}
 
           <div>
-            <label htmlFor="sensorType" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
-              Sensor Type *
+            <label htmlFor="sensorModel" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+              Sensor Model *
             </label>
             <select
-              id="sensorType"
+              id="sensorModel"
               required
               className="input"
-              value={sensorType}
+              value={selectedSensorModelId}
               onChange={(e) => {
-                const value = e.target.value as keyof typeof SensorType;
-                setSensorType(SensorType[value]);
-                if (value === "FREESTYLE") setLotNumber('');
+                setSelectedSensorModelId(e.target.value);
+                // Clear lot number if switching away from Dexcom
+                const selectedModel = sensorModels.find(m => m.id === e.target.value);
+                if (selectedModel?.manufacturer !== 'Dexcom') {
+                  setLotNumber('');
+                }
               }}
             >
-              <option value="DEXCOM">Dexcom</option>
-              <option value="FREESTYLE">Freestyle</option>
+              <option value="">Select a sensor model...</option>
+              {sensorModels.map((model) => (
+                <option key={model.id} value={model.id}>
+                  {model.manufacturer} {model.model_name} ({model.duration_days} days)
+                </option>
+              ))}
             </select>
             <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
-              Select your CGM sensor type
+              Select your specific CGM sensor model
             </p>
           </div>
 
@@ -201,7 +251,7 @@ export default function NewSensorPage() {
             </p>
           </div>
 
-          {sensorType === SensorType.DEXCOM && (
+          {selectedSensorModel?.manufacturer === 'Dexcom' && (
             <div>
               <label htmlFor="lotNumber" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 Lot Number *
@@ -311,7 +361,7 @@ export default function NewSensorPage() {
               </Link>
               <button
                 type="submit"
-                disabled={loading || !serialNumber.trim() || (sensorType === SensorType.DEXCOM && !lotNumber.trim())}
+                disabled={loading || !serialNumber.trim() || !selectedSensorModelId || (selectedSensorModel?.manufacturer === 'Dexcom' && !lotNumber.trim())}
                 className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? (

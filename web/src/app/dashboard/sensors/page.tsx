@@ -7,7 +7,13 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/components/providers/auth-provider';
 import { Database } from '@/lib/database.types';
 
-type Sensor = Database['public']['Tables']['sensors']['Row'];
+type Sensor = Database['public']['Tables']['sensors']['Row'] & {
+  sensorModel?: {
+    manufacturer: string;
+    model_name: string;
+    duration_days: number;
+  };
+};
 
 export default function SensorsPage() {
   const { user } = useAuth();
@@ -25,9 +31,12 @@ export default function SensorsPage() {
     
     try {
       setError(null);
-      let query = supabase
+      let query = (supabase as any)
         .from('sensors')
-        .select('*')
+        .select(`
+          *,
+          sensorModel:sensor_models(*)
+        `)
         .eq('user_id', user.id)
         .eq('is_deleted', false)
         .order('created_at', { ascending: false });
@@ -240,11 +249,18 @@ export default function SensorsPage() {
                         {sensor.serial_number}
                       </h3>
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        sensor.sensor_type === 'dexcom' 
-                          ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300'
-                          : 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300'
+                        sensor.sensorModel 
+                          ? (sensor.sensorModel.manufacturer === 'Dexcom' 
+                              ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300'
+                              : 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300')
+                          : (sensor.sensor_type === 'dexcom' 
+                              ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300'
+                              : 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300')
                       }`}>
-                        {sensor.sensor_type === 'dexcom' ? 'Dexcom' : 'Freestyle'}
+                        {sensor.sensorModel 
+                          ? sensor.sensorModel.manufacturer 
+                          : (sensor.sensor_type === 'dexcom' ? 'Dexcom' : 'Freestyle')
+                        }
                       </span>
                     </div>
                     {sensor.lot_number && (
