@@ -157,9 +157,14 @@ export default function SensorDetailPage() {
 
     setUpdating(true);
     try {
+      // Create a Date object from the local datetime input and convert to ISO string
+      // This ensures the timestamp represents the exact local time the user selected
+      const localDateTime = new Date(newDateAdded + ':00'); // Add seconds if missing
+      const isoString = localDateTime.toISOString();
+
       const { error } = await supabase
         .from('sensors')
-        .update({ date_added: newDateAdded })
+        .update({ date_added: isoString })
         .eq('id', sensor.id)
         .eq('user_id', user.id); // Ensure user can only update their own sensors
 
@@ -167,7 +172,7 @@ export default function SensorDetailPage() {
 
       setSensor({
         ...sensor,
-        date_added: newDateAdded,
+        date_added: isoString,
       });
       setEditingDate(false);
       setNewDateAdded('');
@@ -261,20 +266,22 @@ export default function SensorDetailPage() {
   };
 
   const formatDate = (dateString: string) => {
-    // Parse date as local date to avoid timezone issues
-    const [year, month, day] = dateString.split('-');
-    const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+    const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
       day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
     });
   };
 
   const formatDateForInput = (dateString: string) => {
-    // Return date in YYYY-MM-DD format for input field
-    return dateString;
+    // Convert stored UTC timestamp back to local time for datetime-local input
+    const utcDate = new Date(dateString);
+    const localTime = new Date(utcDate.getTime() - (utcDate.getTimezoneOffset() * 60000));
+    return localTime.toISOString().slice(0, 16);
   };
 
   if (loading) {
@@ -462,10 +469,10 @@ export default function SensorDetailPage() {
                   {editingDate ? (
                     <div className='flex items-center space-x-2'>
                       <input
-                        type='date'
+                        type='datetime-local'
                         value={newDateAdded}
                         onChange={(e) => setNewDateAdded(e.target.value)}
-                        className='text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500'
+                        className='text-sm border border-gray-300 dark:border-slate-600 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100'
                       />
                       <button
                         onClick={updateDateAdded}
@@ -476,13 +483,13 @@ export default function SensorDetailPage() {
                       <button
                         onClick={cancelDateEdit}
                         disabled={updating}
-                        className='text-xs bg-gray-300 text-gray-700 px-2 py-1 rounded hover:bg-gray-400 disabled:opacity-50 disabled:cursor-not-allowed'>
+                        className='text-xs bg-gray-300 dark:bg-slate-600 text-gray-700 dark:text-slate-300 px-2 py-1 rounded hover:bg-gray-400 dark:hover:bg-slate-500 disabled:opacity-50 disabled:cursor-not-allowed'>
                         Cancel
                       </button>
                     </div>
                   ) : (
                     <div className='flex items-center space-x-2'>
-                      <span className='text-sm text-gray-900'>
+                      <span className='text-sm text-gray-900 dark:text-slate-100'>
                         {formatDate(sensor.date_added)}
                       </span>
                       <button

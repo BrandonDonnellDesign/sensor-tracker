@@ -9,7 +9,7 @@ import { QuickActions } from '@/components/dashboard/quick-actions';
 import { Database } from '@/lib/database.types';
 
 type Sensor = Database['public']['Tables']['sensors']['Row'] & {
-  sensorModel?: {
+  sensor_models?: {
     manufacturer: string;
     model_name: string;
     duration_days: number;
@@ -31,7 +31,11 @@ export default function DashboardPage() {
         .from('sensors')
         .select(`
           *,
-          sensorModel:sensor_models(*)
+          sensor_models (
+            manufacturer,
+            model_name,
+            duration_days
+          )
         `)
         .eq('user_id', user.id)
         .eq('is_deleted', false)

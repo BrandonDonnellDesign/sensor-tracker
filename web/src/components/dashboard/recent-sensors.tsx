@@ -1,10 +1,10 @@
 import Link from 'next/link';
 import { Database } from '@/lib/database.types';
-import { getSensorExpirationInfo, formatDaysLeft } from '../../../../shared/src/utils/sensorExpiration';
-import { SensorType } from '../../../../shared/src/models/Sensor';
+import { getSensorExpirationInfo, formatDaysLeft } from '@dexcom-tracker/shared';
+import { SensorType } from '@dexcom-tracker/shared';
 
 type Sensor = Database['public']['Tables']['sensors']['Row'] & {
-  sensorModel?: {
+  sensor_models?: {
     manufacturer: string;
     model_name: string;
     duration_days: number;
@@ -62,10 +62,10 @@ export function RecentSensors({ sensors, onRefresh }: RecentSensorsProps) {
         <div className="space-y-3">
           {sensors.map((sensor) => {
             // Use sensorModel if available, otherwise fall back to sensor_type for backward compatibility
-            const sensorModel: any = sensor.sensorModel ? {
-              ...sensor.sensorModel,
-              modelName: sensor.sensorModel.model_name,
-              durationDays: sensor.sensorModel.duration_days,
+            const sensorModel: any = sensor.sensor_models ? {
+              ...sensor.sensor_models,
+              modelName: sensor.sensor_models.model_name,
+              durationDays: sensor.sensor_models.duration_days,
             } : {
               id: 'fallback',
               manufacturer: (sensor as any).sensor_type === 'dexcom' ? 'Dexcom' : 'Abbott',

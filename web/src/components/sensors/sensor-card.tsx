@@ -75,7 +75,7 @@ export function SensorCard({ sensor, onUpdate }: SensorCardProps) {
       <div className="space-y-2 text-sm text-gray-600">
         <div className="flex justify-between">
           <span>Date Added:</span>
-          <span>{format(new Date(sensor.date_added), 'MMM d, yyyy')}</span>
+          <span>{format(new Date(sensor.date_added), 'MMM d, yyyy h:mm a')}</span>
         </div>
         
         {sensor.is_problematic && sensor.issue_notes && (

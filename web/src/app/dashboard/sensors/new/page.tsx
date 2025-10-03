@@ -25,7 +25,11 @@ export default function NewSensorPage() {
   const [initialPhotos, setInitialPhotos] = useState<string[]>([]);
   const [serialNumber, setSerialNumber] = useState('');
   const [lotNumber, setLotNumber] = useState('');
-  const [dateAdded, setDateAdded] = useState(new Date().toISOString().split('T')[0]);
+  const [dateAdded, setDateAdded] = useState(() => {
+    const now = new Date();
+    // Format for datetime-local input: YYYY-MM-DDTHH:MM
+    return now.toISOString().slice(0, 16);
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -276,7 +280,7 @@ export default function NewSensorPage() {
               Date Applied
             </label>
             <input
-              type="date"
+              type="datetime-local"
               id="dateAdded"
               className="input"
               value={dateAdded}
