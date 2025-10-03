@@ -62,3 +62,6 @@ export const debounce = <T extends (...args: any[]) => any>(
 export const sleep = (ms: number): Promise<void> => {
   return new Promise(resolve => setTimeout(resolve, ms));
 };
+
+// Export sensor expiration utilities
+export * from './sensorExpiration';

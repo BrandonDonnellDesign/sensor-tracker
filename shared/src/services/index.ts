@@ -47,3 +47,6 @@ export interface IPhotoService {
 
 // Re-export types
 export type { User, Sensor, Photo, CreateSensorRequest, UpdateSensorRequest, LoginRequest, LoginResponse, ApiResponse, SyncStatus, SyncConflict } from '../models';
+
+// Re-export notification service functions
+export * from './notificationsService';

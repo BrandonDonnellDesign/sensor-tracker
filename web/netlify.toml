@@ -1,5 +1,5 @@
 [build]
-  command = "npm run build"
+  command = "cd ../shared && npm install && npm run build && cd ../web && npm run build"
   publish = ".next"
 
 [[plugins]]
