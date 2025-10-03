@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/components/providers/auth-provider';
 import ImageUpload from '@/components/sensors/image-upload';
+import { type ExtractedSensorData } from '@/utils/sensor-ocr';
 
 interface SensorModel {
   id: string;
@@ -25,6 +26,7 @@ export default function NewSensorPage() {
   const [initialPhotos, setInitialPhotos] = useState<string[]>([]);
   const [serialNumber, setSerialNumber] = useState('');
   const [lotNumber, setLotNumber] = useState('');
+  const [extractedData, setExtractedData] = useState<ExtractedSensorData | null>(null);
   const [dateAdded, setDateAdded] = useState(() => {
     const now = new Date();
     // Format for datetime-local input: YYYY-MM-DDTHH:MM
@@ -50,16 +52,85 @@ export default function NewSensorPage() {
       }
 
       setSensorModels((data as SensorModel[]) || []);
-      // Set default selection to first Dexcom model if available
-      const defaultModel = (data as SensorModel[])?.find(model => model.manufacturer === 'Dexcom');
-      if (defaultModel) {
-        setSelectedSensorModelId(defaultModel.id);
-        setSelectedSensorModel(defaultModel);
-      }
+      console.log('Loaded sensor models:', (data as SensorModel[]) || []);
+      // Don't set default selection - let OCR auto-populate or user select manually
     };
 
     fetchSensorModels();
   }, []);
+
+  // Handle extracted data from OCR
+  const handleDataExtracted = (data: ExtractedSensorData) => {
+    console.log('=== Auto-Population Debug ===');
+    console.log('Received extracted data:', data);
+    console.log('Current form state:', {
+      serialNumber,
+      lotNumber,
+      selectedSensorModelId,
+      sensorModelsCount: sensorModels.length
+    });
+    
+    setExtractedData(data);
+    
+    // Auto-populate fields if they're empty and confidence is reasonable
+    if (data.confidence > 30) { // Lowered from 60 to 30
+      console.log('Confidence sufficient for auto-population:', data.confidence);
+      
+      if (data.serialNumber && !serialNumber) {
+        console.log('Auto-populating serial number:', data.serialNumber);
+        setSerialNumber(data.serialNumber);
+      }
+      
+      if (data.lotNumber && !lotNumber) {
+        console.log('Auto-populating lot number:', data.lotNumber);
+        setLotNumber(data.lotNumber);
+      }
+      
+      // Try to auto-select sensor model based on manufacturer and model name
+      if (data.manufacturer) {
+        console.log('Attempting to match sensor model...');
+        console.log('Available models:', sensorModels.map(m => ({ id: m.id, manufacturer: m.manufacturer, model: m.model_name })));
+        
+        let matchingModel = null;
+        
+        // First try to match by both manufacturer and model name
+        if (data.modelName) {
+          console.log('Trying to match manufacturer + model:', data.manufacturer, data.modelName);
+          matchingModel = sensorModels.find(model => {
+            const manufacturerMatch = model.manufacturer.toLowerCase() === data.manufacturer?.toLowerCase();
+            const modelMatch = model.model_name.toLowerCase().includes(data.modelName?.toLowerCase() || '');
+            console.log('Model check:', model.manufacturer, model.model_name, 'matches:', { manufacturerMatch, modelMatch });
+            return manufacturerMatch && modelMatch;
+          });
+        }
+        
+        // Fallback to manufacturer only
+        if (!matchingModel) {
+          console.log('Trying manufacturer-only match:', data.manufacturer);
+          matchingModel = sensorModels.find(model => {
+            const match = model.manufacturer.toLowerCase() === data.manufacturer?.toLowerCase();
+            console.log('Manufacturer check:', model.manufacturer, 'matches:', match);
+            return match;
+          });
+        }
+        
+        // Auto-select if we found a match and either no model is selected OR confidence is high
+        if (matchingModel && (!selectedSensorModelId || data.confidence > 70)) {
+          console.log('✅ Found matching model:', matchingModel);
+          setSelectedSensorModelId(matchingModel.id);
+          setSelectedSensorModel(matchingModel);
+        } else if (matchingModel) {
+          console.log('⚠️ Found matching model but not overriding existing selection:', matchingModel);
+        } else {
+          console.log('❌ No matching model found');
+        }
+      } else {
+        console.log('Skipping model selection: no manufacturer detected');
+      }
+    } else {
+      console.log('Confidence too low for auto-population:', data.confidence);
+    }
+  };
 
   // Update selected sensor model when selection changes
   useEffect(() => {
@@ -303,6 +374,41 @@ export default function NewSensorPage() {
                     </span>
                   )}
                 </p>
+                
+                {/* Show extracted data feedback */}
+                {extractedData && extractedData.confidence > 20 && (
+                  <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3">
+                    <div className="flex items-start">
+                      <svg className="w-5 h-5 text-green-500 dark:text-green-400 mt-0.5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                      <div className="flex-1">
+                        <h4 className="text-sm font-medium text-green-800 dark:text-green-200">
+                          Data extracted from image ({extractedData.confidence}% confidence)
+                        </h4>
+                        <div className="mt-1 text-sm text-green-700 dark:text-green-300 space-y-1">
+                          {extractedData.manufacturer && (
+                            <div>• Manufacturer: {extractedData.manufacturer}</div>
+                          )}
+                          {extractedData.modelName && (
+                            <div>• Model: {extractedData.modelName}</div>
+                          )}
+                          {extractedData.serialNumber && (
+                            <div>• Serial Number: {extractedData.serialNumber}</div>
+                          )}
+                          {extractedData.lotNumber && (
+                            <div>• Lot Number: {extractedData.lotNumber}</div>
+                          )}
+                          {extractedData.confidence > 30 && (
+                            <div className="text-xs mt-2 text-green-600 dark:text-green-400">
+                              ✓ Form fields have been auto-populated. Please verify the information is correct.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <ImageUpload
                   sensorId={null}
                   userId={user?.id || ''}
@@ -311,6 +417,7 @@ export default function NewSensorPage() {
                     setInitialPhotos((prev) => [...prev, ...paths]);
                   }}
                   onError={(error) => setError(error)}
+                  onDataExtracted={handleDataExtracted}
                 />
               </div>
             </div>

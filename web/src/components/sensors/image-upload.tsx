@@ -2,7 +2,9 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
+import { createWorker, PSM } from 'tesseract.js';
 import { supabase } from '@/lib/supabase';
+import { extractSensorData, testExtractionWithSampleData, type ExtractedSensorData } from '@/utils/sensor-ocr';
 
 interface ImageUploadProps {
   sensorId: string | null;
@@ -10,17 +12,111 @@ interface ImageUploadProps {
   skipDatabase?: boolean;
   onUploadComplete?: (paths: string[]) => void;
   onError?: (error: string) => void;
+  onDataExtracted?: (data: ExtractedSensorData) => void;
 }
 
 interface UploadPreview {
   file: File;
   objectUrl: string;
   progress: number;
+  ocrProgress?: number;
+  extractedData?: ExtractedSensorData;
 }
 
-export default function ImageUpload({ sensorId, userId, skipDatabase = false, onUploadComplete, onError }: ImageUploadProps) {
+export default function ImageUpload({ sensorId, userId, skipDatabase = false, onUploadComplete, onError, onDataExtracted }: ImageUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [previews, setPreviews] = useState<UploadPreview[]>([]);
+  const [processingOCR, setProcessingOCR] = useState(false);
+
+  const processImageWithOCR = async (file: File, index: number) => {
+    try {
+      console.log(`🚀 Starting OCR for image: ${file.name}`);
+      
+      // Update OCR progress
+      setPreviews(prev => prev.map((p, i) => 
+        i === index ? { ...p, ocrProgress: 0 } : p
+      ));
+
+      const worker = await createWorker('eng');
+      
+      // Try multiple OCR configurations for better accuracy
+      console.log('🔧 Configuring OCR settings...');
+      
+      // Configuration 1: Optimized for medical device labels
+      await worker.setParameters({
+        tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz/-:(). ',
+        tessedit_pageseg_mode: PSM.AUTO, // Let Tesseract auto-detect layout
+        tessedit_ocr_engine_mode: 2, // Use LSTM OCR engine
+      });
+
+      setPreviews(prev => prev.map((p, i) => 
+        i === index ? { ...p, ocrProgress: 25 } : p
+      ));
+
+      console.log('📖 Running OCR recognition (Config 1: AUTO)...');
+      let { data: { text } } = await worker.recognize(file);
+      
+      // If first attempt didn't work well, try a different configuration
+      if (!text || text.trim().length < 10) {
+        console.log('🔄 First OCR attempt poor, trying different config...');
+        
+        await worker.setParameters({
+          tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz/-:(). ',
+          tessedit_pageseg_mode: PSM.SINGLE_BLOCK,
+          tessedit_ocr_engine_mode: 1, // Use legacy OCR engine
+        });
+        
+        const { data: { text: text2 } } = await worker.recognize(file);
+        if (text2 && text2.trim().length > text.trim().length) {
+          text = text2;
+          console.log('✅ Second OCR attempt was better');
+        }
+      }
+      
+      setPreviews(prev => prev.map((p, i) => 
+        i === index ? { ...p, ocrProgress: 75 } : p
+      ));
+
+      console.log('🔍 Raw OCR Text from image:', JSON.stringify(text));
+      console.log('📝 OCR Text length:', text.length);
+      console.log('📋 OCR Text (formatted):');
+      console.log(text);
+      
+      // Check if OCR found any text at all
+      if (!text || text.trim().length === 0) {
+        console.log('⚠️ OCR returned empty text - image might not be clear enough');
+        setPreviews(prev => prev.map((p, i) => 
+          i === index ? { ...p, ocrProgress: 100, extractedData: { confidence: 0 } } : p
+        ));
+        await worker.terminate();
+        return;
+      }
+      
+      // Extract sensor data from OCR text
+      const extractedData = extractSensorData(text);
+      console.log('📊 Final extracted sensor data:', extractedData);
+
+      setPreviews(prev => prev.map((p, i) => 
+        i === index ? { ...p, ocrProgress: 100, extractedData } : p
+      ));
+
+      // Notify parent component if reasonable confidence data was found
+      if (extractedData.confidence > 30 && onDataExtracted) {
+        console.log('🎯 Calling onDataExtracted with confidence:', extractedData.confidence);
+        onDataExtracted(extractedData);
+      } else {
+        console.log('❌ Not calling onDataExtracted. Confidence:', extractedData.confidence, 'Callback exists:', !!onDataExtracted);
+      }
+
+      await worker.terminate();
+      
+    } catch (error) {
+      console.error('💥 OCR processing error:', error);
+      setPreviews(prev => prev.map((p, i) => 
+        i === index ? { ...p, ocrProgress: undefined } : p
+      ));
+    }
+  };
 
   const uploadImages = async (event: React.ChangeEvent<HTMLInputElement>) => {
     try {
@@ -28,14 +124,26 @@ export default function ImageUpload({ sensorId, userId, skipDatabase = false, on
       if (files.length === 0) return;
 
       setUploading(true);
+      setProcessingOCR(true);
 
       // Create previews
       const newPreviews: UploadPreview[] = files.map(file => ({
         file,
         objectUrl: URL.createObjectURL(file),
-        progress: 0
+        progress: 0,
+        ocrProgress: 0
       }));
       setPreviews(newPreviews);
+
+      // Process OCR for each image in parallel (but limit concurrency)
+      const ocrPromises = files.map((file, index) => 
+        processImageWithOCR(file, index)
+      );
+      
+      // Start OCR processing
+      Promise.all(ocrPromises).finally(() => {
+        setProcessingOCR(false);
+      });
 
       const uploadPromises = files.map(async (file, index) => {
         try {
@@ -166,13 +274,68 @@ export default function ImageUpload({ sensorId, userId, skipDatabase = false, on
                   fill
                   sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
                 />
+                
+                {/* Upload Progress */}
                 {preview.progress > 0 && preview.progress < 100 && (
                   <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-lg">
-                    <div className="h-2 w-3/4 bg-gray-200 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-blue-500 transition-all duration-300" 
-                        style={{ width: `${preview.progress}%` }}
-                      />
+                    <div className="text-center">
+                      <div className="h-2 w-3/4 bg-gray-200 rounded-full overflow-hidden mx-auto mb-2">
+                        <div 
+                          className="h-full bg-blue-500 transition-all duration-300" 
+                          style={{ width: `${preview.progress}%` }}
+                        />
+                      </div>
+                      <p className="text-white text-xs">Uploading...</p>
+                    </div>
+                  </div>
+                )}
+                
+                {/* OCR Progress */}
+                {preview.ocrProgress !== undefined && preview.ocrProgress < 100 && (
+                  <div className="absolute top-2 right-2 bg-purple-500 text-white text-xs px-2 py-1 rounded-full">
+                    {preview.ocrProgress === 0 ? 'Reading...' : `${preview.ocrProgress}%`}
+                  </div>
+                )}
+                
+                {/* Manual OCR Test Button */}
+                {preview.ocrProgress === undefined && (
+                  <button
+                    onClick={() => processImageWithOCR(preview.file, index)}
+                    className="absolute top-2 right-2 bg-blue-500 text-white text-xs px-2 py-1 rounded hover:bg-blue-600"
+                  >
+                    Test OCR
+                  </button>
+                )}
+                
+                {/* Extracted Data Indicator */}
+                {preview.extractedData && preview.extractedData.confidence > 50 && (
+                  <div className="absolute top-2 left-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full flex items-center">
+                    <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                    Data Found
+                  </div>
+                )}
+                
+                {/* Show extracted data */}
+                {preview.extractedData && preview.extractedData.confidence > 30 && (
+                  <div className="absolute bottom-0 left-0 right-0 bg-black/75 text-white text-xs p-2 rounded-b-lg">
+                    <div className="space-y-1">
+                      {preview.extractedData.manufacturer && (
+                        <div>Brand: {preview.extractedData.manufacturer}</div>
+                      )}
+                      {preview.extractedData.modelName && (
+                        <div>Model: {preview.extractedData.modelName}</div>
+                      )}
+                      {preview.extractedData.serialNumber && (
+                        <div>Serial: {preview.extractedData.serialNumber}</div>
+                      )}
+                      {preview.extractedData.lotNumber && (
+                        <div>Lot: {preview.extractedData.lotNumber}</div>
+                      )}
+                      <div className="text-gray-300">
+                        Confidence: {preview.extractedData.confidence}%
+                      </div>
                     </div>
                   </div>
                 )}
@@ -185,9 +348,14 @@ export default function ImageUpload({ sensorId, userId, skipDatabase = false, on
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
             <p className="mb-2 text-sm text-gray-500 dark:text-slate-400">
-              {uploading ? 'Uploading...' : 'Click to upload images'}
+              {uploading ? 'Uploading...' : processingOCR ? 'Reading text from images...' : 'Click to upload images'}
             </p>
-            <p className="text-xs text-gray-500 dark:text-slate-400">Select multiple images (PNG, JPG, GIF up to 5MB each)</p>
+            <p className="text-xs text-gray-500 dark:text-slate-400">
+              Upload sensor package photos to automatically extract serial numbers and lot numbers
+            </p>
+            <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
+              💡 Tip: Make sure text is clear and well-lit for best OCR results
+            </p>
           </div>
         )}
       </label>
