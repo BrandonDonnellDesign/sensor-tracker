@@ -68,10 +68,38 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   const signInWithGoogle = async () => {
+    // Get the current site URL, ensuring it works correctly in production
+    const getRedirectUrl = () => {
+      if (typeof window !== 'undefined') {
+        const origin = window.location.origin;
+        
+        // If we're on localhost but the environment suggests production
+        // (this can happen during development or misconfiguration)
+        if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+          // Check if we have a production site URL configured
+          const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+          if (siteUrl && process.env.NODE_ENV === 'production') {
+            return siteUrl;
+          }
+          // In development, use localhost
+          return origin;
+        }
+        
+        // Use the actual origin for production
+        return origin;
+      }
+      
+      // Fallback for server-side or when window is not available
+      return process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+    };
+
+    const redirectUrl = getRedirectUrl();
+    console.log('OAuth redirect URL:', `${redirectUrl}/dashboard`);
+
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/dashboard`
+        redirectTo: `${redirectUrl}/dashboard`
       }
     });
     return { user: null, session: null, error };
