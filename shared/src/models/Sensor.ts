@@ -7,6 +7,23 @@ export enum SensorType {
   FREESTYLE = 'freestyle'
 }
 
+export interface Tag {
+  id: string;
+  name: string;
+  category: string;
+  description?: string;
+  color: string;
+  createdAt: Date;
+}
+
+export interface SensorTag {
+  id: string;
+  sensorId: string;
+  tagId: string;
+  createdAt: Date;
+  tag?: Tag; // Populated when joined
+}
+
 export interface Sensor {
   id: string;
   userId: string;
@@ -17,6 +34,7 @@ export interface Sensor {
   isProblematic: boolean;
   issueNotes?: string;
   photos: Photo[];
+  tags?: SensorTag[]; // Tags associated with this sensor
   createdAt: Date;
   updatedAt: Date;
   syncedAt?: Date;
@@ -52,6 +70,7 @@ export interface UpdateSensorRequest {
   lotNumber?: string;
   isProblematic?: boolean;
   issueNotes?: string;
+  tagIds?: string[]; // Array of tag IDs to associate with sensor
 }
 
 export interface SensorWithPhotos extends Sensor {
@@ -67,6 +86,7 @@ export interface SensorListItem {
   isProblematic: boolean;
   photoCount: number;
   updatedAt: Date;
+  tags?: Tag[]; // Simplified tag list for display
 }
 
 export interface SensorFilter {
@@ -75,6 +95,8 @@ export interface SensorFilter {
   dateFrom?: Date;
   dateTo?: Date;
   searchTerm?: string;
+  tagIds?: string[]; // Filter by specific tags
+  tagCategories?: string[]; // Filter by tag categories
 }
 
 export interface SensorSort {

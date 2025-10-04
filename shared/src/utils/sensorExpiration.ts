@@ -93,7 +93,7 @@ export const getSensorExpirationInfo = (
   }
 
   return {
-    daysLeft: Math.max(0, daysLeft),
+    daysLeft,
     expirationDate,
     expirationStatus,
     isExpired,
@@ -104,7 +104,29 @@ export const getSensorExpirationInfo = (
 /**
  * Format days left into a human-readable string
  */
-export const formatDaysLeft = (daysLeft: number): string => {
+export const formatDaysLeft = (daysLeft: number, expirationInfo?: SensorExpirationInfo): string => {
+  // If we have expiration info and the sensor is expired, show the actual expiration date
+  if (expirationInfo && expirationInfo.isExpired) {
+    const expiredDate = expirationInfo.expirationDate;
+    const now = new Date();
+    const daysSinceExpired = Math.floor((now.getTime() - expiredDate.getTime()) / (1000 * 60 * 60 * 24));
+    
+    // Format the expiration date
+    const expiredDateFormatted = expiredDate.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric',
+      year: expiredDate.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
+    });
+    
+    if (daysSinceExpired === 0) {
+      return `Expired today (${expiredDateFormatted})`;
+    } else if (daysSinceExpired === 1) {
+      return `Expired yesterday (${expiredDateFormatted})`;
+    } else {
+      return `Expired ${expiredDateFormatted}`;
+    }
+  }
+  
   if (daysLeft === 0) {
     return 'Expires today';
   } else if (daysLeft === 1) {
