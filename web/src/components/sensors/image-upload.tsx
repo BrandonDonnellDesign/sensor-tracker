@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Image from 'next/image';
 import { createWorker, PSM } from 'tesseract.js';
 import { supabase } from '@/lib/supabase';
-import { extractSensorData, testExtractionWithSampleData, type ExtractedSensorData } from '@/utils/sensor-ocr';
+import { extractSensorData, type ExtractedSensorData } from '@/utils/sensor-ocr';
 
 interface ImageUploadProps {
   sensorId: string | null;
@@ -30,8 +30,6 @@ export default function ImageUpload({ sensorId, userId, skipDatabase = false, on
 
   const processImageWithOCR = async (file: File, index: number) => {
     try {
-      console.log(`🚀 Starting OCR for image: ${file.name}`);
-      
       // Update OCR progress
       setPreviews(prev => prev.map((p, i) => 
         i === index ? { ...p, ocrProgress: 0 } : p
@@ -39,37 +37,30 @@ export default function ImageUpload({ sensorId, userId, skipDatabase = false, on
 
       const worker = await createWorker('eng');
       
-      // Try multiple OCR configurations for better accuracy
-      console.log('🔧 Configuring OCR settings...');
-      
-      // Configuration 1: Optimized for medical device labels
+      // Configure OCR for medical device labels
       await worker.setParameters({
         tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz/-:(). ',
-        tessedit_pageseg_mode: PSM.AUTO, // Let Tesseract auto-detect layout
-        tessedit_ocr_engine_mode: 2, // Use LSTM OCR engine
+        tessedit_pageseg_mode: PSM.AUTO,
+        tessedit_ocr_engine_mode: 2,
       });
 
       setPreviews(prev => prev.map((p, i) => 
         i === index ? { ...p, ocrProgress: 25 } : p
       ));
 
-      console.log('📖 Running OCR recognition (Config 1: AUTO)...');
       let { data: { text } } = await worker.recognize(file);
       
-      // If first attempt didn't work well, try a different configuration
+      // Fallback to different configuration if needed
       if (!text || text.trim().length < 10) {
-        console.log('🔄 First OCR attempt poor, trying different config...');
-        
         await worker.setParameters({
           tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz/-:(). ',
           tessedit_pageseg_mode: PSM.SINGLE_BLOCK,
-          tessedit_ocr_engine_mode: 1, // Use legacy OCR engine
+          tessedit_ocr_engine_mode: 1,
         });
         
         const { data: { text: text2 } } = await worker.recognize(file);
         if (text2 && text2.trim().length > text.trim().length) {
           text = text2;
-          console.log('✅ Second OCR attempt was better');
         }
       }
       
@@ -77,14 +68,8 @@ export default function ImageUpload({ sensorId, userId, skipDatabase = false, on
         i === index ? { ...p, ocrProgress: 75 } : p
       ));
 
-      console.log('🔍 Raw OCR Text from image:', JSON.stringify(text));
-      console.log('📝 OCR Text length:', text.length);
-      console.log('📋 OCR Text (formatted):');
-      console.log(text);
-      
-      // Check if OCR found any text at all
+      // Check if OCR found any text
       if (!text || text.trim().length === 0) {
-        console.log('⚠️ OCR returned empty text - image might not be clear enough');
         setPreviews(prev => prev.map((p, i) => 
           i === index ? { ...p, ocrProgress: 100, extractedData: { confidence: 0 } } : p
         ));
@@ -94,7 +79,6 @@ export default function ImageUpload({ sensorId, userId, skipDatabase = false, on
       
       // Extract sensor data from OCR text
       const extractedData = extractSensorData(text);
-      console.log('📊 Final extracted sensor data:', extractedData);
 
       setPreviews(prev => prev.map((p, i) => 
         i === index ? { ...p, ocrProgress: 100, extractedData } : p
@@ -102,16 +86,13 @@ export default function ImageUpload({ sensorId, userId, skipDatabase = false, on
 
       // Notify parent component if reasonable confidence data was found
       if (extractedData.confidence > 30 && onDataExtracted) {
-        console.log('🎯 Calling onDataExtracted with confidence:', extractedData.confidence);
         onDataExtracted(extractedData);
-      } else {
-        console.log('❌ Not calling onDataExtracted. Confidence:', extractedData.confidence, 'Callback exists:', !!onDataExtracted);
       }
 
       await worker.terminate();
       
     } catch (error) {
-      console.error('💥 OCR processing error:', error);
+      console.error('OCR processing error:', error);
       setPreviews(prev => prev.map((p, i) => 
         i === index ? { ...p, ocrProgress: undefined } : p
       ));
@@ -297,16 +278,6 @@ export default function ImageUpload({ sensorId, userId, skipDatabase = false, on
                   </div>
                 )}
                 
-                {/* Manual OCR Test Button */}
-                {preview.ocrProgress === undefined && (
-                  <button
-                    onClick={() => processImageWithOCR(preview.file, index)}
-                    className="absolute top-2 right-2 bg-blue-500 text-white text-xs px-2 py-1 rounded hover:bg-blue-600"
-                  >
-                    Test OCR
-                  </button>
-                )}
-                
                 {/* Extracted Data Indicator */}
                 {preview.extractedData && preview.extractedData.confidence > 50 && (
                   <div className="absolute top-2 left-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full flex items-center">
@@ -352,9 +323,6 @@ export default function ImageUpload({ sensorId, userId, skipDatabase = false, on
             </p>
             <p className="text-xs text-gray-500 dark:text-slate-400">
               Upload sensor package photos to automatically extract serial numbers and lot numbers
-            </p>
-            <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
-              💡 Tip: Make sure text is clear and well-lit for best OCR results
             </p>
           </div>
         )}

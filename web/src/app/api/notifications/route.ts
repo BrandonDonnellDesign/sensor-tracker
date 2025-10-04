@@ -1,51 +1,47 @@
+
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import { getSensorExpirationInfo } from '@dexcom-tracker/shared/utils/sensorExpiration';
 
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
-
-    // Get the authenticated user
     const { data: { user }, error: authError } = await supabase.auth.getUser();
-
     if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    const { action } = await request.json();
-
-    if (action === 'generate') {
-      // Generate notifications for the current user
-      await generateSensorNotifications(supabase, user.id);
-
-      return NextResponse.json({
-        success: true,
-        message: 'Notifications generated successfully'
-      });
-    } else if (action === 'cleanup') {
-      // Clean up old notifications
-      await cleanupOldNotifications(supabase);
-
-      return NextResponse.json({
-        success: true,
-        message: 'Old notifications cleaned up successfully'
-      });
-    } else {
-      return NextResponse.json(
-        { error: 'Invalid action. Use "generate" or "cleanup"' },
-        { status: 400 }
-      );
+    const { action, notificationId } = await request.json();
+    switch (action) {
+      case 'delete': {
+        if (!notificationId) {
+          return NextResponse.json({ error: 'Notification ID required for delete' }, { status: 400 });
+        }
+        const { error: deleteError } = await (supabase as any)
+          .from('notifications')
+          .delete()
+          .eq('id', notificationId)
+          .eq('user_id', user.id);
+        if (deleteError) {
+          return NextResponse.json({ error: 'Failed to delete notification' }, { status: 500 });
+        }
+        return NextResponse.json({ success: true });
+      }
+      case 'clear-all': {
+        const { error: clearError } = await (supabase as any)
+          .from('notifications')
+          .delete()
+          .eq('user_id', user.id);
+        if (clearError) {
+          return NextResponse.json({ error: 'Failed to clear notifications' }, { status: 500 });
+        }
+        return NextResponse.json({ success: true });
+      }
+      default:
+        return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }
   } catch (error) {
-    console.error('Error in notifications API:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 

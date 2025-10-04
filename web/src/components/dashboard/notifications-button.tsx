@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { BellIcon } from '@heroicons/react/24/outline';
 import { supabase } from '@/lib/supabase';
-import { getSensorExpirationInfo } from '@dexcom-tracker/shared/utils/sensorExpiration';
 
 type Notification = {
   id: string;
@@ -20,7 +19,6 @@ type Notification = {
 export function NotificationsButton() {
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [loading, setLoading] = useState(false);
 
   // Load notifications on component mount
   useEffect(() => {
@@ -95,190 +93,62 @@ export function NotificationsButton() {
     }
   };
 
-  const handleGenerateNotifications = async () => {
-    setLoading(true);
+  const handleDeleteNotification = async (notificationId: string, event: React.MouseEvent) => {
+    event.stopPropagation(); // Prevent triggering the notification click
+    
     try {
+      // Use the client-side supabase instance directly
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        console.log('No user found');
+        alert('Please log in to delete notifications');
         return;
       }
 
-      console.log('Generating notifications for user:', user.id);
+      const { error } = await (supabase as any)
+        .from('notifications')
+        .delete()
+        .eq('id', notificationId)
+        .eq('user_id', user.id);
 
-      // Get all active sensors for the user with sensor model information
-      const { data: sensors, error: sensorsError } = await (supabase as any)
-        .from('sensors')
-        .select(`
-          *,
-          sensorModel:sensor_models(*)
-        `)
-        .eq('user_id', user.id)
-        .eq('is_deleted', false);
-
-      if (sensorsError) {
-        console.error('Error fetching sensors for notifications:', sensorsError);
+      if (error) {
+        console.error('Error deleting notification:', error);
+        alert(`Failed to delete notification: ${error.message}`);
         return;
       }
 
-      console.log('Found sensors:', sensors?.length || 0);
-
-      if (!sensors || sensors.length === 0) {
-        console.log('No sensors found for user');
-        return;
-      }
-
-      // Check each sensor for expiration notifications
-      for (const sensor of sensors) {
-        console.log('Checking sensor:', sensor.serial_number, 'added:', sensor.date_added);
-        const dateObj = new Date(sensor.date_added);
-        console.log('Date object created:', dateObj, 'is valid:', !isNaN(dateObj.getTime()));
-        
-        // Use the actual sensor model if available, otherwise fall back to sensor_type logic
-        let sensorModel: any;
-        if ((sensor as any).sensorModel) {
-          sensorModel = (sensor as any).sensorModel;
-          console.log('Using sensor model:', sensorModel.manufacturer, sensorModel.model_name, 'duration:', sensorModel.duration_days, 'days');
-        } else {
-          console.log('No sensor model found, using fallback based on sensor_type');
-          sensorModel = {
-            id: 'fallback',
-            manufacturer: (sensor as any).sensor_type === 'dexcom' ? 'Dexcom' : 'Abbott',
-            modelName: (sensor as any).sensor_type === 'dexcom' ? 'G6' : 'FreeStyle Libre',
-            durationDays: (sensor as any).sensor_type === 'dexcom' ? 10 : 14, // Updated to match database values
-            isActive: true,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          };
-        }
-        
-        const expirationInfo = getSensorExpirationInfo(sensor.date_added, sensorModel);
-        console.log('Expiration info:', expirationInfo);
-
-        // Check if sensor is expired
-        if (expirationInfo.isExpired) {
-          console.log('Sensor is expired, checking for existing notification...');
-          // Check if we already have an expired notification for this sensor
-          const { data: existingNotification, error: checkError } = await (supabase as any)
-            .from('notifications')
-            .select('id')
-            .eq('user_id', user.id)
-            .eq('sensor_id', sensor.id)
-            .eq('type', 'sensor_expired')
-            .limit(1);
-
-          if (checkError) {
-            console.error('Error checking for existing notification:', checkError);
-            continue;
-          }
-
-          if (!existingNotification || existingNotification.length === 0) {
-            console.log('Creating expired notification for sensor:', sensor.serial_number);
-            const { error: insertError } = await (supabase as any)
-              .from('notifications')
-              .insert({
-                user_id: user.id,
-                sensor_id: sensor.id,
-                title: 'Sensor has expired',
-                message: `Your sensor (SN: ${sensor.serial_number}) has expired. Please replace it immediately.`,
-                type: 'sensor_expired',
-              });
-
-            if (insertError) {
-              console.error('Error creating notification:', insertError);
-            } else {
-              console.log('Created expired notification successfully');
-            }
-          } else {
-            console.log('Expired notification already exists for sensor');
-          }
-        }
-        // Check if sensor expires within 2 days
-        else if (expirationInfo.isExpiringSoon) {
-          console.log('Sensor expires soon, checking for existing notification...');
-          // Check if we already have an expiring notification for this sensor
-          const { data: existingNotification, error: checkError } = await (supabase as any)
-            .from('notifications')
-            .select('id')
-            .eq('user_id', user.id)
-            .eq('sensor_id', sensor.id)
-            .eq('type', 'sensor_expiring')
-            .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()) // Within last 24 hours
-            .limit(1);
-
-          if (checkError) {
-            console.error('Error checking for existing expiring notification:', checkError);
-            continue;
-          }
-
-          if (!existingNotification || existingNotification.length === 0) {
-            console.log('Creating expiring notification for sensor:', sensor.serial_number);
-            const { error: insertError } = await (supabase as any)
-              .from('notifications')
-              .insert({
-                user_id: user.id,
-                sensor_id: sensor.id,
-                title: 'Sensor expires soon',
-                message: `Your sensor (SN: ${sensor.serial_number}) will expire in ${expirationInfo.daysLeft} day${expirationInfo.daysLeft !== 1 ? 's' : ''}. Please plan to replace it.`,
-                type: 'sensor_expiring',
-              });
-
-            if (insertError) {
-              console.error('Error creating expiring notification:', insertError);
-            } else {
-              console.log('Created expiring notification successfully');
-            }
-          } else {
-            console.log('Expiring notification already exists for sensor');
-          }
-        }
-
-        // Check for problematic sensors
-        if (sensor.is_problematic && sensor.issue_notes) {
-          console.log('Sensor has issues, checking for existing notification...');
-          // Check if we already have an issue notification for this sensor
-          const { data: existingNotification, error: checkError } = await (supabase as any)
-            .from('notifications')
-            .select('id')
-            .eq('user_id', user.id)
-            .eq('sensor_id', sensor.id)
-            .eq('type', 'sensor_issue')
-            .limit(1);
-
-          if (checkError) {
-            console.error('Error checking for existing issue notification:', checkError);
-            continue;
-          }
-
-          if (!existingNotification || existingNotification.length === 0) {
-            console.log('Creating issue notification for sensor:', sensor.serial_number);
-            const { error: insertError } = await (supabase as any)
-              .from('notifications')
-              .insert({
-                user_id: user.id,
-                sensor_id: sensor.id,
-                title: 'Sensor issue detected',
-                message: `Issue with sensor (SN: ${sensor.serial_number}): ${sensor.issue_notes}`,
-                type: 'sensor_issue',
-              });
-
-            if (insertError) {
-              console.error('Error creating issue notification:', insertError);
-            } else {
-              console.log('Created issue notification successfully');
-            }
-          } else {
-            console.log('Issue notification already exists for sensor');
-          }
-        }
-      }
-
-      console.log('Finished generating notifications, reloading...');
-      await loadNotifications(); // Reload notifications after generating
+      // Remove the notification from the local state
+      setNotifications(prev => prev.filter(n => n.id !== notificationId));
     } catch (error) {
-      console.error('Error generating notifications:', error);
-    } finally {
-      setLoading(false);
+      console.error('Error deleting notification:', error);
+      alert('Error deleting notification. Please try again.');
+    }
+  };
+
+  const handleClearAll = async () => {
+    try {
+      // Use the client-side supabase instance directly
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        alert('Please log in to clear notifications');
+        return;
+      }
+
+      const { error } = await (supabase as any)
+        .from('notifications')
+        .delete()
+        .eq('user_id', user.id);
+
+      if (error) {
+        console.error('Error clearing all notifications:', error);
+        alert(`Failed to clear notifications: ${error.message}`);
+        return;
+      }
+
+      // Clear all notifications from local state
+      setNotifications([]);
+    } catch (error) {
+      console.error('Error clearing all notifications:', error);
+      alert('Error clearing notifications. Please try again.');
     }
   };
 
@@ -287,7 +157,6 @@ export function NotificationsButton() {
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="relative flex items-center justify-center rounded-full w-10 h-10 text-gray-500 hover:text-gray-600 dark:text-slate-400 dark:hover:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
-        aria-label="Notifications"
       >
         <BellIcon className="h-5 w-5" />
         {notifications.some(n => !n.read) && (
@@ -305,25 +174,24 @@ export function NotificationsButton() {
             <div className="p-4">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100">Notifications</h2>
-                {notifications.some(n => !n.read) && (
-                  <button
-                    className="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
-                    onClick={handleMarkAllAsRead}
-                  >
-                    Mark all as read
-                  </button>
-                )}
-              </div>
-
-              {/* Debug button to generate notifications */}
-              <div className="mb-4">
-                <button
-                  onClick={handleGenerateNotifications}
-                  disabled={loading}
-                  className="text-xs text-gray-500 hover:text-gray-600 dark:text-gray-400 dark:hover:text-gray-300 disabled:opacity-50"
-                >
-                  {loading ? 'Generating...' : 'Generate Notifications'}
-                </button>
+                <div className="flex items-center gap-3">
+                  {notifications.some(n => !n.read) && (
+                    <button
+                      className="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
+                      onClick={handleMarkAllAsRead}
+                    >
+                      Mark all read
+                    </button>
+                  )}
+                  {notifications.length > 0 && (
+                    <button
+                      className="text-sm text-red-600 hover:text-red-500 dark:text-red-400 dark:hover:text-red-300"
+                      onClick={handleClearAll}
+                    >
+                      Clear all
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-3">
@@ -368,20 +236,35 @@ export function NotificationsButton() {
                     return (
                       <div
                         key={notification.id}
-                        className={`p-3 rounded-lg cursor-pointer ${getNotificationStyle()}`}
-                        onClick={() => !notification.read && handleMarkAsRead(notification.id)}
+                        className={`p-3 rounded-lg group relative ${getNotificationStyle()}`}
                       >
-                        <div className="flex justify-between items-start">
-                          <h3 className={`text-sm font-medium ${getTitleColor()}`}>
-                            {notification.title}
-                          </h3>
-                          <span className="text-xs text-gray-500 dark:text-slate-400">
-                            {new Date(notification.created_at).toLocaleTimeString()}
-                          </span>
+                        <div 
+                          className="cursor-pointer"
+                          onClick={() => !notification.read && handleMarkAsRead(notification.id)}
+                        >
+                          <div className="flex justify-between items-start">
+                            <h3 className={`text-sm font-medium pr-8 ${getTitleColor()}`}>
+                              {notification.title}
+                            </h3>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-500 dark:text-slate-400">
+                                {new Date(notification.created_at).toLocaleTimeString()}
+                              </span>
+                              <button
+                                onClick={(e) => handleDeleteNotification(notification.id, e)}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                title="Delete notification"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+                          <p className="mt-1 text-sm text-gray-600 dark:text-slate-300">
+                            {notification.message}
+                          </p>
                         </div>
-                        <p className="mt-1 text-sm text-gray-600 dark:text-slate-300">
-                          {notification.message}
-                        </p>
                       </div>
                     );
                   })

@@ -244,6 +244,12 @@ export default function SensorDetailPage() {
 
     setDeleting(true);
     try {
+        // Delete related notifications first
+        await (supabase as any)
+          .from('notifications')
+          .delete()
+          .eq('sensor_id', sensor.id)
+          .eq('user_id', user.id);
       // Soft delete by setting is_deleted to true
       const { error } = await supabase
         .from('sensors')

@@ -428,29 +428,3 @@ export function cleanExtractedText(text: string): string {
     .trim()
     .toUpperCase();
 }
-
-/**
- * Test function to verify extraction works with known good text
- */
-export function testExtractionWithSampleData(): void {
-  console.log('=== Testing OCR Extraction ===');
-  
-  // Sample text based on your images
-  const sampleTexts = [
-    // From image 2 - barcode area
-    'dexcomG7 (01) 00386270004309 (11) 250701 (17) 261231 (10) 18251880012 (21) 481513546652 (241)STP-AT-012',
-    // From image 3 - device label  
-    'Dexcom G7 0560 (01)00386270003935 (21)481513546652',
-    // Simplified test
-    '(21)481513546652',
-    '(21) 481513546652',
-    // What OCR might actually see
-    'dexcom G7 (21)481513546652 LOT 18251880012'
-  ];
-  
-  sampleTexts.forEach((testText, index) => {
-    console.log(`\n--- Test ${index + 1}: ${testText.substring(0, 50)}... ---`);
-    const result = extractSensorData(testText);
-    console.log('Result:', result);
-  });
-}

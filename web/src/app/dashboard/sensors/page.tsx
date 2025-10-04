@@ -25,6 +25,7 @@ export default function SensorsPage() {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [deletingSensorId, setDeletingSensorId] = useState<string | null>(null);
+  const [showDeleted, setShowDeleted] = useState(false);
 
   const fetchSensors = useCallback(async () => {
     if (!user?.id) return;
@@ -38,12 +39,16 @@ export default function SensorsPage() {
           sensorModel:sensor_models(*)
         `)
         .eq('user_id', user.id)
-        .eq('is_deleted', false)
         .order('created_at', { ascending: false });
 
       // Apply filter if specified
       if (filter === 'problematic') {
         query = query.eq('is_problematic', true);
+      }
+      if (!showDeleted) {
+        query = query.eq('is_deleted', false);
+      } else {
+        query = query.eq('is_deleted', true);
       }
 
       const { data, error } = await query;
@@ -56,7 +61,7 @@ export default function SensorsPage() {
     } finally {
       setLoading(false);
     }
-  }, [user?.id, filter]);
+  }, [user?.id, filter, showDeleted]);
 
   useEffect(() => {
     if (user) {
@@ -73,21 +78,77 @@ export default function SensorsPage() {
     const confirmed = window.confirm('Are you sure you want to delete this sensor? This action cannot be undone.');
     if (!confirmed) return;
     
+    if (!user?.id) return;
     setDeletingSensorId(sensorId);
     try {
+      // Delete related notifications first
+      await (supabase as any)
+        .from('notifications')
+        .delete()
+        .eq('sensor_id', sensorId)
+        .eq('user_id', user.id);
+      // Soft delete by setting is_deleted to true
       const { error } = await supabase
         .from('sensors')
         .update({ is_deleted: true })
         .eq('id', sensorId)
-        .eq('user_id', user.id); // Ensure user can only delete their own sensors
+        .eq('user_id', user.id);
 
       if (error) throw error;
-      
       // Remove sensor from local state
       setSensors(sensors.filter(s => s.id !== sensorId));
     } catch (error) {
       console.error('Error deleting sensor:', error);
       setError(error instanceof Error ? error.message : 'Failed to delete sensor');
+    } finally {
+      setDeletingSensorId(null);
+    }
+  };
+
+  const restoreSensor = async (sensorId: string) => {
+    if (!user?.id) return;
+    try {
+      const { error } = await supabase
+        .from('sensors')
+        .update({ is_deleted: false })
+        .eq('id', sensorId)
+        .eq('user_id', user.id);
+      if (error) throw error;
+      fetchSensors();
+    } catch (error) {
+      console.error('Error restoring sensor:', error);
+      setError(error instanceof Error ? error.message : 'Failed to restore sensor');
+    }
+  };
+
+  const permanentlyDeleteSensor = async (sensorId: string) => {
+    if (!user?.id) return;
+    if (!window.confirm('This will permanently delete the sensor and all related data. This cannot be undone. Proceed?')) return;
+    setDeletingSensorId(sensorId);
+    try {
+      // Delete notifications
+      await (supabase as any)
+        .from('notifications')
+        .delete()
+        .eq('sensor_id', sensorId)
+        .eq('user_id', user.id);
+      // Delete photos
+      await (supabase as any)
+        .from('sensor_photos')
+        .delete()
+        .eq('sensor_id', sensorId)
+        .eq('user_id', user.id);
+      // Permanently delete sensor
+      const { error } = await supabase
+        .from('sensors')
+        .delete()
+        .eq('id', sensorId)
+        .eq('user_id', user.id);
+      if (error) throw error;
+      fetchSensors();
+    } catch (error) {
+      console.error('Error permanently deleting sensor:', error);
+      setError(error instanceof Error ? error.message : 'Failed to permanently delete sensor');
     } finally {
       setDeletingSensorId(null);
     }
@@ -167,7 +228,7 @@ export default function SensorsPage() {
 
       {/* Search and Filter */}
       <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-slate-700">
-        <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex flex-col sm:flex-row gap-4 items-center">
           <div className="flex-1">
             <div className="relative">
               <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -182,7 +243,7 @@ export default function SensorsPage() {
               />
             </div>
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-3 items-center">
             <Link
               href="/dashboard/sensors"
               className={`px-6 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
@@ -203,6 +264,12 @@ export default function SensorsPage() {
             >
               Problematic
             </Link>
+            <button
+              className={`px-6 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${showDeleted ? 'bg-gradient-to-r from-gray-500 to-gray-700 text-white shadow-lg shadow-gray-500/25' : 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-600'}`}
+              onClick={() => setShowDeleted((v) => !v)}
+            >
+              {showDeleted ? 'Show Active' : 'Show Deleted'}
+            </button>
           </div>
         </div>
       </div>
@@ -271,9 +338,11 @@ export default function SensorsPage() {
                     {sensor.issue_notes && (
                       <p className="text-sm text-red-600 dark:text-red-400 mt-1 line-clamp-2">{sensor.issue_notes}</p>
                     )}
+                    {sensor.is_deleted && (
+                      <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-2">Deleted</p>
+                    )}
                   </div>
                 </Link>
-                
                 <div className="flex items-center space-x-4">
                   <div className="text-right">
                     <p className="text-sm text-gray-500 dark:text-slate-400">
@@ -285,21 +354,48 @@ export default function SensorsPage() {
                       </span>
                     )}
                   </div>
-                  
-                  <button
-                    onClick={(e) => deleteSensor(sensor.id, e)}
-                    disabled={deletingSensorId === sensor.id}
-                    className="p-2 text-gray-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                    title="Delete sensor"
-                  >
-                    {deletingSensorId === sensor.id ? (
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
-                    ) : (
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1-1H8a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    )}
-                  </button>
+                  {!sensor.is_deleted ? (
+                    <button
+                      onClick={(e) => deleteSensor(sensor.id, e)}
+                      disabled={deletingSensorId === sensor.id}
+                      className="p-2 text-gray-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="Delete sensor"
+                    >
+                      {deletingSensorId === sensor.id ? (
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
+                      ) : (
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1-1H8a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      )}
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => restoreSensor(sensor.id)}
+                        className="p-2 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-all duration-200"
+                        title="Restore sensor"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10v6a2 2 0 002 2h6m10-10v6a2 2 0 01-2 2h-6M7 7l10 10" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => permanentlyDeleteSensor(sensor.id)}
+                        disabled={deletingSensorId === sensor.id}
+                        className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Delete permanently"
+                      >
+                        {deletingSensorId === sensor.id ? (
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
+                        ) : (
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        )}
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
