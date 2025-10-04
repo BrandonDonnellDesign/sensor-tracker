@@ -123,12 +123,12 @@ export function UserProfileMenu() {
               
             <div className="space-y-1">
               <Link
-                href="/dashboard/profile"
+                href="/dashboard/settings"
                 className="flex items-center px-3 py-2 text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700/50 rounded-lg transition-colors duration-200"
                 onClick={() => setIsOpen(false)}
               >
                 <UserIcon className="h-4 w-4 mr-3" />
-                Profile Settings
+                Settings
               </Link>
 
               <div className="h-px bg-gray-100 dark:bg-slate-700 my-2" />

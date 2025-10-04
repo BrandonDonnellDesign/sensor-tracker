@@ -106,6 +106,12 @@ export interface Database {
           notifications_enabled: boolean
           dark_mode_enabled: boolean
           glucose_unit: 'mg/dL' | 'mmol/L'
+          push_notifications_enabled: boolean
+          in_app_notifications_enabled: boolean
+          warning_days_before: number
+          critical_days_before: number
+          date_format: string
+          time_format: string
           created_at: string
           updated_at: string
           last_sync_at: string | null
@@ -119,6 +125,12 @@ export interface Database {
           notifications_enabled?: boolean
           dark_mode_enabled?: boolean
           glucose_unit?: 'mg/dL' | 'mmol/L'
+          push_notifications_enabled?: boolean
+          in_app_notifications_enabled?: boolean
+          warning_days_before?: number
+          critical_days_before?: number
+          date_format?: string
+          time_format?: string
           created_at?: string
           updated_at?: string
           last_sync_at?: string | null
@@ -132,6 +144,12 @@ export interface Database {
           notifications_enabled?: boolean
           dark_mode_enabled?: boolean
           glucose_unit?: 'mg/dL' | 'mmol/L'
+          push_notifications_enabled?: boolean
+          in_app_notifications_enabled?: boolean
+          warning_days_before?: number
+          critical_days_before?: number
+          date_format?: string
+          time_format?: string
           created_at?: string
           updated_at?: string
           last_sync_at?: string | null
@@ -198,6 +216,69 @@ export interface Database {
             referencedColumns: ["id"]
           }
         ]
+      }
+      sensor_tags: {
+        Row: {
+          id: string
+          sensor_id: string
+          tag_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          sensor_id: string
+          tag_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          sensor_id?: string
+          tag_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sensor_tags_sensor_id_fkey"
+            columns: ["sensor_id"]
+            isOneToOne: false
+            referencedRelation: "sensors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sensor_tags_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "tags"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      tags: {
+        Row: {
+          id: string
+          name: string
+          category: string
+          description: string | null
+          color: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          category: string
+          description?: string | null
+          color?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          category?: string
+          description?: string | null
+          color?: string
+          created_at?: string
+        }
+        Relationships: []
       }
     }
     Views: {

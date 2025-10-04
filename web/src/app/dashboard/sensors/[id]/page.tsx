@@ -8,6 +8,9 @@ import { useAuth } from '@/components/providers/auth-provider';
 import { Database } from '@/lib/database.types';
 import ImageUpload from '@/components/sensors/image-upload';
 import PhotoGallery from '@/components/sensors/photo-gallery';
+import { TagSelector } from '@/components/sensors/tag-selector';
+import { TagDisplay } from '@/components/sensors/tag-display';
+import { NotesEditor } from '@/components/sensors/notes-editor';
 
 type Sensor = Database['public']['Tables']['sensors']['Row'];
 type SensorPhoto = Database['public']['Tables']['sensor_photos']['Row'];
@@ -45,6 +48,12 @@ export default function SensorDetailPage() {
   const [sensorModels, setSensorModels] = useState<SensorModel[]>([]);
   const [editingSensorModel, setEditingSensorModel] = useState(false);
   const [newSensorModelId, setNewSensorModelId] = useState('');
+  
+  // Tags state
+  const [sensorTags, setSensorTags] = useState<any[]>([]);
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const [editingTags, setEditingTags] = useState(false);
+  const [savingTags, setSavingTags] = useState(false);
 
   const fetchSensor = useCallback(async () => {
     if (!user?.id || !sensorId) return;
@@ -118,6 +127,43 @@ export default function SensorDetailPage() {
 
     fetchSensorModels();
   }, []);
+
+  // Fetch sensor tags
+  const fetchSensorTags = useCallback(async () => {
+    if (!sensorId) return;
+
+    try {
+      const { data: sensorTags, error } = await supabase
+        .from('sensor_tags')
+        .select(`
+          id,
+          tag_id,
+          tags:tag_id (
+            id,
+            name,
+            category,
+            description,
+            color,
+            created_at
+          )
+        `)
+        .eq('sensor_id', sensorId);
+
+      if (error) {
+        console.error('Error fetching sensor tags:', error);
+        return;
+      }
+
+      setSensorTags(sensorTags || []);
+      setSelectedTagIds((sensorTags || []).map((t: any) => t.tag_id));
+    } catch (error) {
+      console.error('Error fetching sensor tags:', error);
+    }
+  }, [sensorId]);
+
+  useEffect(() => {
+    fetchSensorTags();
+  }, [fetchSensorTags]);
 
 
 
@@ -236,6 +282,76 @@ export default function SensorDetailPage() {
       const currentModelId = (sensor as any).sensor_model_id || '';
       setNewSensorModelId(currentModelId);
       setEditingSensorModel(true);
+    }
+  };
+
+  const saveNotes = async () => {
+    if (!sensor || !user?.id) return;
+
+    setUpdating(true);
+
+    try {
+      const { error } = await supabase
+        .from('sensors')
+        .update({ issue_notes: newIssueNotes })
+        .eq('id', sensor.id)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      setSensor({ ...sensor, issue_notes: newIssueNotes });
+      setEditingNotes(false);
+    } catch (error) {
+      console.error('Error updating notes:', error);
+      setError(
+        error instanceof Error ? error.message : 'Failed to update notes'
+      );
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const saveTags = async () => {
+    if (!sensorId || !user?.id) return;
+
+    setSavingTags(true);
+
+    try {
+      // First, remove all existing tags for this sensor
+      const { error: deleteError } = await supabase
+        .from('sensor_tags')
+        .delete()
+        .eq('sensor_id', sensorId);
+
+      if (deleteError) {
+        throw new Error('Failed to clear existing tags');
+      }
+
+      // Then add the new tags
+      if (selectedTagIds.length > 0) {
+        const sensorTags = selectedTagIds.map(tagId => ({
+          sensor_id: sensorId,
+          tag_id: tagId
+        }));
+
+        const { error: insertError } = await supabase
+          .from('sensor_tags')
+          .insert(sensorTags);
+
+        if (insertError) {
+          throw new Error('Failed to save tags');
+        }
+      }
+
+      await fetchSensorTags(); // Refresh tags
+      setEditingTags(false);
+    } catch (error) {
+      console.error('Error saving tags:', error);
+      setError(
+        error instanceof Error ? error.message : 'Failed to save tags'
+      );
+    } finally {
+      setSavingTags(false);
     }
   };
 
@@ -536,16 +652,127 @@ export default function SensorDetailPage() {
               </div>
             </dl>
 
-            {sensor.issue_notes && (
-              <div className='mt-6 pt-6 border-t border-gray-200'>
-                <dt className='text-sm font-medium text-gray-500 mb-2'>
-                  Issue Notes
-                </dt>
-                <dd className='text-sm text-gray-900 dark:text-slate-100 bg-red-50 dark:bg-red-900/20 p-3 rounded-md'>
-                  {sensor.issue_notes}
-                </dd>
+            {/* Notes and Tags section */}
+            <div className='mt-6 pt-6 border-t border-gray-200 dark:border-slate-700 space-y-6'>
+              {/* Notes */}
+              <div>
+                <div className='flex items-center justify-between mb-3'>
+                  <h3 className='text-sm font-medium text-gray-700 dark:text-slate-300'>
+                    Notes
+                  </h3>
+                  {!editingNotes && (
+                    <button
+                      onClick={() => {
+                        setNewIssueNotes(sensor.issue_notes || '');
+                        setEditingNotes(true);
+                      }}
+                      className='text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300'
+                    >
+                      {sensor.issue_notes ? 'Edit' : 'Add Notes'}
+                    </button>
+                  )}
+                </div>
+                
+                {editingNotes ? (
+                  <div className='space-y-3'>
+                    <NotesEditor
+                      value={newIssueNotes}
+                      onChange={setNewIssueNotes}
+                      placeholder="Add notes about this sensor (e.g., 'fell off while swimming', 'adhesive failed early')..."
+                    />
+                    <div className='flex items-center space-x-2'>
+                      <button
+                        onClick={saveNotes}
+                        disabled={updating}
+                        className='text-sm bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed'
+                      >
+                        {updating ? 'Saving...' : 'Save'}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setEditingNotes(false);
+                          setNewIssueNotes(sensor.issue_notes || '');
+                        }}
+                        disabled={updating}
+                        className='text-sm bg-gray-300 dark:bg-slate-600 text-gray-700 dark:text-slate-300 px-3 py-1.5 rounded hover:bg-gray-400 dark:hover:bg-slate-500 disabled:opacity-50 disabled:cursor-not-allowed'
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    {sensor.issue_notes ? (
+                      <div className='text-sm text-gray-900 dark:text-slate-100 bg-gray-50 dark:bg-slate-800 p-3 rounded-md'>
+                        {sensor.issue_notes}
+                      </div>
+                    ) : (
+                      <div className='text-sm text-gray-500 dark:text-slate-400 italic'>
+                        No notes added yet. Click &quot;Add Notes&quot; to add details about this sensor.
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-            )}
+
+              {/* Tags */}
+              <div>
+                <div className='flex items-center justify-between mb-3'>
+                  <h3 className='text-sm font-medium text-gray-700 dark:text-slate-300'>
+                    Tags
+                  </h3>
+                  {!editingTags && (
+                    <button
+                      onClick={() => setEditingTags(true)}
+                      className='text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300'
+                    >
+                      {sensorTags.length > 0 ? 'Edit Tags' : 'Add Tags'}
+                    </button>
+                  )}
+                </div>
+                
+                {editingTags ? (
+                  <div className='space-y-3'>
+                    <TagSelector
+                      selectedTagIds={selectedTagIds}
+                      onTagsChange={setSelectedTagIds}
+                    />
+                    <div className='flex items-center space-x-2'>
+                      <button
+                        onClick={saveTags}
+                        disabled={savingTags}
+                        className='text-sm bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed'
+                      >
+                        {savingTags ? 'Saving...' : 'Save Tags'}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setEditingTags(false);
+                          setSelectedTagIds(sensorTags.map((t: any) => t.tag_id));
+                        }}
+                        disabled={savingTags}
+                        className='text-sm bg-gray-300 dark:bg-slate-600 text-gray-700 dark:text-slate-300 px-3 py-1.5 rounded hover:bg-gray-400 dark:hover:bg-slate-500 disabled:opacity-50 disabled:cursor-not-allowed'
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    {sensorTags.length > 0 ? (
+                      <TagDisplay 
+                        tags={sensorTags.map((st: any) => st.tags).filter(Boolean)}
+                        size="sm"
+                      />
+                    ) : (
+                      <div className='text-sm text-gray-500 dark:text-slate-400 italic'>
+                        No tags added yet. Click &quot;Add Tags&quot; to categorize this sensor.
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Photos section */}

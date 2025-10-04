@@ -46,10 +46,33 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * Generate notifications based on sensor data
+ * Generate notifications based on sensor data with user preferences
  */
 async function generateSensorNotifications(supabase: any, userId: string): Promise<void> {
   try {
+    // Get user's notification preferences
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('warning_days_before, critical_days_before, notifications_enabled, push_notifications_enabled, in_app_notifications_enabled')
+      .eq('id', userId)
+      .single();
+
+    if (profileError) {
+      console.error('Error fetching user profile for notifications:', profileError);
+      // Continue with defaults if profile not found
+    }
+
+    // Use user settings or defaults
+    const warningDays = profile?.warning_days_before || 3;
+    const criticalDays = profile?.critical_days_before || 1;
+    const notificationsEnabled = profile?.notifications_enabled ?? true;
+
+    // Skip notifications if user has disabled them
+    if (!notificationsEnabled) {
+      console.log(`Notifications disabled for user ${userId}, skipping...`);
+      return;
+    }
+
     // Get all active sensors for the user
     const { data: sensors, error: sensorsError } = await supabase
       .from('sensors')
@@ -103,9 +126,33 @@ async function generateSensorNotifications(supabase: any, userId: string): Promi
             });
         }
       }
-      // Check if sensor expires within 2 days
-      else if (expirationInfo.isExpiringSoon) {
-        // Check if we already have an expiring notification for this sensor
+      // Check if sensor is in critical period (within critical_days_before)
+      else if (expirationInfo.daysLeft <= criticalDays && expirationInfo.daysLeft >= 0) {
+        // Check if we already have a critical notification for this sensor
+        const { data: existingNotification } = await supabase
+          .from('notifications')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('sensor_id', sensor.id)
+          .eq('type', 'sensor_critical')
+          .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()) // Within last 24 hours
+          .limit(1);
+
+        if (!existingNotification || existingNotification.length === 0) {
+          await supabase
+            .from('notifications')
+            .insert({
+              user_id: userId,
+              sensor_id: sensor.id,
+              title: 'Sensor expires very soon!',
+              message: `URGENT: Your sensor (SN: ${sensor.serial_number}) will expire in ${expirationInfo.daysLeft} day${expirationInfo.daysLeft !== 1 ? 's' : ''}. Replace it now!`,
+              type: 'sensor_critical',
+            });
+        }
+      }
+      // Check if sensor is in warning period (within warning_days_before but not critical)
+      else if (expirationInfo.daysLeft <= warningDays && expirationInfo.daysLeft > criticalDays) {
+        // Check if we already have a warning notification for this sensor
         const { data: existingNotification } = await supabase
           .from('notifications')
           .select('id')

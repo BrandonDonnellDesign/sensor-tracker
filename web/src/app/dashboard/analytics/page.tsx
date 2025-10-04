@@ -13,6 +13,18 @@ type Sensor = Database['public']['Tables']['sensors']['Row'] & {
     model_name: string;
     duration_days: number;
   };
+  sensor_tags?: Array<{
+    id: string;
+    tag_id: string;
+    tags: {
+      id: string;
+      name: string;
+      category: string;
+      description?: string;
+      color: string;
+      created_at: string;
+    };
+  }>;
 };
 
 interface AnalyticsData {
@@ -23,8 +35,24 @@ interface AnalyticsData {
   activeSensors: number;
   expiredSensors: number;
   problematicSensors: number;
+  completedSensors: number; // Number of sensors used in wear duration calculation
   expectedDuration: number; // Average expected duration based on user's sensor types
   mostCommonSensorType: string; // Most common sensor type for display
+  tagStats: Array<{
+    tag: {
+      id: string;
+      name: string;
+      category: string;
+      color: string;
+    };
+    count: number;
+    percentage: number;
+  }>;
+  categoryStats: Array<{
+    category: string;
+    count: number;
+    percentage: number;
+  }>;
 }
 
 export default function AnalyticsPage() {
@@ -43,7 +71,19 @@ export default function AnalyticsPage() {
         .from('sensors')
         .select(`
           *,
-          sensorModel:sensor_models(*)
+          sensorModel:sensor_models(*),
+          sensor_tags(
+            id,
+            tag_id,
+            tags(
+              id,
+              name,
+              category,
+              description,
+              color,
+              created_at
+            )
+          )
         `)
         .eq('user_id', user.id)
         .order('date_added', { ascending: true });
@@ -75,8 +115,11 @@ export default function AnalyticsPage() {
         activeSensors: 0,
         expiredSensors: 0,
         problematicSensors: 0,
+        completedSensors: 0,
         expectedDuration: 14, // Default to 14 days
         mostCommonSensorType: 'Mixed',
+        tagStats: [],
+        categoryStats: []
       });
       return;
     }
@@ -96,9 +139,13 @@ export default function AnalyticsPage() {
     let prematureFailures = 0;
     
     const wearDurations: number[] = [];
-    const replacementDates: Date[] = [];
 
-    sensorData.forEach((sensor, index) => {
+    // Sort sensors by date_added to determine replacement sequence
+    const sortedSensors = [...sensorData].sort((a, b) => 
+      new Date(a.date_added).getTime() - new Date(b.date_added).getTime()
+    );
+
+    sortedSensors.forEach((sensor, index) => {
       const model = sensor.sensorModel || {
         manufacturer: sensor.sensor_type === 'dexcom' ? 'Dexcom' : 'Abbott',
         model_name: sensor.sensor_type === 'dexcom' ? 'G6' : 'FreeStyle Libre',
@@ -123,42 +170,74 @@ export default function AnalyticsPage() {
         updatedAt: new Date(sensor.date_added),
       });
 
-      // Calculate actual wear duration
       const startDate = new Date(sensor.date_added);
-      // For now, assume sensors without end date are still active
-      const endDate = new Date(); // We'll use current date for all calculations
-      const actualWearDays = Math.floor((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+      const now = new Date();
       
-      wearDurations.push(actualWearDays);
-      totalWearDuration += actualWearDays;
-      replacementDates.push(startDate);
-
+      // Determine the end date for this sensor
+      let endDate: Date | null = null;
+      let isCompleted = false;
+      
+      // Check if there's a next sensor to use as end date
+      const nextSensor = sortedSensors[index + 1];
+      if (nextSensor) {
+        // Use the start date of the next sensor as the end date of this sensor
+        endDate = new Date(nextSensor.date_added);
+        isCompleted = true;
+      } else {
+        // This is the most recent sensor
+        // Consider it completed only if it's been expired for more than 1 day
+        const daysSinceExpiration = Math.floor((now.getTime() - expirationInfo.expirationDate.getTime()) / (1000 * 60 * 60 * 24));
+        if (daysSinceExpiration > 1) {
+          // Use expiration date + 1 day as a reasonable end estimate
+          endDate = new Date(expirationInfo.expirationDate);
+          endDate.setDate(endDate.getDate() + 1);
+          isCompleted = true;
+        }
+      }
+      
+      // Calculate actual wear duration for completed sensors
+      if (isCompleted && endDate) {
+        const actualWearDays = Math.floor((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+        
+        // Sanity check: ensure wear duration is reasonable (at least 1 day, max 30 days)
+        if (actualWearDays >= 1 && actualWearDays <= 30) {
+          wearDurations.push(actualWearDays);
+          totalWearDuration += actualWearDays;
+          
+          // Check for premature failure (wore for less than 80% of expected duration)
+          if (sensor.is_problematic || actualWearDays < model.duration_days * 0.8) {
+            prematureFailures++;
+          }
+        }
+      }
+      
       // Check sensor status
       if (expirationInfo.isExpired) {
         expiredSensors++;
       } else {
         activeSensors++;
       }
-
-      // Check for premature failure (ended before expected duration)
-      // For problematic sensors, consider them as potential premature failures
-      if (sensor.is_problematic && actualWearDays < model.duration_days * 0.8) {
-        prematureFailures++;
-      }
     });
 
     // Calculate averages
-    const averageWearDuration = totalWearDuration / totalSensors;
-    const failureRate = (prematureFailures / totalSensors) * 100;
+    const averageWearDuration = wearDurations.length > 0 ? totalWearDuration / wearDurations.length : 0;
+    const failureRate = wearDurations.length > 0 ? (prematureFailures / wearDurations.length) * 100 : 0;
 
-    // Calculate average days between replacements
+    // Calculate average days between replacements using sorted sensor dates
     let totalDaysBetween = 0;
     let replacementGaps = 0;
     
-    for (let i = 1; i < replacementDates.length; i++) {
-      const daysBetween = Math.floor((replacementDates[i].getTime() - replacementDates[i - 1].getTime()) / (1000 * 60 * 60 * 24));
-      totalDaysBetween += daysBetween;
-      replacementGaps++;
+    // Use the sorted sensors directly for more accurate calculation
+    for (let i = 1; i < sortedSensors.length; i++) {
+      const currentDate = new Date(sortedSensors[i].date_added);
+      const previousDate = new Date(sortedSensors[i - 1].date_added);
+      const daysBetween = Math.floor((currentDate.getTime() - previousDate.getTime()) / (1000 * 60 * 60 * 24));
+      
+      // Only count reasonable gaps (between 1 and 60 days)
+      if (daysBetween >= 1 && daysBetween <= 60) {
+        totalDaysBetween += daysBetween;
+        replacementGaps++;
+      }
     }
 
     const averageDaysBetweenReplacements = replacementGaps > 0 ? totalDaysBetween / replacementGaps : 0;
@@ -183,6 +262,53 @@ export default function AnalyticsPage() {
       mostCommonSensorType = 'Mixed Types';
     }
 
+    // Calculate tag statistics
+    const tagCounts: { [tagId: string]: { tag: any; count: number } } = {};
+    const categoryCounts: { [category: string]: number } = {};
+    
+    sensorData.forEach(sensor => {
+      if (sensor.sensor_tags) {
+        sensor.sensor_tags.forEach(sensorTag => {
+          if (sensorTag.tags) {
+            const tag = sensorTag.tags;
+            // Count tags
+            if (!tagCounts[tag.id]) {
+              tagCounts[tag.id] = { tag, count: 0 };
+            }
+            tagCounts[tag.id].count++;
+            
+            // Count categories
+            if (!categoryCounts[tag.category]) {
+              categoryCounts[tag.category] = 0;
+            }
+            categoryCounts[tag.category]++;
+          }
+        });
+      }
+    });
+    
+    // Convert to arrays with percentages
+    const tagStats = Object.values(tagCounts)
+      .map(({ tag, count }) => ({
+        tag: {
+          id: tag.id,
+          name: tag.name,
+          category: tag.category,
+          color: tag.color
+        },
+        count,
+        percentage: (count / totalSensors) * 100
+      }))
+      .sort((a, b) => b.count - a.count);
+    
+    const categoryStats = Object.entries(categoryCounts)
+      .map(([category, count]) => ({
+        category,
+        count,
+        percentage: (count / totalSensors) * 100
+      }))
+      .sort((a, b) => b.count - a.count);
+
     setAnalytics({
       averageWearDuration,
       failureRate,
@@ -191,8 +317,11 @@ export default function AnalyticsPage() {
       activeSensors,
       expiredSensors,
       problematicSensors,
+      completedSensors: wearDurations.length,
       expectedDuration: Math.round(expectedDuration),
       mostCommonSensorType,
+      tagStats,
+      categoryStats
     });
   };
 
@@ -335,25 +464,36 @@ export default function AnalyticsPage() {
                 </div>
               </div>
               <div className="text-center">
-                <p className="text-3xl font-bold text-gray-900 dark:text-slate-100">{formatDuration(analytics.averageWearDuration)}</p>
+                <p className="text-3xl font-bold text-gray-900 dark:text-slate-100">
+                  {analytics.completedSensors > 0 ? formatDuration(analytics.averageWearDuration) : 'N/A'}
+                </p>
                 <p className="text-sm text-gray-500 dark:text-slate-400 mt-2">
-                  {analytics.averageWearDuration >= (analytics.expectedDuration * 0.9) ? 'Excellent duration' : 
-                   analytics.averageWearDuration >= (analytics.expectedDuration * 0.7) ? 'Good duration' : 'Consider checking placement'}
+                  {analytics.completedSensors > 0 ? (
+                    analytics.averageWearDuration >= (analytics.expectedDuration * 0.9) ? 'Excellent duration' : 
+                    analytics.averageWearDuration >= (analytics.expectedDuration * 0.7) ? 'Good duration' : 'Consider checking placement'
+                  ) : (
+                    'Based on completed sensors only'
+                  )}
+                </p>
+                <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
+                  {analytics.completedSensors} completed sensor{analytics.completedSensors !== 1 ? 's' : ''} analyzed
                 </p>
               </div>
               {/* Simple progress bar */}
-              <div className="mt-4">
-                <div className="flex justify-between text-sm text-gray-500 dark:text-slate-400 mb-1">
-                  <span>0 days</span>
-                  <span>{analytics.expectedDuration} days ({analytics.mostCommonSensorType})</span>
+              {analytics.completedSensors > 0 && (
+                <div className="mt-4">
+                  <div className="flex justify-between text-sm text-gray-500 dark:text-slate-400 mb-1">
+                    <span>0 days</span>
+                    <span>{analytics.expectedDuration} days ({analytics.mostCommonSensorType})</span>
+                  </div>
+                  <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2">
+                    <div 
+                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${Math.min((analytics.averageWearDuration / analytics.expectedDuration) * 100, 100)}%` }}
+                    ></div>
+                  </div>
                 </div>
-                <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2">
-                  <div 
-                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${Math.min((analytics.averageWearDuration / analytics.expectedDuration) * 100, 100)}%` }}
-                  ></div>
-                </div>
-              </div>
+              )}
             </div>
 
             {/* Failure Rate */}
@@ -367,10 +507,19 @@ export default function AnalyticsPage() {
                 </div>
               </div>
               <div className="text-center">
-                <p className="text-3xl font-bold text-gray-900 dark:text-slate-100">{formatPercentage(analytics.failureRate)}</p>
+                <p className="text-3xl font-bold text-gray-900 dark:text-slate-100">
+                  {analytics.completedSensors > 0 ? formatPercentage(analytics.failureRate) : 'N/A'}
+                </p>
                 <p className="text-sm text-gray-500 dark:text-slate-400 mt-2">
-                  {analytics.failureRate <= 10 ? 'Excellent performance' : 
-                   analytics.failureRate <= 25 ? 'Good performance' : 'Consider placement or adhesive'}
+                  {analytics.completedSensors > 0 ? (
+                    analytics.failureRate <= 10 ? 'Excellent performance' : 
+                    analytics.failureRate <= 25 ? 'Good performance' : 'Consider placement or adhesive'
+                  ) : (
+                    'Based on completed sensors only'
+                  )}
+                </p>
+                <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
+                  Premature failures out of {analytics.completedSensors} completed
                 </p>
               </div>
               {/* Simple progress bar */}

@@ -42,6 +42,31 @@ Deno.serve(async (req) => {
     for (const user of users.users) {
       console.log(`Checking sensors for user: ${user.id}`)
       
+      // Get user's profile settings for notification timing
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('warning_days_before, critical_days_before, notifications_enabled, push_notifications_enabled, in_app_notifications_enabled')
+        .eq('id', user.id)
+        .single()
+
+      if (profileError) {
+        console.error(`Error fetching profile for user ${user.id}:`, profileError)
+        // Use default settings if profile not found
+      }
+
+      // Use user settings or defaults
+      const warningDays = profile?.warning_days_before || 3
+      const criticalDays = profile?.critical_days_before || 1
+      const notificationsEnabled = profile?.notifications_enabled ?? true
+
+      // Skip notifications if user has disabled them
+      if (!notificationsEnabled) {
+        console.log(`Notifications disabled for user ${user.id}, skipping...`)
+        continue
+      }
+
+      console.log(`Using notification settings for user ${user.id}: warning=${warningDays} days, critical=${criticalDays} days`)
+      
       // Get user's active sensors with their model information
       const { data: sensors, error: sensorsError } = await supabase
         .from('sensors')
@@ -84,9 +109,10 @@ Deno.serve(async (req) => {
         
         const daysLeft = Math.ceil((expirationDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
         const isExpired = daysLeft < 0
-        const isExpiringSoon = daysLeft <= 2 && daysLeft >= 0
+        const isExpiringSoon = daysLeft <= warningDays && daysLeft >= 0
+        const isCritical = daysLeft <= criticalDays && daysLeft >= 0
 
-        console.log(`Sensor ${sensor.serial_number}: ${daysLeft} days left, expired: ${isExpired}, expiring soon: ${isExpiringSoon}`)
+        console.log(`Sensor ${sensor.serial_number}: ${daysLeft} days left, expired: ${isExpired}, expiring soon: ${isExpiringSoon}, critical: ${isCritical}`)
 
         // Check for expired sensors
         if (isExpired) {
@@ -117,8 +143,8 @@ Deno.serve(async (req) => {
             }
           }
         }
-        // Check for expiring sensors
-        else if (isExpiringSoon) {
+        // Check for critical expiring sensors (within critical_days_before)
+        else if (isCritical) {
           // Check for recent notifications (within last 24 hours)
           const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString()
           
@@ -127,7 +153,7 @@ Deno.serve(async (req) => {
             .select('id')
             .eq('user_id', user.id)
             .eq('sensor_id', sensor.id)
-            .eq('type', 'sensor_expiring')
+            .eq('type', 'sensor_critical')
             .gte('created_at', oneDayAgo)
             .limit(1)
 
@@ -137,17 +163,39 @@ Deno.serve(async (req) => {
               .insert({
                 user_id: user.id,
                 sensor_id: sensor.id,
-                title: 'Sensor expires soon',
-                message: `Your sensor (SN: ${sensor.serial_number}) will expire in ${daysLeft} day${daysLeft !== 1 ? 's' : ''}. Please plan to replace it.`,
-                type: 'sensor_expiring',
+                title: 'Sensor expires very soon!',
+                message: `URGENT: Your sensor (SN: ${sensor.serial_number}) will expire in ${daysLeft} day${daysLeft !== 1 ? 's' : ''}. Replace it now!`,
+                type: 'sensor_critical',
               })
 
             if (!insertError) {
               totalNotificationsCreated++
-              console.log(`Created expiring notification for sensor ${sensor.serial_number}`)
+              console.log(`Created critical notification for sensor ${sensor.serial_number}`)
             } else {
-              console.error('Error creating expiring notification:', insertError)
+              console.error('Error creating critical notification:', insertError)
             }
+          }
+        }
+        // Check for warning expiring sensors (within warning_days_before but not critical)
+        else if (isExpiringSoon && !isCritical) {
+          // Check for recent notifications (within last 24 hours)
+          const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString()
+          
+          const { error: insertError } = await supabase
+            .from('notifications')
+            .insert({
+              user_id: user.id,
+              sensor_id: sensor.id,
+              title: 'Sensor expires soon',
+              message: `Your sensor (SN: ${sensor.serial_number}) will expire in ${daysLeft} day${daysLeft !== 1 ? 's' : ''}. Please plan to replace it.`,
+              type: 'sensor_expiring',
+            })
+
+          if (!insertError) {
+            totalNotificationsCreated++
+            console.log(`Created warning notification for sensor ${sensor.serial_number}`)
+          } else {
+            console.error('Error creating warning notification:', insertError)
           }
         }
 

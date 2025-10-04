@@ -39,9 +39,9 @@ const getPageInfo = (pathname: string) => {
         { name: 'Add New Sensor', href: '/dashboard/sensors/new' }
       ]
     },
-    '/dashboard/profile': {
-      name: 'Profile',
-      breadcrumb: [{ name: 'Profile', href: '/dashboard/profile' }]
+    '/dashboard/settings': {
+      name: 'Settings',
+      breadcrumb: [{ name: 'Settings', href: '/dashboard/settings' }]
     }
   };
 

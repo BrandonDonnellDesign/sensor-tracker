@@ -2,6 +2,8 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/lib/supabase'; // adjust path if needed
+import { dateTimeFormatter } from '@/utils/date-formatter';
+import { Profile } from '@/types/profile';
 import type { Session, User, AuthError } from '@supabase/supabase-js';
 
 type AuthContextType = {
@@ -31,15 +33,50 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Load user profile and set it in the date formatter
+  const loadUserProfile = async (userId: string) => {
+    try {
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (!error && profile) {
+        dateTimeFormatter.setProfile(profile as Profile);
+      }
+    } catch (error) {
+      console.error('Error loading user profile for date formatting:', error);
+    }
+  };
+
   useEffect(() => {
     const session = supabase.auth.getSession();
     session.then(({ data }) => {
-      setUser(data.session?.user ?? null);
+      const currentUser = data.session?.user ?? null;
+      setUser(currentUser);
+      
+      // Load profile for date formatting
+      if (currentUser?.id) {
+        loadUserProfile(currentUser.id);
+      } else {
+        dateTimeFormatter.setProfile(null);
+      }
+      
       setLoading(false);
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+      
+      // Load profile for date formatting
+      if (currentUser?.id) {
+        loadUserProfile(currentUser.id);
+      } else {
+        dateTimeFormatter.setProfile(null);
+      }
+      
       setLoading(false);
     });
 
@@ -65,6 +102,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const signOut = async () => {
     await supabase.auth.signOut();
     setUser(null);
+    dateTimeFormatter.setProfile(null);
   };
 
   const signInWithGoogle = async () => {

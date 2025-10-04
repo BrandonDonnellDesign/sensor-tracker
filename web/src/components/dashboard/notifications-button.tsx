@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { BellIcon } from '@heroicons/react/24/outline';
 import { supabase } from '@/lib/supabase';
+import { useDateTimeFormatter } from '@/utils/date-formatter';
 
 type Notification = {
   id: string;
@@ -19,6 +20,7 @@ type Notification = {
 export function NotificationsButton() {
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const dateFormatter = useDateTimeFormatter();
 
   // Load notifications on component mount
   useEffect(() => {
@@ -248,7 +250,7 @@ export function NotificationsButton() {
                             </h3>
                             <div className="flex items-center gap-2">
                               <span className="text-xs text-gray-500 dark:text-slate-400">
-                                {new Date(notification.created_at).toLocaleTimeString()}
+                                {dateFormatter.formatTime(notification.created_at)}
                               </span>
                               <button
                                 onClick={(e) => handleDeleteNotification(notification.id, e)}

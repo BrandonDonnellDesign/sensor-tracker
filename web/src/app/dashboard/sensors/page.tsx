@@ -7,6 +7,9 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/components/providers/auth-provider';
 import { Database } from '@/lib/database.types';
 import { getSensorExpirationInfo, formatDaysLeft } from '@dexcom-tracker/shared/utils/sensorExpiration';
+import { useDateTimeFormatter } from '@/utils/date-formatter';
+import { TagDisplay } from '@/components/sensors/tag-display';
+import { checkAndTagExpiredSensors } from '@/lib/expired-sensors';
 
 type Sensor = Database['public']['Tables']['sensors']['Row'] & {
   sensorModel?: {
@@ -14,10 +17,23 @@ type Sensor = Database['public']['Tables']['sensors']['Row'] & {
     model_name: string;
     duration_days: number;
   };
+  sensor_tags?: Array<{
+    id: string;
+    tag_id: string;
+    tags: {
+      id: string;
+      name: string;
+      category: string;
+      description?: string;
+      color: string;
+      created_at: string;
+    };
+  }>;
 };
 
 export default function SensorsPage() {
   const { user } = useAuth();
+  const dateFormatter = useDateTimeFormatter();
   const searchParams = useSearchParams();
   const filter = searchParams.get('filter');
   
@@ -29,17 +45,43 @@ export default function SensorsPage() {
   const [showDeleted, setShowDeleted] = useState(false);
   const [sortBy, setSortBy] = useState<'date_added' | 'serial_number'>('date_added');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc'); // Default to newest first for date_added
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [availableTags, setAvailableTags] = useState<any[]>([]);
 
   const fetchSensors = useCallback(async () => {
     if (!user?.id) return;
     
     try {
       setError(null);
+      
+      // Check for expired sensors and auto-tag them before fetching
+      try {
+        const result = await checkAndTagExpiredSensors();
+        if (result.success && result.expiredCount > 0) {
+          console.log(`Auto-tagged ${result.expiredCount} expired sensors`);
+        }
+      } catch (expiredError) {
+        console.warn('Error auto-tagging expired sensors:', expiredError);
+        // Don't fail the whole operation if auto-tagging fails
+      }
+      
       let query = (supabase as any)
         .from('sensors')
         .select(`
           *,
-          sensorModel:sensor_models(*)
+          sensorModel:sensor_models(*),
+          sensor_tags(
+            id,
+            tag_id,
+            tags(
+              id,
+              name,
+              category,
+              description,
+              color,
+              created_at
+            )
+          )
         `)
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
@@ -66,11 +108,24 @@ export default function SensorsPage() {
     }
   }, [user?.id, filter, showDeleted]);
 
+  const fetchAvailableTags = useCallback(async () => {
+    try {
+      const response = await fetch('/api/tags');
+      if (response.ok) {
+        const tags = await response.json();
+        setAvailableTags(tags);
+      }
+    } catch (error) {
+      console.error('Error fetching tags:', error);
+    }
+  }, []);
+
   useEffect(() => {
     if (user) {
       fetchSensors();
+      fetchAvailableTags();
     }
-  }, [user, fetchSensors]);
+  }, [user, fetchSensors, fetchAvailableTags]);
 
   const deleteSensor = async (sensorId: string, event: React.MouseEvent) => {
     event.preventDefault(); // Prevent navigation to sensor detail
@@ -158,11 +213,18 @@ export default function SensorsPage() {
   };
 
   const filteredSensors = sensors
-    .filter(sensor => 
-      sensor.serial_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (sensor.lot_number && sensor.lot_number.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      sensor.sensor_type.toLowerCase().includes(searchTerm.toLowerCase())
-    )
+    .filter(sensor => {
+      // Text search
+      const matchesSearch = sensor.serial_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (sensor.lot_number && sensor.lot_number.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        sensor.sensor_type.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      // Tag filter
+      const matchesTags = selectedTags.length === 0 || 
+        (sensor.sensor_tags && sensor.sensor_tags.some(st => selectedTags.includes(st.tag_id)));
+      
+      return matchesSearch && matchesTags;
+    })
     .sort((a, b) => {
       let comparison = 0;
       
@@ -176,17 +238,6 @@ export default function SensorsPage() {
       
       return sortOrder === 'asc' ? comparison : -comparison;
     });
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric', 
-      year: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit'
-    });
-  };
 
   if (loading) {
     return (
@@ -327,6 +378,52 @@ export default function SensorsPage() {
         </div>
       </div>
 
+      {/* Tag Filter */}
+      {availableTags.length > 0 && (
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-slate-700">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4">Filter by Tags</h3>
+          <div className="flex flex-wrap gap-2">
+            {availableTags.map((tag) => (
+              <button
+                key={tag.id}
+                onClick={() => {
+                  setSelectedTags(prev => 
+                    prev.includes(tag.id) 
+                      ? prev.filter(id => id !== tag.id)
+                      : [...prev, tag.id]
+                  );
+                }}
+                className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+                  selectedTags.includes(tag.id)
+                    ? 'ring-2 ring-offset-2 ring-blue-500 dark:ring-offset-slate-800'
+                    : 'hover:ring-2 hover:ring-offset-2 hover:ring-gray-300 dark:hover:ring-offset-slate-800'
+                }`}
+                style={{ 
+                  backgroundColor: selectedTags.includes(tag.id) ? tag.color : undefined,
+                  color: selectedTags.includes(tag.id) ? 'white' : tag.color,
+                  border: `2px solid ${tag.color}`
+                }}
+              >
+                {tag.name}
+                {selectedTags.includes(tag.id) && (
+                  <svg className="w-4 h-4 ml-1" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                )}
+              </button>
+            ))}
+            {selectedTags.length > 0 && (
+              <button
+                onClick={() => setSelectedTags([])}
+                className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors"
+              >
+                Clear filters
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Sensors List */}
       {filteredSensors.length === 0 ? (
         <div className="bg-white dark:bg-slate-800 rounded-2xl p-12 text-center shadow-sm border border-gray-200 dark:border-slate-700">
@@ -423,7 +520,7 @@ export default function SensorsPage() {
                         <span className="font-semibold">Manufacturer:</span> {model.manufacturer}
                       </div>
                       <div className="flex flex-wrap gap-2 text-xs text-gray-700 dark:text-slate-300 mb-1">
-                        <span className="font-semibold">Expires:</span> {formatDate(expirationInfo.expirationDate.toISOString())}
+                        <span className="font-semibold">Expires:</span> {dateFormatter.formatDateTime(expirationInfo.expirationDate)}
                         <span className="font-semibold">Days left:</span> {formatDaysLeft(expirationInfo.daysLeft, expirationInfo)}
                       </div>
                       {sensor.lot_number && (
@@ -431,6 +528,14 @@ export default function SensorsPage() {
                       )}
                       {sensor.issue_notes && (
                         <p className="text-sm text-red-600 dark:text-red-400 mt-1 line-clamp-2">{sensor.issue_notes}</p>
+                      )}
+                      {sensor.sensor_tags && sensor.sensor_tags.length > 0 && (
+                        <div className="mt-2">
+                          <TagDisplay 
+                            tags={sensor.sensor_tags.map(st => st.tags).filter(Boolean)}
+                            size="sm"
+                          />
+                        </div>
                       )}
                       {sensor.is_deleted && (
                         <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-2">Deleted</p>
@@ -440,7 +545,7 @@ export default function SensorsPage() {
                   <div className="flex items-center space-x-4">
                     <div className="text-right">
                       <p className="text-sm text-gray-500 dark:text-slate-400">
-                        Added {formatDate(sensor.date_added)}
+                        Added {dateFormatter.formatDateTime(sensor.date_added)}
                       </p>
                       {sensor.is_problematic && (
                         <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 mt-2">

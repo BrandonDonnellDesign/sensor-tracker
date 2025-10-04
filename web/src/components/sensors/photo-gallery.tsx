@@ -90,7 +90,7 @@ export default function PhotoGallery({ photos, sensorId, userId, onPhotoDeleted,
       )}
 
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        {photos.map((photo) => (
+        {photos.map((photo, index) => (
           <div key={photo.id} className="relative group">
             <div className="aspect-square relative rounded-lg overflow-hidden border border-gray-200 dark:border-slate-700">
               {photoUrls[photo.id] ? (
@@ -99,6 +99,7 @@ export default function PhotoGallery({ photos, sensorId, userId, onPhotoDeleted,
                   alt="Sensor photo"
                   className="object-cover"
                   fill
+                  priority={index < 6} // Prioritize first 6 images (2 rows on mobile, 2 rows on desktop)
                   sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
                   onError={(e) => {
                     const img = e.target as HTMLImageElement;

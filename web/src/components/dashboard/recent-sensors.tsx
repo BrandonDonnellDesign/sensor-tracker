@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Database } from '@/lib/database.types';
 import { getSensorExpirationInfo, formatDaysLeft } from '@dexcom-tracker/shared/utils/sensorExpiration';
 import { SensorType } from '@dexcom-tracker/shared';
+import { useDateTimeFormatter } from '@/utils/date-formatter';
 
 type Sensor = Database['public']['Tables']['sensors']['Row'] & {
   sensor_models?: {
@@ -17,14 +18,7 @@ interface RecentSensorsProps {
 }
 
 export function RecentSensors({ sensors, onRefresh }: RecentSensorsProps) {
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric', 
-      year: 'numeric' 
-    });
-  };
+  const dateFormatter = useDateTimeFormatter();
 
   // Local formatDaysLeft function to bypass caching issues
   const formatDaysLeftLocal = (daysLeft: number, expirationInfo: any): string => {
@@ -35,11 +29,7 @@ export function RecentSensors({ sensors, onRefresh }: RecentSensorsProps) {
       const daysSinceExpired = Math.floor((now.getTime() - expiredDate.getTime()) / (1000 * 60 * 60 * 24));
       
       // Format the expiration date
-      const expiredDateFormatted = expiredDate.toLocaleDateString('en-US', { 
-        month: 'short', 
-        day: 'numeric',
-        year: expiredDate.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
-      });
+      const expiredDateFormatted = dateFormatter.formatDate(expiredDate);
       
       if (daysSinceExpired === 0) {
         return `Expired today (${expiredDateFormatted})`;
@@ -152,7 +142,7 @@ export function RecentSensors({ sensors, onRefresh }: RecentSensorsProps) {
                 {sensor.lot_number && ` • Lot: ${sensor.lot_number}`}
               </p>
               <p className="text-xs text-gray-500 dark:text-slate-500 mt-1">
-                Added {formatDate(sensor.date_added)}
+                Added {dateFormatter.formatDate(sensor.date_added)}
               </p>
             </div>
           </div>
@@ -233,7 +223,7 @@ export function RecentSensors({ sensors, onRefresh }: RecentSensorsProps) {
                       {currentSensor.lot_number && ` • Lot: ${currentSensor.lot_number}`}
                     </p>
                     <p className="text-xs text-gray-500 dark:text-slate-500 mt-1">
-                      Added {formatDate(currentSensor.date_added)}
+                      Added {dateFormatter.formatDate(currentSensor.date_added)}
                     </p>
                   </div>
                 </div>
