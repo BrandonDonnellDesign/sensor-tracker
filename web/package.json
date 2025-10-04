@@ -22,6 +22,7 @@
     "@dexcom-tracker/shared": "file:../shared",
     "@heroicons/react": "^2.2.0",
     "@hookform/resolvers": "^3.3.0",
+    "@netlify/functions": "^4.2.7",
     "@supabase/auth-ui-react": "^0.4.0",
     "@supabase/auth-ui-shared": "^0.1.0",
     "@supabase/ssr": "^0.7.0",
