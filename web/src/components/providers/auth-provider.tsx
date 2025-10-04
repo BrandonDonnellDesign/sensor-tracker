@@ -73,16 +73,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       if (typeof window !== 'undefined') {
         const origin = window.location.origin;
         
-        // If we're on localhost but the environment suggests production
-        // (this can happen during development or misconfiguration)
+        // If we're on localhost, always use localhost for redirects in development
         if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
-          // Check if we have a production site URL configured
-          const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
-          if (siteUrl && process.env.NODE_ENV === 'production') {
-            return siteUrl;
-          }
-          // In development, use localhost
-          return origin;
+          return origin; // Always use localhost for development
         }
         
         // Use the actual origin for production
@@ -90,6 +83,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       }
       
       // Fallback for server-side or when window is not available
+      // Check if we're in development mode
+      if (process.env.NODE_ENV === 'development') {
+        return 'http://localhost:3000';
+      }
       return process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
     };
 

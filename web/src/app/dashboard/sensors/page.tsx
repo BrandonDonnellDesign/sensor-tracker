@@ -27,6 +27,8 @@ export default function SensorsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [deletingSensorId, setDeletingSensorId] = useState<string | null>(null);
   const [showDeleted, setShowDeleted] = useState(false);
+  const [sortBy, setSortBy] = useState<'date_added' | 'serial_number'>('date_added');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc'); // Default to newest first for date_added
 
   const fetchSensors = useCallback(async () => {
     if (!user?.id) return;
@@ -155,11 +157,25 @@ export default function SensorsPage() {
     }
   };
 
-  const filteredSensors = sensors.filter(sensor => 
-    sensor.serial_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (sensor.lot_number && sensor.lot_number.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    sensor.sensor_type.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredSensors = sensors
+    .filter(sensor => 
+      sensor.serial_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (sensor.lot_number && sensor.lot_number.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      sensor.sensor_type.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    .sort((a, b) => {
+      let comparison = 0;
+      
+      if (sortBy === 'date_added') {
+        const dateA = new Date(a.date_added).getTime();
+        const dateB = new Date(b.date_added).getTime();
+        comparison = dateA - dateB;
+      } else if (sortBy === 'serial_number') {
+        comparison = a.serial_number.localeCompare(b.serial_number);
+      }
+      
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -229,7 +245,7 @@ export default function SensorsPage() {
 
       {/* Search and Filter */}
       <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-slate-700">
-        <div className="flex flex-col sm:flex-row gap-4 items-center">
+        <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
           <div className="flex-1">
             <div className="relative">
               <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -244,7 +260,43 @@ export default function SensorsPage() {
               />
             </div>
           </div>
-          <div className="flex gap-3 items-center">
+          
+          {/* Sort Controls */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2">
+              <label htmlFor="sort-by" className="text-sm font-medium text-gray-700 dark:text-slate-300 whitespace-nowrap">
+                Sort by:
+              </label>
+              <select
+                id="sort-by"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as 'date_added' | 'serial_number')}
+                className="px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
+              >
+                <option value="date_added">Date Added</option>
+                <option value="serial_number">Serial Number</option>
+              </select>
+            </div>
+            
+            <button
+              onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+              className="p-2 rounded-lg bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors"
+              title={`Sort ${sortOrder === 'asc' ? 'descending' : 'ascending'}`}
+            >
+              {sortOrder === 'asc' ? (
+                <svg className="w-4 h-4 text-gray-600 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
+                </svg>
+              ) : (
+                <svg className="w-4 h-4 text-gray-600 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h9m5-4v12m0 0l-4-4m4 4l4-4" />
+                </svg>
+              )}
+            </button>
+          </div>
+          
+          {/* Filter Controls */}
+          <div className="flex gap-3 items-center flex-wrap">
             <Link
               href="/dashboard/sensors"
               className={`px-6 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
@@ -372,7 +424,7 @@ export default function SensorsPage() {
                       </div>
                       <div className="flex flex-wrap gap-2 text-xs text-gray-700 dark:text-slate-300 mb-1">
                         <span className="font-semibold">Expires:</span> {formatDate(expirationInfo.expirationDate.toISOString())}
-                        <span className="font-semibold">Days left:</span> {formatDaysLeft(expirationInfo.daysLeft)}
+                        <span className="font-semibold">Days left:</span> {formatDaysLeft(expirationInfo.daysLeft, expirationInfo)}
                       </div>
                       {sensor.lot_number && (
                         <p className="text-sm text-gray-500 dark:text-slate-400">Lot: {sensor.lot_number}</p>
