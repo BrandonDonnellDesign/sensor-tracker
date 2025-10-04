@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/components/providers/auth-provider';
 import { Database } from '@/lib/database.types';
+import { getSensorExpirationInfo, formatDaysLeft } from '@dexcom-tracker/shared/utils/sensorExpiration';
 
 type Sensor = Database['public']['Tables']['sensors']['Row'] & {
   sensorModel?: {
@@ -304,102 +305,116 @@ export default function SensorsPage() {
         </div>
       ) : (
         <div className="grid gap-4">
-          {filteredSensors.map((sensor) => (
-            <div key={sensor.id} className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-slate-700 hover:shadow-lg transition-all duration-200">
-              <div className="flex items-center justify-between">
-                <Link
-                  href={`/dashboard/sensors/${sensor.id}`}
-                  className="flex items-center space-x-4 flex-1 cursor-pointer group"
-                >
-                  <div className={`w-3 h-3 rounded-full ${sensor.is_problematic ? 'bg-red-400' : 'bg-green-400'}`} />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-1">
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                        {sensor.serial_number}
-                      </h3>
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        sensor.sensorModel 
-                          ? (sensor.sensorModel.manufacturer === 'Dexcom' 
-                              ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300'
-                              : 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300')
-                          : (sensor.sensor_type === 'dexcom' 
-                              ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300'
-                              : 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300')
-                      }`}>
-                        {sensor.sensorModel 
-                          ? sensor.sensorModel.manufacturer 
-                          : (sensor.sensor_type === 'dexcom' ? 'Dexcom' : 'Freestyle')
-                        }
-                      </span>
-                    </div>
-                    {sensor.lot_number && (
-                      <p className="text-sm text-gray-500 dark:text-slate-400">Lot: {sensor.lot_number}</p>
-                    )}
-                    {sensor.issue_notes && (
-                      <p className="text-sm text-red-600 dark:text-red-400 mt-1 line-clamp-2">{sensor.issue_notes}</p>
-                    )}
-                    {sensor.is_deleted && (
-                      <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-2">Deleted</p>
-                    )}
-                  </div>
-                </Link>
-                <div className="flex items-center space-x-4">
-                  <div className="text-right">
-                    <p className="text-sm text-gray-500 dark:text-slate-400">
-                      Added {formatDate(sensor.date_added)}
-                    </p>
-                    {sensor.is_problematic && (
-                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 mt-2">
-                        Problematic
-                      </span>
-                    )}
-                  </div>
-                  {!sensor.is_deleted ? (
-                    <button
-                      onClick={(e) => deleteSensor(sensor.id, e)}
-                      disabled={deletingSensorId === sensor.id}
-                      className="p-2 text-gray-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                      title="Delete sensor"
-                    >
-                      {deletingSensorId === sensor.id ? (
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
-                      ) : (
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1-1H8a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
+          {filteredSensors.map((sensor) => {
+            // Get model info (prefer sensorModel, fallback to sensor_type)
+            // Normalize model to always match SensorModel interface
+            let model: {
+              id: string;
+              manufacturer: string;
+              modelName: string;
+              duration_days: number;
+              isActive: boolean;
+              createdAt: Date;
+              updatedAt: Date;
+            };
+            if (sensor.sensorModel && typeof sensor.sensorModel === 'object') {
+              model = {
+                id: sensor.id || 'fallback',
+                manufacturer: sensor.sensorModel.manufacturer || (sensor.sensor_type === 'dexcom' ? 'Dexcom' : 'Abbott'),
+                modelName: sensor.sensorModel.model_name || (sensor.sensor_type === 'dexcom' ? 'G6' : 'FreeStyle Libre'),
+                duration_days: typeof sensor.sensorModel.duration_days === 'number' ? sensor.sensorModel.duration_days : (sensor.sensor_type === 'dexcom' ? 10 : 14),
+                isActive: true,
+                createdAt: new Date(sensor.date_added),
+                updatedAt: new Date(sensor.date_added),
+              };
+            } else {
+              model = {
+                id: sensor.id || 'fallback',
+                manufacturer: sensor.sensor_type === 'dexcom' ? 'Dexcom' : 'Abbott',
+                modelName: sensor.sensor_type === 'dexcom' ? 'G6' : 'FreeStyle Libre',
+                duration_days: sensor.sensor_type === 'dexcom' ? 10 : 14,
+                isActive: true,
+                createdAt: new Date(sensor.date_added),
+                updatedAt: new Date(sensor.date_added),
+              };
+            }
+            const expirationInfo = getSensorExpirationInfo(sensor.date_added, model);
+            let badgeColor = '';
+            let badgeLabel = '';
+            if (expirationInfo.isExpired) {
+              badgeColor = 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300';
+              badgeLabel = '❌ Expired';
+            } else if (expirationInfo.isExpiringSoon) {
+              badgeColor = 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300';
+              badgeLabel = '⚠️ Expiring soon';
+            } else {
+              badgeColor = 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300';
+              badgeLabel = '✅ Active';
+            }
+            return (
+              <div key={sensor.id} className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-slate-700 hover:shadow-lg transition-all duration-200">
+                <div className="flex items-center justify-between">
+                  <Link
+                    href={`/dashboard/sensors/${sensor.id}`}
+                    className="flex items-center space-x-4 flex-1 cursor-pointer group"
+                  >
+                    <div className={`w-3 h-3 rounded-full ${sensor.is_problematic ? 'bg-red-400' : 'bg-green-400'}`} />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-1">
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                          {sensor.serial_number}
+                        </h3>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${badgeColor}`}>{badgeLabel}</span>
+                      </div>
+                      <div className="flex flex-wrap gap-2 text-xs text-gray-700 dark:text-slate-300 mb-1">
+                        <span className="font-semibold">Model:</span> {model.modelName}
+                        <span className="font-semibold">Manufacturer:</span> {model.manufacturer}
+                      </div>
+                      <div className="flex flex-wrap gap-2 text-xs text-gray-700 dark:text-slate-300 mb-1">
+                        <span className="font-semibold">Expires:</span> {formatDate(expirationInfo.expirationDate.toISOString())}
+                        <span className="font-semibold">Days left:</span> {formatDaysLeft(expirationInfo.daysLeft)}
+                      </div>
+                      {sensor.lot_number && (
+                        <p className="text-sm text-gray-500 dark:text-slate-400">Lot: {sensor.lot_number}</p>
                       )}
-                    </button>
-                  ) : (
-                    <>
+                      {sensor.issue_notes && (
+                        <p className="text-sm text-red-600 dark:text-red-400 mt-1 line-clamp-2">{sensor.issue_notes}</p>
+                      )}
+                      {sensor.is_deleted && (
+                        <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-2">Deleted</p>
+                      )}
+                    </div>
+                  </Link>
+                  <div className="flex items-center space-x-4">
+                    <div className="text-right">
+                      <p className="text-sm text-gray-500 dark:text-slate-400">
+                        Added {formatDate(sensor.date_added)}
+                      </p>
+                      {sensor.is_problematic && (
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 mt-2">
+                          Problematic
+                        </span>
+                      )}
+                    </div>
+                    {!sensor.is_deleted ? (
                       <button
-                        onClick={() => restoreSensor(sensor.id)}
-                        className="p-2 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-all duration-200"
-                        title="Restore sensor"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10v6a2 2 0 002 2h6m10-10v6a2 2 0 01-2 2h-6M7 7l10 10" />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={() => permanentlyDeleteSensor(sensor.id)}
+                        onClick={(e) => deleteSensor(sensor.id, e)}
                         disabled={deletingSensorId === sensor.id}
-                        className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                        title="Delete permanently"
                       >
                         {deletingSensorId === sensor.id ? (
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
                         ) : (
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1-1H8a1 1 0 00-1 1v3M4 7h16" />
                           </svg>
                         )}
                       </button>
-                    </>
-                  )}
+                    ) : null}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
