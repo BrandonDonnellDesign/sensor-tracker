@@ -1,5 +1,20 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Output configuration to prevent scanning supabase functions
+  outputFileTracingRoot: require('path').join(__dirname),
+  outputFileTracingIncludes: {
+    '/**/*': ['../shared/**/*'],
+  },
+  outputFileTracingExcludes: {
+    '/**/*': [
+      '../supabase/functions/**/*',
+      './supabase/functions/**/*',
+      '**/supabase/functions/**/*',
+      '**/_deno/**/*',
+      '**/node_modules/.deno/**/*'
+    ],
+  },
+  
   // Image optimization for sensor photos
   images: {
     remotePatterns: [
