@@ -1,0 +1,510 @@
+'use client';
+
+import { useEffect, useState, useCallback } from 'react';
+import Link from 'next/link';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/components/providers/auth-provider';
+import { Database } from '@/lib/database.types';
+import { getSensorExpirationInfo } from '@dexcom-tracker/shared/utils/sensorExpiration';
+
+type Sensor = Database['public']['Tables']['sensors']['Row'] & {
+  sensorModel?: {
+    manufacturer: string;
+    model_name: string;
+    duration_days: number;
+  };
+};
+
+interface AnalyticsData {
+  averageWearDuration: number;
+  failureRate: number;
+  averageDaysBetweenReplacements: number;
+  totalSensors: number;
+  activeSensors: number;
+  expiredSensors: number;
+  problematicSensors: number;
+  expectedDuration: number; // Average expected duration based on user's sensor types
+  mostCommonSensorType: string; // Most common sensor type for display
+}
+
+export default function AnalyticsPage() {
+  const { user } = useAuth();
+  const [sensors, setSensors] = useState<Sensor[]>([]);
+  const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchSensors = useCallback(async () => {
+    if (!user?.id) return;
+    
+    try {
+      setError(null);
+      const { data, error } = await (supabase as any)
+        .from('sensors')
+        .select(`
+          *,
+          sensorModel:sensor_models(*)
+        `)
+        .eq('user_id', user.id)
+        .order('date_added', { ascending: true });
+
+      if (error) throw error;
+      setSensors(data || []);
+      calculateAnalytics(data || []);
+    } catch (error) {
+      console.error('Error fetching sensors:', error);
+      setError(error instanceof Error ? error.message : 'Failed to fetch sensors');
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (user) {
+      fetchSensors();
+    }
+  }, [user, fetchSensors]);
+
+  const calculateAnalytics = (sensorData: Sensor[]) => {
+    if (sensorData.length === 0) {
+      setAnalytics({
+        averageWearDuration: 0,
+        failureRate: 0,
+        averageDaysBetweenReplacements: 0,
+        totalSensors: 0,
+        activeSensors: 0,
+        expiredSensors: 0,
+        problematicSensors: 0,
+        expectedDuration: 14, // Default to 14 days
+        mostCommonSensorType: 'Mixed',
+      });
+      return;
+    }
+
+    // Calculate basic counts
+    const totalSensors = sensorData.length;
+    const problematicSensors = sensorData.filter(s => s.is_problematic).length;
+    
+    // Calculate sensor type distribution to find most common type and expected duration
+    const sensorTypeCounts: { [key: string]: { count: number; duration: number } } = {};
+    let totalExpectedDuration = 0;
+    
+    // Calculate wear durations and status
+    let totalWearDuration = 0;
+    let activeSensors = 0;
+    let expiredSensors = 0;
+    let prematureFailures = 0;
+    
+    const wearDurations: number[] = [];
+    const replacementDates: Date[] = [];
+
+    sensorData.forEach((sensor, index) => {
+      const model = sensor.sensorModel || {
+        manufacturer: sensor.sensor_type === 'dexcom' ? 'Dexcom' : 'Abbott',
+        model_name: sensor.sensor_type === 'dexcom' ? 'G6' : 'FreeStyle Libre',
+        duration_days: sensor.sensor_type === 'dexcom' ? 10 : 14,
+      };
+
+      // Track sensor type distribution
+      const sensorKey = `${model.manufacturer} ${model.model_name}`;
+      if (!sensorTypeCounts[sensorKey]) {
+        sensorTypeCounts[sensorKey] = { count: 0, duration: model.duration_days };
+      }
+      sensorTypeCounts[sensorKey].count++;
+      totalExpectedDuration += model.duration_days;
+
+      const expirationInfo = getSensorExpirationInfo(sensor.date_added, {
+        id: sensor.id,
+        manufacturer: model.manufacturer,
+        modelName: model.model_name,
+        duration_days: model.duration_days,
+        isActive: true,
+        createdAt: new Date(sensor.date_added),
+        updatedAt: new Date(sensor.date_added),
+      });
+
+      // Calculate actual wear duration
+      const startDate = new Date(sensor.date_added);
+      // For now, assume sensors without end date are still active
+      const endDate = new Date(); // We'll use current date for all calculations
+      const actualWearDays = Math.floor((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+      
+      wearDurations.push(actualWearDays);
+      totalWearDuration += actualWearDays;
+      replacementDates.push(startDate);
+
+      // Check sensor status
+      if (expirationInfo.isExpired) {
+        expiredSensors++;
+      } else {
+        activeSensors++;
+      }
+
+      // Check for premature failure (ended before expected duration)
+      // For problematic sensors, consider them as potential premature failures
+      if (sensor.is_problematic && actualWearDays < model.duration_days * 0.8) {
+        prematureFailures++;
+      }
+    });
+
+    // Calculate averages
+    const averageWearDuration = totalWearDuration / totalSensors;
+    const failureRate = (prematureFailures / totalSensors) * 100;
+
+    // Calculate average days between replacements
+    let totalDaysBetween = 0;
+    let replacementGaps = 0;
+    
+    for (let i = 1; i < replacementDates.length; i++) {
+      const daysBetween = Math.floor((replacementDates[i].getTime() - replacementDates[i - 1].getTime()) / (1000 * 60 * 60 * 24));
+      totalDaysBetween += daysBetween;
+      replacementGaps++;
+    }
+
+    const averageDaysBetweenReplacements = replacementGaps > 0 ? totalDaysBetween / replacementGaps : 0;
+
+    // Calculate expected duration based on user's sensor types
+    const expectedDuration = totalExpectedDuration / totalSensors;
+    
+    // Find most common sensor type
+    let mostCommonSensorType = 'Mixed';
+    let maxCount = 0;
+    Object.entries(sensorTypeCounts).forEach(([type, data]) => {
+      if (data.count > maxCount) {
+        maxCount = data.count;
+        mostCommonSensorType = type;
+      }
+    });
+    
+    // If all sensors are the same type, use that type name, otherwise use "Mixed"
+    if (Object.keys(sensorTypeCounts).length === 1) {
+      mostCommonSensorType = Object.keys(sensorTypeCounts)[0];
+    } else if (Object.keys(sensorTypeCounts).length > 1) {
+      mostCommonSensorType = 'Mixed Types';
+    }
+
+    setAnalytics({
+      averageWearDuration,
+      failureRate,
+      averageDaysBetweenReplacements,
+      totalSensors,
+      activeSensors,
+      expiredSensors,
+      problematicSensors,
+      expectedDuration: Math.round(expectedDuration),
+      mostCommonSensorType,
+    });
+  };
+
+  const formatDuration = (days: number): string => {
+    if (days === 0) return '0 days';
+    if (days < 1) return `${Math.round(days * 24)} hours`;
+    if (days === 1) return '1 day';
+    return `${Math.round(days * 10) / 10} days`;
+  };
+
+  const formatPercentage = (value: number): string => {
+    return `${Math.round(value * 10) / 10}%`;
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-6">
+        <div className="flex">
+          <div className="flex-shrink-0">
+            <svg className="h-6 w-6 text-red-500 dark:text-red-400" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+            </svg>
+          </div>
+          <div className="ml-4">
+            <h3 className="text-base font-semibold text-red-800 dark:text-red-200">Error loading analytics</h3>
+            <p className="text-sm text-red-700 dark:text-red-300 mt-1">{error}</p>
+            <button 
+              onClick={fetchSensors}
+              className="text-sm text-red-800 dark:text-red-200 underline mt-3 hover:text-red-900 dark:hover:text-red-100 transition-colors"
+            >
+              Try again
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-slate-100">
+            Sensor Analytics
+          </h1>
+          <p className="text-lg text-gray-600 dark:text-slate-400 mt-2">
+            Track your sensor usage patterns and performance
+          </p>
+        </div>
+      </div>
+
+      {analytics && (
+        <>
+          {/* Overview Stats */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-slate-700">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                    <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                  </div>
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-500 dark:text-slate-400">Total Sensors</p>
+                  <p className="text-2xl font-semibold text-gray-900 dark:text-slate-100">{analytics.totalSensors}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-slate-700">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <div className="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
+                    <svg className="w-5 h-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-500 dark:text-slate-400">Active Sensors</p>
+                  <p className="text-2xl font-semibold text-gray-900 dark:text-slate-100">{analytics.activeSensors}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-slate-700">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <div className="w-8 h-8 bg-red-100 dark:bg-red-900/30 rounded-lg flex items-center justify-center">
+                    <svg className="w-5 h-5 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-500 dark:text-slate-400">Problematic</p>
+                  <p className="text-2xl font-semibold text-gray-900 dark:text-slate-100">{analytics.problematicSensors}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-slate-700">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <div className="w-8 h-8 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg flex items-center justify-center">
+                    <svg className="w-5 h-5 text-yellow-600 dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.732 15.5c-.77.833.192 2.5 1.732 2.5z" />
+                    </svg>
+                  </div>
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-500 dark:text-slate-400">Expired</p>
+                  <p className="text-2xl font-semibold text-gray-900 dark:text-slate-100">{analytics.expiredSensors}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Main Analytics */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Average Wear Duration */}
+            <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-slate-700">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">Average Wear Duration</h3>
+                <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                  <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+              </div>
+              <div className="text-center">
+                <p className="text-3xl font-bold text-gray-900 dark:text-slate-100">{formatDuration(analytics.averageWearDuration)}</p>
+                <p className="text-sm text-gray-500 dark:text-slate-400 mt-2">
+                  {analytics.averageWearDuration >= (analytics.expectedDuration * 0.9) ? 'Excellent duration' : 
+                   analytics.averageWearDuration >= (analytics.expectedDuration * 0.7) ? 'Good duration' : 'Consider checking placement'}
+                </p>
+              </div>
+              {/* Simple progress bar */}
+              <div className="mt-4">
+                <div className="flex justify-between text-sm text-gray-500 dark:text-slate-400 mb-1">
+                  <span>0 days</span>
+                  <span>{analytics.expectedDuration} days ({analytics.mostCommonSensorType})</span>
+                </div>
+                <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2">
+                  <div 
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${Math.min((analytics.averageWearDuration / analytics.expectedDuration) * 100, 100)}%` }}
+                  ></div>
+                </div>
+              </div>
+            </div>
+
+            {/* Failure Rate */}
+            <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-slate-700">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">Failure Rate</h3>
+                <div className="w-8 h-8 bg-red-100 dark:bg-red-900/30 rounded-lg flex items-center justify-center">
+                  <svg className="w-5 h-5 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
+                  </svg>
+                </div>
+              </div>
+              <div className="text-center">
+                <p className="text-3xl font-bold text-gray-900 dark:text-slate-100">{formatPercentage(analytics.failureRate)}</p>
+                <p className="text-sm text-gray-500 dark:text-slate-400 mt-2">
+                  {analytics.failureRate <= 10 ? 'Excellent performance' : 
+                   analytics.failureRate <= 25 ? 'Good performance' : 'Consider placement or adhesive'}
+                </p>
+              </div>
+              {/* Simple progress bar */}
+              <div className="mt-4">
+                <div className="flex justify-between text-sm text-gray-500 dark:text-slate-400 mb-1">
+                  <span>0%</span>
+                  <span>50%</span>
+                </div>
+                <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2">
+                  <div 
+                    className={`h-2 rounded-full transition-all duration-300 ${
+                      analytics.failureRate <= 10 ? 'bg-green-600' :
+                      analytics.failureRate <= 25 ? 'bg-yellow-600' : 'bg-red-600'
+                    }`}
+                    style={{ width: `${Math.min((analytics.failureRate / 50) * 100, 100)}%` }}
+                  ></div>
+                </div>
+              </div>
+            </div>
+
+            {/* Days Between Replacements */}
+            <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-slate-700">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">Days Between Replacements</h3>
+                <div className="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
+                  <svg className="w-5 h-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                </div>
+              </div>
+              <div className="text-center">
+                <p className="text-3xl font-bold text-gray-900 dark:text-slate-100">{formatDuration(analytics.averageDaysBetweenReplacements)}</p>
+                <p className="text-sm text-gray-500 dark:text-slate-400 mt-2">
+                  {analytics.averageDaysBetweenReplacements >= (analytics.expectedDuration * 0.9) ? 'Consistent replacement schedule' : 
+                   analytics.averageDaysBetweenReplacements >= (analytics.expectedDuration * 0.7) ? 'Good timing' : 'Frequent replacements'}
+                </p>
+              </div>
+              {/* Simple progress bar */}
+              <div className="mt-4">
+                <div className="flex justify-between text-sm text-gray-500 dark:text-slate-400 mb-1">
+                  <span>0 days</span>
+                  <span>{analytics.expectedDuration} days</span>
+                </div>
+                <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2">
+                  <div 
+                    className="bg-green-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${Math.min((analytics.averageDaysBetweenReplacements / analytics.expectedDuration) * 100, 100)}%` }}
+                  ></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Insights */}
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl p-6 border border-blue-200 dark:border-blue-800">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4">Insights & Recommendations</h3>
+            <div className="space-y-3">
+              {analytics.failureRate > 25 && (
+                <div className="flex items-start space-x-3">
+                  <div className="flex-shrink-0 w-5 h-5 text-red-500 mt-0.5">
+                    <svg fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <p className="text-sm text-gray-700 dark:text-slate-300">
+                    Your failure rate is higher than average. Consider checking sensor placement, skin preparation, or adhesive quality.
+                  </p>
+                </div>
+              )}
+              
+              {analytics.averageWearDuration < (analytics.expectedDuration * 0.7) && (
+                <div className="flex items-start space-x-3">
+                  <div className="flex-shrink-0 w-5 h-5 text-yellow-500 mt-0.5">
+                    <svg fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <p className="text-sm text-gray-700 dark:text-slate-300">
+                    Sensors are not lasting as long as expected for {analytics.mostCommonSensorType} (avg {analytics.expectedDuration} days). Review your insertion technique and skin care routine.
+                  </p>
+                </div>
+              )}
+              
+              {analytics.failureRate <= 10 && analytics.averageWearDuration >= (analytics.expectedDuration * 0.9) && (
+                <div className="flex items-start space-x-3">
+                  <div className="flex-shrink-0 w-5 h-5 text-green-500 mt-0.5">
+                    <svg fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <p className="text-sm text-gray-700 dark:text-slate-300">
+                    Excellent sensor management! Your sensors are lasting well with minimal failures.
+                  </p>
+                </div>
+              )}
+
+              {analytics.totalSensors < 3 && (
+                <div className="flex items-start space-x-3">
+                  <div className="flex-shrink-0 w-5 h-5 text-blue-500 mt-0.5">
+                    <svg fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <p className="text-sm text-gray-700 dark:text-slate-300">
+                    Add more sensors to get more accurate analytics and trends.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
+      {!analytics && !loading && (
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-12 text-center shadow-sm border border-gray-200 dark:border-slate-700">
+          <div className="w-16 h-16 mx-auto bg-gray-100 dark:bg-slate-700 rounded-2xl flex items-center justify-center mb-6">
+            <svg className="w-8 h-8 text-gray-400 dark:text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+          </div>
+          <h3 className="text-xl font-semibold text-gray-900 dark:text-slate-100 mb-2">
+            No sensor data available
+          </h3>
+          <p className="text-gray-600 dark:text-slate-400 mb-8 max-w-md mx-auto">
+            Add some sensors to your account to start seeing analytics and insights about your usage patterns.
+          </p>
+          <Link href="/dashboard/sensors/new" className="btn-primary inline-flex items-center space-x-2">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            <span>Add Your First Sensor</span>
+          </Link>
+        </div>
+      )}
+    </div>
+  );
+}
