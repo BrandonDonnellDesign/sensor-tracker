@@ -4,21 +4,27 @@ This document tracks the Dexcom integration files that have been temporarily hid
 
 ## Hidden Files Location
 
+All Dexcom integration files have been moved to `.dexcom-integration-backup/` directory:
+
 ### Components
-- `src/components/settings/dexcom-integration.tsx.hidden` - Complete Dexcom integration settings component with OAuth, sync, and configuration
+- `.dexcom-integration-backup/dexcom-integration-component.tsx` - Complete Dexcom integration settings component with OAuth, sync, and configuration
 
 ### API Routes  
-- `src/app/api/dexcom.hidden/` - Complete Dexcom API integration
+- `.dexcom-integration-backup/api/` - Complete Dexcom API integration
   - `oauth/route.ts` - OAuth authorization URL generation
   - `sync/route.ts` - Real Dexcom API sync with database integration
   - `token/route.ts` - Token management
 
 ### OAuth Pages
-- `src/app/auth/dexcom.hidden/` - OAuth callback handling
+- `.dexcom-integration-backup/auth/` - OAuth callback handling
   - `callback/page.tsx` - OAuth callback with token storage
 
+### Support Pages
+- `.dexcom-integration-backup/troubleshoot/` - Dexcom troubleshooting and support pages
+  - `troubleshoot/page.tsx` - User troubleshooting guide
+
 ### Libraries
-- `src/lib/dexcom-api.ts.hidden` - Complete Dexcom API client with real sandbox integration
+- `.dexcom-integration-backup/dexcom-api-client.ts` - Complete Dexcom API client with real sandbox integration
 
 ## Database Schema
 
@@ -47,7 +53,12 @@ The Integrations tab in Settings now shows a "Coming Soon" component (`dexcom-in
 
 ## To Re-enable Integration
 
-1. Rename `.hidden` files back to original names
+1. Move files from `.dexcom-integration-backup/` back to their original locations:
+   - `api/` → `src/app/api/dexcom/`
+   - `auth/` → `src/app/auth/dexcom/`  
+   - `troubleshoot/` → `src/app/dexcom/`
+   - `dexcom-integration-component.tsx` → `src/components/settings/dexcom-integration.tsx`
+   - `dexcom-api-client.ts` → `src/lib/dexcom-api.ts`
 2. Update settings page import to use `DexcomIntegrationSettings`
 3. Restore help page FAQ sections about Dexcom integration
 4. Test OAuth flow and sync functionality

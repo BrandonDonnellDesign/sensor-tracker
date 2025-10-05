@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase-server';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { sensorId: string } }
+  { params }: { params: Promise<{ sensorId: string }> }
 ) {
   try {
     console.log('Sensor tags POST: Starting...');
@@ -93,7 +93,7 @@ export async function POST(
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { sensorId: string } }
+  { params }: { params: Promise<{ sensorId: string }> }
 ) {
   try {
     const resolvedParams = await params;
