@@ -21,7 +21,7 @@ export class EncryptionUtil {
   static encrypt(text: string): string {
     try {
       const iv = crypto.randomBytes(this.IV_LENGTH);
-      const cipher = crypto.createCipher(this.ALGORITHM, this.encryptionKey);
+      const cipher = crypto.createCipheriv(this.ALGORITHM, this.encryptionKey, iv);
       cipher.setAAD(Buffer.from('dexcom-tracker', 'utf8'));
       
       let encrypted = cipher.update(text, 'utf8', 'hex');
@@ -51,7 +51,7 @@ export class EncryptionUtil {
       const tag = Buffer.from(parts[1], 'hex');
       const encrypted = parts[2];
       
-      const decipher = crypto.createDecipher(this.ALGORITHM, this.encryptionKey);
+      const decipher = crypto.createDecipheriv(this.ALGORITHM, this.encryptionKey, iv);
       decipher.setAAD(Buffer.from('dexcom-tracker', 'utf8'));
       decipher.setAuthTag(tag);
       
@@ -90,7 +90,7 @@ export class EncryptionUtil {
     
     for (const field of fieldsToEncrypt) {
       if (encrypted[field] && typeof encrypted[field] === 'string') {
-        encrypted[field] = this.encrypt(encrypted[field] as string);
+        (encrypted[field] as any) = this.encrypt(encrypted[field] as string);
       }
     }
     
@@ -109,7 +109,7 @@ export class EncryptionUtil {
     for (const field of fieldsToDecrypt) {
       if (decrypted[field] && typeof decrypted[field] === 'string') {
         try {
-          decrypted[field] = this.decrypt(decrypted[field] as string);
+          (decrypted[field] as any) = this.decrypt(decrypted[field] as string);
         } catch (error) {
           console.error(`Failed to decrypt field ${String(field)}:`, error);
           // Keep original value if decryption fails (might not be encrypted)

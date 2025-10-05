@@ -8,15 +8,11 @@ const prisma = new PrismaClient();
 describe('Authentication API', () => {
   beforeAll(async () => {
     // Clean up test data
-    await prisma.photo.deleteMany();
-    await prisma.sensor.deleteMany();
     await prisma.user.deleteMany();
   });
 
   afterAll(async () => {
     // Clean up test data
-    await prisma.photo.deleteMany();
-    await prisma.sensor.deleteMany();
     await prisma.user.deleteMany();
     await prisma.$disconnect();
   });

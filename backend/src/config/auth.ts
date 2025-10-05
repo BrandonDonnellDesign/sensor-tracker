@@ -1,4 +1,4 @@
-import jwt from 'jsonwebtoken';
+import jwt, { SignOptions } from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 
 export interface JwtPayload {
@@ -52,22 +52,18 @@ export class AuthConfig {
    * Generate an access token
    */
   static generateAccessToken(payload: Omit<JwtPayload, 'type'>): string {
-    return jwt.sign(
-      { ...payload, type: 'access' } as object,
-      this.jwtSecret,
-      { expiresIn: this.jwtExpiresIn }
-    );
+    const tokenPayload = { ...payload, type: 'access' as const };
+    const options: SignOptions = { expiresIn: this.jwtExpiresIn as any };
+    return jwt.sign(tokenPayload, this.jwtSecret, options);
   }
   
   /**
    * Generate a refresh token
    */
   static generateRefreshToken(payload: Omit<JwtPayload, 'type'>): string {
-    return jwt.sign(
-      { ...payload, type: 'refresh' } as object,
-      this.jwtRefreshSecret,
-      { expiresIn: this.jwtRefreshExpiresIn }
-    );
+    const tokenPayload = { ...payload, type: 'refresh' as const };
+    const options: SignOptions = { expiresIn: this.jwtRefreshExpiresIn as any };
+    return jwt.sign(tokenPayload, this.jwtRefreshSecret, options);
   }
   
   /**
