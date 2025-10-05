@@ -1,42 +1,6 @@
+import { User, Sensor, Photo } from '@dexcom-tracker/shared';
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-
-export interface User {
-  id: string;
-  email: string;
-  createdAt: string;
-  updatedAt: string;
-  lastSyncAt?: string;
-}
-
-export interface Sensor {
-  id: string;
-  userId: string;
-  serialNumber: string;
-  lotNumber: string;
-  dateAdded: string;
-  isProblematic: boolean;
-  issueNotes?: string;
-  createdAt: string;
-  updatedAt: string;
-  syncedAt?: string;
-  isDeleted: boolean;
-  photos: Photo[];
-}
-
-export interface Photo {
-  id: string;
-  sensorId: string;
-  fileName: string;
-  fileSize: number;
-  mimeType: string;
-  cloudUrl?: string;
-  localPath?: string;
-  dateAdded: string;
-  createdAt: string;
-  updatedAt: string;
-  syncedAt?: string;
-  isDeleted: boolean;
-}
 
 export interface AuthTokens {
   accessToken: string;

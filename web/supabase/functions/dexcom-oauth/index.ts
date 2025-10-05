@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Supabase Edge Function for Dexcom OAuth Authorization
  * Handles the OAuth flow securely on the server side

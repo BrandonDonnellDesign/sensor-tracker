@@ -111,14 +111,12 @@ const PATTERNS = {
  */
 function detectManufacturerAndModel(text: string): { manufacturer: ExtractedSensorData['manufacturer'] | null, modelName: string | null } {
   const lowerText = text.toLowerCase();
-  console.log('Detecting manufacturer from text:', text);
   
   // Dexcom detection - look for (21) specifically, not other numbers
   const has21Indicator = /\(21\)/.test(text);
   const hasDexcomText = lowerText.includes('dexcom') || lowerText.includes('dex');
   
   if (has21Indicator || hasDexcomText) {
-    console.log('Detected Dexcom - (21) found:', has21Indicator, 'Dexcom text found:', hasDexcomText);
     let modelName = null;
     
     if (lowerText.includes('g7')) {
@@ -150,7 +148,6 @@ function detectManufacturerAndModel(text: string): { manufacturer: ExtractedSens
     return { manufacturer: 'Freestyle', modelName };
   }
   
-  console.log('No manufacturer detected');
   return { manufacturer: null, modelName: null };
 }
 
@@ -188,8 +185,6 @@ function extractWithPatterns(text: string, patterns: RegExp[], isNumericOnly: bo
  * Enhanced extraction specifically for Dexcom G7 serial numbers
  */
 function extractDexcomG7Serial(text: string): string | null {
-  console.log('🔍 Searching for (21) pattern in text:', text);
-  
   // Look for EXACTLY (21) followed by 12 digits - format from actual images
   const g7Patterns = [
     // Most common format: (21)481513546652
@@ -213,7 +208,6 @@ function extractDexcomG7Serial(text: string): string | null {
       if (match && match[1]) {
         const cleaned = match[1].replace(/[^0-9]/g, '');
         if (cleaned.length === 12) {
-          console.log('✅ Found G7 serial with (21):', cleaned);
           return cleaned;
         }
       }
@@ -227,12 +221,10 @@ function extractDexcomG7Serial(text: string): string | null {
   if (aggressiveMatch && aggressiveMatch[1]) {
     const cleaned = aggressiveMatch[1].replace(/[^0-9]/g, '');
     if (cleaned.length === 12) {
-      console.log('✅ Found G7 serial with aggressive (21) search:', cleaned);
       return cleaned;
     }
   }
   
-  console.log('❌ No (21) pattern found in text');
   return null;
 }
 
@@ -240,7 +232,6 @@ function extractDexcomG7Serial(text: string): string | null {
  * Extract lot number from Dexcom packaging
  */
 function extractDexcomLotNumber(text: string): string | null {
-  console.log('Searching for lot number in text:', text);
   
   // Patterns based on the actual images
   const lotPatterns = [
@@ -256,12 +247,10 @@ function extractDexcomLotNumber(text: string): string | null {
     const match = text.match(pattern);
     if (match && match[1]) {
       const cleaned = match[1].trim().toUpperCase();
-      console.log('✅ Found lot number:', cleaned);
       return cleaned;
     }
   }
   
-  console.log('❌ No lot number found');
   return null;
 }
 
@@ -311,23 +300,10 @@ function calculateConfidence(data: Partial<ExtractedSensorData>): number {
  */
 export function extractSensorData(ocrText: string): ExtractedSensorData {
   const text = ocrText.replace(/\s+/g, ' ').trim();
-  console.log('=== OCR Text Analysis ===');
-  console.log('Raw OCR text:', JSON.stringify(ocrText));
-  console.log('Cleaned text:', JSON.stringify(text));
   
   // Check for specific patterns
   const has21 = /\(21\)/.test(text);
   const has01 = /\(01\)/.test(text);
-  console.log('Contains (21):', has21);
-  console.log('Contains (01):', has01);
-  
-  // Show all numbers that look like they could be serial numbers
-  const allNumbers = text.match(/\d{10,15}/g);
-  console.log('All long numbers found:', allNumbers);
-  
-  // Show all parenthetical codes
-  const allCodes = text.match(/\(\d{1,3}\)/g);
-  console.log('All parenthetical codes:', allCodes);
   
   // Detect manufacturer and model first
   const { manufacturer, modelName } = detectManufacturerAndModel(text);
@@ -342,12 +318,9 @@ export function extractSensorData(ocrText: string): ExtractedSensorData {
   
   // Try Dexcom G7 specific extraction first if manufacturer is detected as Dexcom
   if (manufacturer === 'Dexcom') {
-    console.log('Attempting G7 extraction for Dexcom...');
     serialNumber = extractDexcomG7Serial(text);
     if (serialNumber) {
-      console.log('G7 extraction successful:', serialNumber);
     } else {
-      console.log('G7 extraction failed, will try general patterns');
     }
   }
   

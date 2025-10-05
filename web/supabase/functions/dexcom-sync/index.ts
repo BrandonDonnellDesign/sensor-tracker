@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Supabase Edge Function for Dexcom Data Sync
  * Handles automated synchronization of sensor data from Dexcom API
@@ -11,7 +12,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -65,8 +66,9 @@ serve(async (req) => {
     }
   } catch (error) {
     console.error('Dexcom sync error:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
+      JSON.stringify({ error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
@@ -289,12 +291,13 @@ async function syncSensorData(userId: string, supabaseClient: any) {
 
   } catch (error) {
     console.error('Sensor sync failed:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
 
     // Log sync error
     await supabaseClient
       .from('dexcom_sync_settings')
       .update({
-        last_sync_error: error.message,
+        last_sync_error: errorMessage,
         updated_at: new Date().toISOString(),
       })
       .eq('user_id', userId)
@@ -306,13 +309,13 @@ async function syncSensorData(userId: string, supabaseClient: any) {
         sync_type: 'scheduled',
         operation: 'sensor_sync',
         status: 'error',
-        error_message: error.message,
+        error_message: errorMessage,
         api_calls_made: apiCallsCount,
         sync_duration_ms: Date.now() - syncStartTime,
       })
 
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }

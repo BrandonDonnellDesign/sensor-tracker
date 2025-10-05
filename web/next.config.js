@@ -44,6 +44,11 @@ const nextConfig = {
     return config;
   },
   
+  // Babel configuration override
+  experimental: {
+    // SWC is enabled by default in Next.js 15
+  },
+  
   // TypeScript configuration
   typescript: {
     ignoreBuildErrors: false,
@@ -52,6 +57,7 @@ const nextConfig = {
   // ESLint configuration
   eslint: {
     dirs: ['src', 'app', 'components', 'lib'],
+    ignoreDuringBuilds: false,
   },
   
   // External packages for server components

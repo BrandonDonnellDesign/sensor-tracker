@@ -140,7 +140,7 @@ export default function SensorsPage() {
     if (user) {
       fetchAvailableTags();
     }
-  }, [user?.id]); // Only depend on user.id, not the function
+  }, [user, fetchAvailableTags]);
 
   const deleteSensor = async (sensorId: string, event: React.MouseEvent) => {
     event.preventDefault(); // Prevent navigation to sensor detail
@@ -583,6 +583,8 @@ export default function SensorsPage() {
                       <button
                         onClick={(e) => deleteSensor(sensor.id, e)}
                         disabled={deletingSensorId === sensor.id}
+                        className="text-gray-400 hover:text-red-500 transition-colors p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
+                        title="Delete sensor"
                       >
                         {deletingSensorId === sensor.id ? (
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
@@ -592,7 +594,41 @@ export default function SensorsPage() {
                           </svg>
                         )}
                       </button>
-                    ) : null}
+                    ) : (
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            restoreSensor(sensor.id);
+                          }}
+                          className="text-gray-400 hover:text-green-500 transition-colors p-2 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20"
+                          title="Restore sensor"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            permanentlyDeleteSensor(sensor.id);
+                          }}
+                          disabled={deletingSensorId === sensor.id}
+                          className="text-gray-400 hover:text-red-600 transition-colors p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
+                          title="Permanently delete sensor"
+                        >
+                          {deletingSensorId === sensor.id ? (
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
+                          ) : (
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1-1H8a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          )}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

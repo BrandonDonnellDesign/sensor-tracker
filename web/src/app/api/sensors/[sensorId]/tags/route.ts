@@ -6,9 +6,7 @@ export async function POST(
   { params }: { params: Promise<{ sensorId: string }> }
 ) {
   try {
-    console.log('Sensor tags POST: Starting...');
     const resolvedParams = await params;
-    console.log('Sensor tags POST: Sensor ID:', resolvedParams.sensorId);
     
     const supabase = await createClient();
     

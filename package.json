@@ -21,7 +21,11 @@
     "test:web": "cd web && npm test"
   },
   "devDependencies": {
+    "@commitlint/cli": "^20.1.0",
+    "@commitlint/config-conventional": "^20.0.0",
     "@types/node": "^20.0.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.3",
     "typescript": "^5.0.0"
   },
   "engines": {

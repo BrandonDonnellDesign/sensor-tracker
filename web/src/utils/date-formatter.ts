@@ -96,13 +96,6 @@ export class DateTimeFormatter {
 
     const { timeFormat, timezone } = this.getPreferences();
 
-    console.log('DateTimeFormatter.formatTime:', {
-      timeFormat,
-      timezone,
-      profile: this.currentProfile,
-      hour12: timeFormat === '12'
-    });
-
     try {
       const options: Intl.DateTimeFormatOptions = {
         timeZone: timezone,
@@ -112,7 +105,6 @@ export class DateTimeFormatter {
       };
 
       const formatted = new Intl.DateTimeFormat('en-US', options).format(dateObj);
-      console.log('Formatted time result:', formatted);
       return formatted;
     } catch (error) {
       console.error('Error formatting time:', error);

@@ -26,18 +26,9 @@ CREATE POLICY "Users can insert their own profile" ON public.profiles
 CREATE POLICY "Users can update their own profile" ON public.profiles
     FOR UPDATE USING (auth.uid() = id);
 
--- Function to handle user creation
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
-BEGIN
-    INSERT INTO public.profiles (id)
-    VALUES (new.id);
-    RETURN new;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+-- Add foreign key constraint to sensors table now that profiles exists
+ALTER TABLE public.sensors 
+ADD CONSTRAINT sensors_user_id_fkey 
+FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
 
--- Trigger the function every time a user is created
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-CREATE TRIGGER on_auth_user_created
-    AFTER INSERT ON auth.users
-    FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+-- User creation trigger will be handled by consolidated triggers migration

@@ -9,7 +9,8 @@ import {
   validateEmail,
   validatePassword,
   validateCreateUserRequest,
-  validatePhotoUploadRequest
+  validatePhotoUploadRequest,
+  SensorType
 } from '../..';
 
 describe('Sensor Validation', () => {
@@ -29,15 +30,17 @@ describe('Sensor Validation', () => {
 
   describe('validateLotNumber', () => {
     it('should accept valid lot numbers', () => {
-      expect(validateLotNumber('LOT1')).toBeNull();
-      expect(validateLotNumber('ABC123')).toBeNull();
-      expect(validateLotNumber('XYZ789')).toBeNull();
+      expect(validateLotNumber('LOT1', SensorType.DEXCOM)).toBeNull();
+      expect(validateLotNumber('ABC123', SensorType.DEXCOM)).toBeNull();
+      expect(validateLotNumber('XYZ789', SensorType.DEXCOM)).toBeNull();
+      // Freestyle sensors don't require lot numbers
+      expect(validateLotNumber('', SensorType.FREESTYLE)).toBeNull();
     });
 
-    it('should reject invalid lot numbers', () => {
-      expect(validateLotNumber('')).toBeTruthy();
-      expect(validateLotNumber('AB')).toBeTruthy(); // too short
-      expect(validateLotNumber('LOT1!@#')).toBeTruthy(); // invalid chars
+    it('should reject invalid lot numbers for Dexcom sensors', () => {
+      expect(validateLotNumber('', SensorType.DEXCOM)).toBeTruthy();
+      expect(validateLotNumber('AB', SensorType.DEXCOM)).toBeTruthy(); // too short
+      expect(validateLotNumber('LOT1!@#', SensorType.DEXCOM)).toBeTruthy(); // invalid chars
     });
   });
 
@@ -45,7 +48,8 @@ describe('Sensor Validation', () => {
     it('should validate complete sensor request', () => {
       const request = {
         serialNumber: 'ABC123',
-        lotNumber: 'LOT456'
+        lotNumber: 'LOT456',
+        sensorType: SensorType.FREESTYLE
       };
       
       const result = validateCreateSensorRequest(request);
@@ -56,7 +60,8 @@ describe('Sensor Validation', () => {
     it('should reject invalid sensor request', () => {
       const request = {
         serialNumber: '',
-        lotNumber: 'AB' // too short
+        lotNumber: 'AB', // too short
+        sensorType: SensorType.FREESTYLE
       };
       
       const result = validateCreateSensorRequest(request);
