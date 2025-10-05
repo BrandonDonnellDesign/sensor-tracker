@@ -39,6 +39,7 @@ export default function DashboardPage() {
         `)
         .eq('user_id', user.id)
         .eq('is_deleted', false)
+        .is('archived_at', null) // Exclude archived sensors
         .order('created_at', { ascending: false })
         .limit(5); // Only get recent sensors for dashboard
 

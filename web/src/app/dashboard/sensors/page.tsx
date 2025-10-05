@@ -9,6 +9,7 @@ import { Database } from '@/lib/database.types';
 import { getSensorExpirationInfo, formatDaysLeft } from '@dexcom-tracker/shared/utils/sensorExpiration';
 import { useDateTimeFormatter } from '@/utils/date-formatter';
 import { TagDisplay } from '@/components/sensors/tag-display';
+import { ArchivedSensorsView } from '@/components/sensors/archived-sensors-view';
 import { checkAndTagExpiredSensors } from '@/lib/expired-sensors';
 
 type Sensor = Database['public']['Tables']['sensors']['Row'] & {
@@ -47,6 +48,7 @@ export default function SensorsPage() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc'); // Default to newest first for date_added
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [availableTags, setAvailableTags] = useState<any[]>([]);
+  const [showArchivedView, setShowArchivedView] = useState(false);
 
   const fetchSensors = useCallback(async () => {
     if (!user?.id) return;
@@ -84,6 +86,7 @@ export default function SensorsPage() {
           )
         `)
         .eq('user_id', user.id)
+        .is('archived_at', null) // Exclude archived sensors
         .order('created_at', { ascending: false });
 
       // Apply filter if specified
@@ -110,10 +113,16 @@ export default function SensorsPage() {
 
   const fetchAvailableTags = useCallback(async () => {
     try {
-      const response = await fetch('/api/tags');
-      if (response.ok) {
-        const tags = await response.json();
-        setAvailableTags(tags);
+      const { data: tags, error } = await (supabase as any)
+        .from('tags')
+        .select('*')
+        .order('category', { ascending: true })
+        .order('name', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching tags:', error);
+      } else {
+        setAvailableTags(tags || []);
       }
     } catch (error) {
       console.error('Error fetching tags:', error);
@@ -123,9 +132,15 @@ export default function SensorsPage() {
   useEffect(() => {
     if (user) {
       fetchSensors();
+    }
+  }, [user, fetchSensors]);
+
+  // Fetch tags once when component mounts and user is available
+  useEffect(() => {
+    if (user) {
       fetchAvailableTags();
     }
-  }, [user, fetchSensors, fetchAvailableTags]);
+  }, [user?.id]); // Only depend on user.id, not the function
 
   const deleteSensor = async (sensorId: string, event: React.MouseEvent) => {
     event.preventDefault(); // Prevent navigation to sensor detail
@@ -261,15 +276,26 @@ export default function SensorsPage() {
             }
           </p>
         </div>
-        <Link
-          href="/dashboard/sensors/new"
-          className="btn-primary flex items-center space-x-2"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-          </svg>
-          <span>Add New Sensor</span>
-        </Link>
+        <div className="flex items-center space-x-3">
+          <button
+            onClick={() => setShowArchivedView(true)}
+            className="btn-secondary flex items-center space-x-2"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14l-1.5 9H6.5L5 8zm0 0V6a2 2 0 012-2h10a2 2 0 012 2v2" />
+            </svg>
+            <span>Archived</span>
+          </button>
+          <Link
+            href="/dashboard/sensors/new"
+            className="btn-primary flex items-center space-x-2"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            <span>Add New Sensor</span>
+          </Link>
+        </div>
       </div>
 
       {error && (
@@ -574,6 +600,12 @@ export default function SensorsPage() {
           })}
         </div>
       )}
+
+      {/* Archived Sensors Modal */}
+      <ArchivedSensorsView
+        isOpen={showArchivedView}
+        onClose={() => setShowArchivedView(false)}
+      />
     </div>
   );
 }

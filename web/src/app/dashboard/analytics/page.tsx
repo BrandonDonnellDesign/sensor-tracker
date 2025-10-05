@@ -86,6 +86,8 @@ export default function AnalyticsPage() {
           )
         `)
         .eq('user_id', user.id)
+        .eq('is_deleted', false)
+        .is('archived_at', null) // Exclude archived sensors
         .order('date_added', { ascending: true });
 
       if (error) throw error;

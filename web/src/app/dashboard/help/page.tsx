@@ -6,7 +6,7 @@ import Link from 'next/link';
 interface FAQItem {
   question: string;
   answer: string;
-  category: 'getting-started' | 'sensors' | 'notifications' | 'troubleshooting' | 'data' | 'account';
+  category: 'getting-started' | 'sensors' | 'features' | 'notifications' | 'troubleshooting' | 'data' | 'account';
 }
 
 const faqData: FAQItem[] = [
@@ -106,8 +106,13 @@ const faqData: FAQItem[] = [
   },
   {
     category: 'troubleshooting',
-    question: 'I can\'t delete a sensor. Why?',
-    answer: 'For data integrity, sensors cannot be deleted once added. Instead, you can mark problematic sensors as such and add notes. If you need to remove a sensor due to data entry errors, edit it to correct the information rather than deleting it.'
+    question: 'How does sensor deletion work?',
+    answer: 'Sensors use a "soft delete" system for data safety. When you delete a sensor, it\'s hidden from your main view but preserved in case you need to recover it. To permanently delete a sensor: 1) Delete it normally from your sensors list, 2) Go to "Show Deleted" to view deleted sensors, 3) Use the permanent delete option there. This two-step process prevents accidental data loss.'
+  },
+  {
+    category: 'troubleshooting',
+    question: 'Can I recover a deleted sensor?',
+    answer: 'Yes! Deleted sensors can be recovered. Go to your Sensors page and click "Show Deleted" to view all soft-deleted sensors. From there, you can restore any sensor back to your active list. Only permanently deleted sensors cannot be recovered.'
   },
 
   // Account
@@ -130,12 +135,61 @@ const faqData: FAQItem[] = [
     category: 'account',
     question: 'Can I use the app on multiple devices?',
     answer: 'Yes! Log in with the same account on any device to access your sensor data. Your information syncs automatically across all your devices.'
+  },
+
+  // Tags & Notes (New Feature)
+  {
+    category: 'features',
+    question: 'How do I add tags and notes to my sensors?',
+    answer: 'Click on any sensor to view its details, then use the "Tags" and "Notes" sections. Tags help categorize issues (like "Adhesive Problem" or "Device Error"), while notes let you add detailed observations. This helps track patterns and improve your sensor experience.'
+  },
+  {
+    category: 'features',
+    question: 'What are the different tag categories?',
+    answer: 'Tags are organized into categories: Adhesive (peeling, irritation), Performance (accuracy, readings), Physical (comfort, placement), Device (hardware issues), Lifecycle (expired, replacement), Environmental (weather, activity), Positive (good performance), and General (other issues).'
+  },
+  {
+    category: 'features',
+    question: 'Do expired sensors get tagged automatically?',
+    answer: 'Yes! The app automatically detects when sensors expire based on their expected duration and adds an "Expired" tag. This helps you identify which sensors naturally reached their end-of-life versus those that had issues.'
+  },
+
+  // Archived Sensors (New Feature)
+  {
+    category: 'features',
+    question: 'What happens to old sensor data?',
+    answer: 'Sensors that expired more than 6 months ago are automatically archived to keep your main dashboard fast. Archived sensors are still preserved and can be viewed by clicking the "Archived" button on your Sensors page. Your historical data is never lost!'
+  },
+  {
+    category: 'features',
+    question: 'Can I access my archived sensors?',
+    answer: 'Absolutely! Click the "Archived" button on your Sensors page to view all sensors that have been archived. You can see their full history, wear duration, and why they were archived. This is perfect for long-term tracking and analysis.'
+  },
+
+  // Photo Gallery Enhancements
+  {
+    category: 'sensors',
+    question: 'How do sensor photos load faster now?',
+    answer: 'The photo gallery has been optimized with priority loading for images that appear first, making your sensor photos load much faster. The first few photos you see will load immediately while others load in the background.'
+  },
+
+  // Performance & Analytics Enhancements
+  {
+    category: 'data',
+    question: 'How accurate are my analytics now?',
+    answer: 'Analytics have been enhanced with automatic expiration detection and tag-based filtering. The system now accurately identifies completed vs. ongoing sensors and calculates failure rates based on both duration and tagged issues for more precise insights.'
+  },
+  {
+    category: 'data',
+    question: 'Can I filter analytics by tag categories?',
+    answer: 'Yes! The analytics page shows breakdowns by tag categories, helping you identify patterns like "most common adhesive issues" or "environmental factors affecting sensors." This makes it easier to discuss patterns with your healthcare provider.'
   }
 ];
 
 const categories = [
   { id: 'getting-started', name: 'Getting Started', icon: '🚀' },
   { id: 'sensors', name: 'Managing Sensors', icon: '📱' },
+  { id: 'features', name: 'New Features', icon: '✨' },
   { id: 'notifications', name: 'Notifications', icon: '🔔' },
   { id: 'data', name: 'Data & Analytics', icon: '📊' },
   { id: 'troubleshooting', name: 'Troubleshooting', icon: '🔧' },

@@ -166,6 +166,7 @@ export interface Database {
       }
       sensors: {
         Row: {
+          archived_at: string | null
           created_at: string
           date_added: string
           id: string
@@ -180,6 +181,7 @@ export interface Database {
           user_id: string
         }
         Insert: {
+          archived_at?: string | null
           created_at?: string
           date_added: string
           id?: string
@@ -194,6 +196,7 @@ export interface Database {
           user_id: string
         }
         Update: {
+          archived_at?: string | null
           created_at?: string
           date_added?: string
           id?: string
@@ -216,6 +219,69 @@ export interface Database {
             referencedColumns: ["id"]
           }
         ]
+      }
+      archived_sensors: {
+        Row: {
+          id: string
+          user_id: string
+          serial_number: string
+          lot_number: string | null
+          date_added: string
+          is_problematic: boolean
+          issue_notes: string | null
+          sensor_type: string
+          created_at: string
+          updated_at: string
+          synced_at: string | null
+          is_deleted: boolean
+          archived_at: string
+          archived_reason: string
+          original_expiry_date: string | null
+          days_worn: number | null
+          archived_by_user_id: string | null
+          notes_at_archival: string | null
+        }
+        Insert: {
+          id: string
+          user_id: string
+          serial_number: string
+          lot_number?: string | null
+          date_added: string
+          is_problematic?: boolean
+          issue_notes?: string | null
+          sensor_type: string
+          created_at: string
+          updated_at: string
+          synced_at?: string | null
+          is_deleted?: boolean
+          archived_at?: string
+          archived_reason?: string
+          original_expiry_date?: string | null
+          days_worn?: number | null
+          archived_by_user_id?: string | null
+          notes_at_archival?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          serial_number?: string
+          lot_number?: string | null
+          date_added?: string
+          is_problematic?: boolean
+          issue_notes?: string | null
+          sensor_type?: string
+          created_at?: string
+          updated_at?: string
+          synced_at?: string | null
+          is_deleted?: boolean
+          archived_at?: string
+          archived_reason?: string
+          original_expiry_date?: string | null
+          days_worn?: number | null
+          archived_by_user_id?: string | null
+          notes_at_archival?: string | null
+        }
+        Relationships: []
       }
       sensor_tags: {
         Row: {
