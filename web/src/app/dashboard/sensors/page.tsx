@@ -331,7 +331,7 @@ export default function SensorsPage() {
               <input
                 type="text"
                 placeholder="Search by serial number, lot number, or sensor type..."
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 transition-all duration-200"
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-slate-600 rounded-xl focus:outline-0 focus:ring-3 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 transition-all duration-200"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -348,7 +348,7 @@ export default function SensorsPage() {
                 id="sort-by"
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as 'date_added' | 'serial_number')}
-                className="px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
+                className="px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 text-sm focus:outline-0 focus:ring-3 focus:ring-blue-500 dark:focus:ring-blue-400"
               >
                 <option value="date_added">Date Added</option>
                 <option value="serial_number">Serial Number</option>
@@ -406,7 +406,7 @@ export default function SensorsPage() {
 
       {/* Tag Filter */}
       {availableTags.length > 0 && (
-        <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-slate-700">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-xs border border-gray-200 dark:border-slate-700">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4">Filter by Tags</h3>
           <div className="flex flex-wrap gap-2">
             {availableTags.map((tag) => (
@@ -421,8 +421,8 @@ export default function SensorsPage() {
                 }}
                 className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
                   selectedTags.includes(tag.id)
-                    ? 'ring-2 ring-offset-2 ring-blue-500 dark:ring-offset-slate-800'
-                    : 'hover:ring-2 hover:ring-offset-2 hover:ring-gray-300 dark:hover:ring-offset-slate-800'
+                    ? 'ring-3 ring-offset-2 ring-blue-500 dark:ring-offset-slate-800'
+                    : 'hover:ring-3 hover:ring-offset-2 hover:ring-gray-300 dark:hover:ring-offset-slate-800'
                 }`}
                 style={{ 
                   backgroundColor: selectedTags.includes(tag.id) ? tag.color : undefined,
@@ -452,7 +452,7 @@ export default function SensorsPage() {
 
       {/* Sensors List */}
       {filteredSensors.length === 0 ? (
-        <div className="bg-white dark:bg-slate-800 rounded-2xl p-12 text-center shadow-sm border border-gray-200 dark:border-slate-700">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-12 text-center shadow-xs border border-gray-200 dark:border-slate-700">
           <div className="w-16 h-16 mx-auto bg-gray-100 dark:bg-slate-700 rounded-2xl flex items-center justify-center mb-6">
             <svg className="w-8 h-8 text-gray-400 dark:text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -527,7 +527,7 @@ export default function SensorsPage() {
               badgeLabel = '✅ Active';
             }
             return (
-              <div key={sensor.id} className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-slate-700 hover:shadow-lg transition-all duration-200">
+              <div key={sensor.id} className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-xs border border-gray-200 dark:border-slate-700 hover:shadow-lg transition-all duration-200">
                 <div className="flex items-center justify-between">
                   <Link
                     href={`/dashboard/sensors/${sensor.id}`}

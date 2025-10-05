@@ -158,7 +158,7 @@ export function NotificationsButton() {
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative flex items-center justify-center rounded-full w-10 h-10 text-gray-500 hover:text-gray-600 dark:text-slate-400 dark:hover:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
+        className="relative flex items-center justify-center rounded-full w-10 h-10 text-gray-500 hover:text-gray-600 dark:text-slate-400 dark:hover:text-slate-300 focus:outline-0 focus:ring-3 focus:ring-blue-500 dark:focus:ring-blue-400"
       >
         <BellIcon className="h-5 w-5" />
         {notifications.some(n => !n.read) && (
@@ -172,7 +172,7 @@ export function NotificationsButton() {
             className="fixed inset-0 z-40"
             onClick={() => setIsOpen(false)}
           />
-          <div className="absolute right-0 mt-2 w-80 rounded-xl bg-white dark:bg-slate-800 shadow-lg ring-1 ring-black/5 dark:ring-white/10 z-50">
+          <div className="absolute right-0 mt-2 w-80 rounded-xl bg-white dark:bg-slate-800 shadow-lg ring-3 ring-black/5 dark:ring-white/10 z-50">
             <div className="p-4">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100">Notifications</h2>

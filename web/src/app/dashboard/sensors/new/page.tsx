@@ -260,7 +260,7 @@ export default function NewSensorPage() {
         <p className="text-lg text-gray-600 dark:text-slate-400 mt-2">Record a new CGM sensor for tracking and warranty purposes</p>
       </div>
 
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-700 p-8">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xs border border-gray-200 dark:border-slate-700 p-8">
         <form onSubmit={handleSubmit} className="space-y-6">
           {error && (
             <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-6">

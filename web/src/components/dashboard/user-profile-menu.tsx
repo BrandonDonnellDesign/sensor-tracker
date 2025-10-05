@@ -53,7 +53,7 @@ export function UserProfileMenu() {
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center space-x-3 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 rounded-xl p-2"
+        className="flex items-center space-x-3 focus:outline-0 focus:ring-3 focus:ring-blue-500 dark:focus:ring-blue-400 rounded-xl p-2"
       >
         {profile?.avatar_url ? (
           <div className="relative h-8 w-8 rounded-full overflow-hidden">
@@ -89,7 +89,7 @@ export function UserProfileMenu() {
             className="fixed inset-0 z-40"
             onClick={() => setIsOpen(false)}
           />
-          <div className="absolute right-0 mt-2 w-64 rounded-xl bg-white dark:bg-slate-800 shadow-lg ring-1 ring-black/5 dark:ring-white/10 z-50 p-3">
+          <div className="absolute right-0 mt-2 w-64 rounded-xl bg-white dark:bg-slate-800 shadow-lg ring-3 ring-black/5 dark:ring-white/10 z-50 p-3">
             <div className="bg-gray-50 dark:bg-slate-700/50 rounded-lg p-3 mb-2">
               <div className="flex items-center space-x-3">
                 {profile?.avatar_url ? (

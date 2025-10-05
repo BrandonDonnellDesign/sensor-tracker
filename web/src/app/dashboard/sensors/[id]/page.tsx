@@ -614,7 +614,7 @@ export default function SensorDetailPage() {
                       <select
                         value={newSensorModelId}
                         onChange={(e) => setNewSensorModelId(e.target.value)}
-                        className='text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500'
+                        className='text-sm border border-gray-300 rounded px-2 py-1 focus:outline-0 focus:ring-3 focus:ring-blue-500'
                       >
                         <option value="">Select a sensor model...</option>
                         {sensorModels.map((model) => (
@@ -694,7 +694,7 @@ export default function SensorDetailPage() {
                         type='datetime-local'
                         value={newDateAdded}
                         onChange={(e) => setNewDateAdded(e.target.value)}
-                        className='text-sm border border-gray-300 dark:border-slate-600 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100'
+                        className='text-sm border border-gray-300 dark:border-slate-600 rounded px-2 py-1 focus:outline-0 focus:ring-3 focus:ring-blue-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100'
                       />
                       <button
                         onClick={updateDateAdded}

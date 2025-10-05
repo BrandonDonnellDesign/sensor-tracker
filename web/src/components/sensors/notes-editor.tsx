@@ -38,7 +38,7 @@ export function NotesEditor({
       
       <div className={`relative rounded-md border ${
         focused 
-          ? 'border-blue-500 ring-1 ring-blue-500' 
+          ? 'border-blue-500 ring-3 ring-blue-500' 
           : isOverLimit
           ? 'border-red-300'
           : 'border-gray-300'
@@ -51,7 +51,7 @@ export function NotesEditor({
           placeholder={placeholder}
           rows={rows}
           maxLength={maxLength}
-          className={`block w-full rounded-md border-0 py-2 px-3 text-gray-900 placeholder-gray-400 focus:outline-none resize-vertical min-h-[80px] ${
+          className={`block w-full rounded-md border-0 py-2 px-3 text-gray-900 placeholder-gray-400 focus:outline-0 resize-vertical min-h-[80px] ${
             isOverLimit ? 'text-red-900' : ''
           }`}
         />
