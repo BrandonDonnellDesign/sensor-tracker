@@ -32,10 +32,6 @@ export default function NotFound() {
             <Link href="/auth/login" className="text-blue-600 hover:text-blue-500 mx-2">
               Login
             </Link>
-            |
-            <Link href="/debug" className="text-blue-600 hover:text-blue-500 mx-2">
-              Debug
-            </Link>
           </div>
         </div>
       </div>

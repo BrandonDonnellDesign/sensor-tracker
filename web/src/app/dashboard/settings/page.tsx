@@ -2,19 +2,30 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/components/providers/auth-provider';
+import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { NotificationSettings } from '@/components/settings/notification-settings';
 import { TimezoneSettings } from '@/components/settings/timezone-settings';
 import { ExportSettings } from '@/components/settings/export-settings';
 import { ProfileSettings } from '@/components/settings/profile-settings';
+import { DexcomIntegrationComingSoon } from '@/components/settings/dexcom-integration-coming-soon';
 import { Profile } from '@/types/profile';
 import { dateTimeFormatter } from '@/utils/date-formatter';
 
 export default function SettingsPage() {
   const { user } = useAuth();
+  const searchParams = useSearchParams();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('profile');
+
+  useEffect(() => {
+    // Check for URL parameters to set initial tab
+    const tab = searchParams.get('tab');
+    if (tab && ['profile', 'notifications', 'preferences', 'integrations', 'export'].includes(tab)) {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -86,6 +97,7 @@ export default function SettingsPage() {
     { id: 'profile', label: 'Profile', icon: '👤' },
     { id: 'notifications', label: 'Notifications', icon: '🔔' },
     { id: 'preferences', label: 'Preferences', icon: '⚙️' },
+    { id: 'integrations', label: 'Integrations', icon: '🔗' },
     { id: 'export', label: 'Export Data', icon: '📊' },
   ];
 
@@ -146,6 +158,9 @@ export default function SettingsPage() {
             profile={profile} 
             onUpdate={updateProfile} 
           />
+        )}
+        {activeTab === 'integrations' && (
+          <DexcomIntegrationComingSoon />
         )}
         {activeTab === 'export' && (
           <ExportSettings 

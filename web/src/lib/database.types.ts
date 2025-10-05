@@ -169,6 +169,10 @@ export interface Database {
           archived_at: string | null
           created_at: string
           date_added: string
+          dexcom_device_id: string | null
+          dexcom_session_id: string | null
+          dexcom_transmitter_id: string | null
+          dexcom_last_sync: string | null
           id: string
           is_deleted: boolean
           is_problematic: boolean
@@ -184,6 +188,10 @@ export interface Database {
           archived_at?: string | null
           created_at?: string
           date_added: string
+          dexcom_device_id?: string | null
+          dexcom_session_id?: string | null
+          dexcom_transmitter_id?: string | null
+          dexcom_last_sync?: string | null
           id?: string
           is_deleted?: boolean
           is_problematic?: boolean
@@ -199,6 +207,10 @@ export interface Database {
           archived_at?: string | null
           created_at?: string
           date_added?: string
+          dexcom_device_id?: string | null
+          dexcom_session_id?: string | null
+          dexcom_transmitter_id?: string | null
+          dexcom_last_sync?: string | null
           id?: string
           is_deleted?: boolean
           is_problematic?: boolean
@@ -345,6 +357,141 @@ export interface Database {
           created_at?: string
         }
         Relationships: []
+      }
+      dexcom_tokens: {
+        Row: {
+          id: string
+          user_id: string
+          access_token_encrypted: string
+          refresh_token_encrypted: string
+          expires_at: string
+          refresh_expires_at: string
+          scope: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          access_token_encrypted: string
+          refresh_token_encrypted: string
+          expires_at: string
+          refresh_expires_at: string
+          scope: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          access_token_encrypted?: string
+          refresh_token_encrypted?: string
+          expires_at?: string
+          refresh_expires_at?: string
+          scope?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dexcom_tokens_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      dexcom_sync_settings: {
+        Row: {
+          id: string
+          user_id: string
+          auto_sync_enabled: boolean
+          sync_frequency_minutes: number
+          sync_sensor_data: boolean
+          sync_glucose_data: boolean
+          sync_device_status: boolean
+          last_sync_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          auto_sync_enabled?: boolean
+          sync_frequency_minutes?: number
+          sync_sensor_data?: boolean
+          sync_glucose_data?: boolean
+          sync_device_status?: boolean
+          last_sync_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          auto_sync_enabled?: boolean
+          sync_frequency_minutes?: number
+          sync_sensor_data?: boolean
+          sync_glucose_data?: boolean
+          sync_device_status?: boolean
+          last_sync_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dexcom_sync_settings_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      dexcom_sync_log: {
+        Row: {
+          id: string
+          user_id: string
+          operation: string
+          status: string
+          details: Json | null
+          sensors_created: number | null
+          sensors_updated: number | null
+          error_message: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          operation: string
+          status: string
+          details?: Json | null
+          sensors_created?: number | null
+          sensors_updated?: number | null
+          error_message?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          operation?: string
+          status?: string
+          details?: Json | null
+          sensors_created?: number | null
+          sensors_updated?: number | null
+          error_message?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dexcom_sync_log_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
       }
     }
     Views: {
