@@ -57,7 +57,7 @@ export default function AdminOverviewPage() {
         ) : metrics ? (
           <>
             {/* Key Metrics */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
               <StatsCard
                 title="Total Users"
                 value={metrics.totalUsers}
@@ -74,6 +74,12 @@ export default function AdminOverviewPage() {
                 title="Total Sensors"
                 value={metrics.totalSensors}
                 icon="sensors"
+                color="purple"
+              />
+              <StatsCard
+                title="Total Photos"
+                value={metrics.totalPhotos}
+                icon="photo"
                 color="purple"
               />
               <StatsCard

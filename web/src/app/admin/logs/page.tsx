@@ -38,14 +38,21 @@ export default function AdminLogsPage() {
     try {
       const response = await fetch('/api/admin/logs');
       const result = await response.json();
-      
+
       if (result.success) {
         setLogs(result.data.logs);
         setLogSummary(result.data.summary);
       } else {
+        setLogs([]);
+        setLogSummary({ errors_24h: 0, warnings_24h: 0, info_24h: 0 });
+        // Show error to user
+        alert('Failed to fetch logs: ' + (result.error || 'Unknown error'));
         console.error('Failed to fetch logs:', result.error);
       }
     } catch (error) {
+      setLogs([]);
+      setLogSummary({ errors_24h: 0, warnings_24h: 0, info_24h: 0 });
+      alert('Error fetching logs: ' + error);
       console.error('Error fetching logs:', error);
     } finally {
       setLogsLoading(false);
@@ -126,6 +133,15 @@ export default function AdminLogsPage() {
       <div>
         <div className="flex justify-between items-center">
           <div>
+            <button
+              onClick={() => router.push('/admin/overview')}
+              className="flex items-center px-3 py-1 mb-4 bg-gray-200 hover:bg-gray-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-gray-800 dark:text-slate-100 rounded-lg transition-colors"
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              Back to Admin Dashboard
+            </button>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-slate-100">System Logs</h1>
             <p className="text-lg text-gray-600 dark:text-slate-400 mt-2">
               Monitor system events and activity from real database data
@@ -225,7 +241,8 @@ export default function AdminLogsPage() {
               {logs.length === 0 && !logsLoading ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-8 text-center text-gray-500 dark:text-slate-400">
-                    No recent activity found. Logs are generated from real database events.
+                    No recent activity found.<br />
+                    <span className="block mt-2 text-red-500">{logSummary.errors_24h === 0 && logSummary.warnings_24h === 0 && logSummary.info_24h === 0 ? 'System logs could not be loaded. Please check database connectivity or try again later.' : 'Logs are generated from real database events.'}</span>
                   </td>
                 </tr>
               ) : (

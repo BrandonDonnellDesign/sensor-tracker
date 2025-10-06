@@ -50,47 +50,32 @@ export async function POST(request: NextRequest) {
     switch (action) {
       case 'delete': {
         if (!notificationId) {
+          console.error('Notification ID missing in delete request');
           return NextResponse.json({ error: 'Notification ID required for delete' }, { status: 400 });
         }
-        
-        // For now, use direct update to set dismissed_at (after migration is applied)
-        // First check if dismissed_at column exists
-        const { data: tableInfo } = await (supabase as any)
-          .from('information_schema.columns')
-          .select('column_name')
-          .eq('table_name', 'notifications')
-          .eq('column_name', 'dismissed_at')
-          .single();
-        
-        if (tableInfo) {
-          // Use dismiss functionality if column exists
-          const { error: dismissError } = await (supabase as any)
-            .from('notifications')
-            .update({ 
-              dismissed_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', notificationId)
-            .eq('user_id', user.id);
-            
-          if (dismissError) {
-            console.error('Error dismissing notification:', dismissError);
-            return NextResponse.json({ error: 'Failed to dismiss notification' }, { status: 500 });
-          }
-        } else {
-          // Fallback to delete if column doesn't exist yet
-          const { error: deleteError } = await (supabase as any)
-            .from('notifications')
-            .delete()
-            .eq('id', notificationId)
-            .eq('user_id', user.id);
-            
-          if (deleteError) {
-            console.error('Error deleting notification:', deleteError);
-            return NextResponse.json({ error: 'Failed to delete notification' }, { status: 500 });
-          }
+
+        // Log user and notificationId for debugging
+        console.log('Attempting to dismiss notification:', { notificationId, userId: user.id });
+
+        // Always perform the update to dismiss the notification
+        const now = new Date().toISOString();
+        const { data: updateResult, error: dismissError } = await (supabase as any)
+          .from('notifications')
+          .update({ 
+            dismissed_at: now,
+            updated_at: now
+          })
+          .eq('id', notificationId)
+          .eq('user_id', user.id)
+          .select();
+
+        console.log('Dismiss update result:', updateResult);
+
+        if (dismissError) {
+          console.error('Error dismissing notification:', dismissError);
+          return NextResponse.json({ error: 'Failed to dismiss notification' }, { status: 500 });
         }
-        
+
         return NextResponse.json({ success: true });
       }
       
