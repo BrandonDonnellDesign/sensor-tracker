@@ -1,10 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { AdminGuard } from '@/components/providers/admin-guard';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/components/providers/auth-provider';
 
 interface SensorModel {
   id: string;
@@ -16,110 +14,83 @@ interface SensorModel {
   updated_at: string;
 }
 
-export default function AdminSensorModelsPage() {
-  const { user } = useAuth();
-  const router = useRouter();
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [loading, setLoading] = useState(true);
+interface CreateSensorModel {
+  manufacturer: string;
+  model_name: string;
+  duration_days: number;
+  is_active: boolean;
+}
+
+function SensorModelsPageContent() {
   const [sensorModels, setSensorModels] = useState<SensorModel[]>([]);
-  const [editingModel, setEditingModel] = useState<SensorModel | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [formData, setFormData] = useState({
+  const [editingModel, setEditingModel] = useState<SensorModel | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [formData, setFormData] = useState<CreateSensorModel>({
     manufacturer: '',
     model_name: '',
     duration_days: 10,
     is_active: true,
   });
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const checkAdminAccess = async () => {
-      if (!user?.id) {
-        router.push('/auth/login');
-        return;
-      }
+    loadSensorModels();
+  }, []);
 
-      try {
-        const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-
-        if (error || !profile || (profile as any).role !== 'admin') {
-          router.push('/dashboard');
-          return;
-        }
-
-        setIsAdmin(true);
-        await fetchSensorModels();
-      } catch (error) {
-        console.error('Error checking admin access:', error);
-        router.push('/dashboard');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    checkAdminAccess();
-  }, [user, router]);
-
-  const fetchSensorModels = async () => {
+  const loadSensorModels = async () => {
     try {
-      const { data, error } = await (supabase as any)
-        .from('sensor_models')
-        .select('*')
-        .order('manufacturer', { ascending: true })
-        .order('model_name', { ascending: true });
-
-      if (error) throw error;
-      setSensorModels(data || []);
-    } catch (error) {
-      console.error('Error fetching sensor models:', error);
-      setError('Failed to load sensor models');
+      setError(null);
+      setLoading(true);
+      
+      // Fetch from API
+      const response = await fetch('/api/admin/sensor-models');
+      if (!response.ok) {
+        throw new Error('Failed to fetch sensor models');
+      }
+      
+      const data = await response.json();
+      setSensorModels(data.sensorModels || []);
+    } catch (err) {
+      console.error('Error loading sensor models:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load sensor models');
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    setError(null);
 
     try {
-      if (editingModel) {
-        // Update existing model
-        const { error } = await (supabase as any)
-          .from('sensor_models')
-          .update({
-            manufacturer: formData.manufacturer,
-            model_name: formData.model_name,
-            duration_days: formData.duration_days,
-            is_active: formData.is_active,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', editingModel.id);
+      const url = '/api/admin/sensor-models';
+      const method = editingModel ? 'PUT' : 'POST';
+      const body = editingModel 
+        ? { ...formData, id: editingModel.id }
+        : formData;
 
-        if (error) throw error;
-      } else {
-        // Create new model
-        const { error } = await (supabase as any)
-          .from('sensor_models')
-          .insert([{
-            manufacturer: formData.manufacturer,
-            model_name: formData.model_name,
-            duration_days: formData.duration_days,
-            is_active: formData.is_active,
-          }]);
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
 
-        if (error) throw error;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to save sensor model');
       }
 
-      await fetchSensorModels();
+      await loadSensorModels();
       resetForm();
-    } catch (error) {
-      console.error('Error saving sensor model:', error);
-      setError(error instanceof Error ? `Failed to save sensor model: ${error.message}` : 'Failed to save sensor model');
+      setError(null);
+    } catch (err) {
+      console.error('Error saving sensor model:', err);
+      setError(err instanceof Error ? err.message : 'Failed to save sensor model');
     } finally {
       setSaving(false);
     }
@@ -137,246 +108,267 @@ export default function AdminSensorModelsPage() {
   };
 
   const handleDelete = async (modelId: string) => {
-    if (!confirm('Are you sure you want to delete this sensor model? This may affect existing sensors.')) {
+    if (!confirm('Are you sure you want to delete this sensor model? This action cannot be undone.')) {
       return;
     }
 
+    setDeleting(modelId);
     try {
-      const { error } = await (supabase as any)
-        .from('sensor_models')
-        .delete()
-        .eq('id', modelId);
+      const response = await fetch(`/api/admin/sensor-models?id=${modelId}`, {
+        method: 'DELETE',
+      });
 
-      if (error) throw error;
-      await fetchSensorModels();
-    } catch (error) {
-      console.error('Error deleting sensor model:', error);
-      setError('Failed to delete sensor model');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to delete sensor model');
+      }
+
+      await loadSensorModels();
+      setError(null);
+    } catch (err) {
+      console.error('Error deleting sensor model:', err);
+      setError(err instanceof Error ? err.message : 'Failed to delete sensor model');
+    } finally {
+      setDeleting(null);
     }
   };
 
   const resetForm = () => {
     setEditingModel(null);
-    setShowAddForm(false);
     setFormData({
       manufacturer: '',
       model_name: '',
       duration_days: 10,
       is_active: true,
     });
-    setError(null);
+    setShowAddForm(false);
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
-
-  if (!isAdmin) {
-    return null; // Will redirect
-  }
-
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <Link
-            href="/admin"
-            className="inline-flex items-center text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 text-sm font-medium mb-4">
-            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-            Back to Admin Dashboard
-          </Link>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-slate-100">Sensor Models Management</h1>
-          <p className="text-lg text-gray-600 dark:text-slate-400 mt-2">Manage sensor types and manufacturers</p>
-        </div>
-        <button
-          onClick={() => setShowAddForm(!showAddForm)}
-          className="btn-primary flex items-center space-x-2"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-          </svg>
-          <span>{showAddForm ? 'Cancel' : 'Add Model'}</span>
-        </button>
-      </div>
-
-      {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-6">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <svg className="h-6 w-6 text-red-500 dark:text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-              </svg>
-            </div>
-            <div className="ml-4">
-              <h3 className="text-base font-semibold text-red-800 dark:text-red-200">Error</h3>
-              <p className="text-sm text-red-700 dark:text-red-300 mt-1">{error}</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showAddForm && (
-        <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-slate-700">
-          <h2 className="text-xl font-semibold mb-6">
-            {editingModel ? 'Edit Sensor Model' : 'Add New Sensor Model'}
-          </h2>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <AdminGuard>
+      <div className="min-h-screen bg-slate-900 text-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Header */}
+          <div className="mb-8">
+            <div className="flex items-center justify-between">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                  Manufacturer
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.manufacturer}
-                  onChange={(e) => setFormData({ ...formData, manufacturer: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 transition-all duration-200"
-                  placeholder="e.g., Dexcom, Abbott"
-                />
+                <div className="flex items-center space-x-2 text-sm text-slate-400 mb-2">
+                  <Link href="/admin" className="hover:text-white transition-colors">
+                    ← Back to Admin Dashboard
+                  </Link>
+                </div>
+                <h1 className="text-3xl font-bold text-white">Sensor Models Management</h1>
+                <p className="text-slate-400 mt-1">
+                  Manage sensor types and manufacturers
+                </p>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                  Model Name
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.model_name}
-                  onChange={(e) => setFormData({ ...formData, model_name: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 transition-all duration-200"
-                  placeholder="e.g., G6, FreeStyle Libre 2"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                  Duration (Days)
-                </label>
-                <input
-                  type="number"
-                  required
-                  min="1"
-                  max="365"
-                  value={formData.duration_days}
-                  onChange={(e) => setFormData({ ...formData, duration_days: parseInt(e.target.value) })}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 transition-all duration-200"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                  Status
-                </label>
-                <select
-                  value={formData.is_active ? 'active' : 'inactive'}
-                  onChange={(e) => setFormData({ ...formData, is_active: e.target.value === 'active' })}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 transition-all duration-200"
-                >
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                </select>
-              </div>
-            </div>
-            <div className="flex justify-end space-x-4">
               <button
-                type="button"
-                onClick={resetForm}
-                className="px-6 py-3 border border-gray-300 dark:border-slate-600 rounded-xl text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
+                onClick={() => setShowAddForm(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-2"
               >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={saving}
-                className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {saving ? 'Saving...' : (editingModel ? 'Update Model' : 'Add Model')}
+                <span>+</span>
+                <span>Add Model</span>
               </button>
             </div>
-          </form>
-        </div>
-      )}
-
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100">Sensor Models</h2>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 dark:bg-slate-700">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
-                  Manufacturer
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
-                  Model
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
-                  Duration
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white dark:bg-slate-800 divide-y divide-gray-200 dark:divide-slate-700">
-              {sensorModels.map((model) => (
-                <tr key={model.id} className="hover:bg-gray-50 dark:hover:bg-slate-700">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-slate-100">
-                    {model.manufacturer}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-slate-100">
-                    {model.model_name}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-slate-100">
-                    {model.duration_days} days
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      model.is_active
-                        ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
-                        : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300'
-                    }`}>
-                      {model.is_active ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button
-                      onClick={() => handleEdit(model)}
-                      className="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 mr-4"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(model.id)}
-                      className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300"
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {sensorModels.length === 0 && (
-          <div className="px-6 py-12 text-center">
-            <svg className="mx-auto h-12 w-12 text-gray-400 dark:text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-            </svg>
-            <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-slate-100">No sensor models</h3>
-            <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">Get started by adding a new sensor model.</p>
           </div>
-        )}
+
+          {error && (
+            <div className="bg-red-900/50 border border-red-700 rounded-lg p-4 mb-6">
+              <div className="flex">
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-red-200">Error loading sensor models</h3>
+                  <div className="mt-2 text-sm text-red-300">
+                    <p>{error}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {loading ? (
+            <div className="flex items-center justify-center h-64">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            </div>
+          ) : (
+            <>
+              {/* Sensor Models Table */}
+              <div className="bg-slate-800 rounded-lg border border-slate-700">
+                <div className="px-6 py-4 border-b border-slate-700">
+                  <h2 className="text-lg font-medium text-white">Sensor Models</h2>
+                </div>
+                
+                <div className="overflow-x-auto">
+                  <table className="min-w-full">
+                    <thead className="bg-slate-700/50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
+                          Manufacturer
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
+                          Model
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
+                          Duration
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
+                          Status
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-700">
+                      {sensorModels.map((model) => (
+                        <tr key={model.id} className="hover:bg-slate-700/30 transition-colors">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
+                            {model.manufacturer}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
+                            {model.model_name}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
+                            {model.duration_days} days
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                              model.is_active 
+                                ? 'bg-green-900/30 text-green-400 border border-green-700' 
+                                : 'bg-red-900/30 text-red-400 border border-red-700'
+                            }`}>
+                              {model.is_active ? 'Active' : 'Inactive'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm">
+                            <div className="flex space-x-3">
+                              <button
+                                onClick={() => handleEdit(model)}
+                                className="text-blue-400 hover:text-blue-300 font-medium"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleDelete(model.id)}
+                                disabled={deleting === model.id}
+                                className="text-red-400 hover:text-red-300 font-medium disabled:opacity-50"
+                              >
+                                {deleting === model.id ? 'Deleting...' : 'Delete'}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {sensorModels.length === 0 && !loading && (
+                  <div className="text-center py-12">
+                    <p className="text-slate-400">No sensor models configured</p>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* Add/Edit Form Modal */}
+          {showAddForm && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+              <div className="bg-slate-800 rounded-lg border border-slate-700 w-full max-w-md">
+                <div className="px-6 py-4 border-b border-slate-700">
+                  <h2 className="text-lg font-medium text-white">
+                    {editingModel ? 'Edit Sensor Model' : 'Add New Sensor Model'}
+                  </h2>
+                </div>
+                
+                <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                  <div>
+                    <label htmlFor="manufacturer" className="block text-sm font-medium text-slate-300 mb-2">
+                      Manufacturer
+                    </label>
+                    <input
+                      type="text"
+                      id="manufacturer"
+                      value={formData.manufacturer}
+                      onChange={(e) => setFormData(prev => ({ ...prev, manufacturer: e.target.value }))}
+                      className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      required
+                      placeholder="e.g., Dexcom, Abbott, Medtronic"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="model_name" className="block text-sm font-medium text-slate-300 mb-2">
+                      Model Name
+                    </label>
+                    <input
+                      type="text"
+                      id="model_name"
+                      value={formData.model_name}
+                      onChange={(e) => setFormData(prev => ({ ...prev, model_name: e.target.value }))}
+                      className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      required
+                      placeholder="e.g., G7, FreeStyle Libre 3"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="duration_days" className="block text-sm font-medium text-slate-300 mb-2">
+                      Duration (Days)
+                    </label>
+                    <input
+                      type="number"
+                      id="duration_days"
+                      min="1"
+                      max="30"
+                      value={formData.duration_days}
+                      onChange={(e) => setFormData(prev => ({ ...prev, duration_days: parseInt(e.target.value) || 1 }))}
+                      className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="is_active" className="block text-sm font-medium text-slate-300 mb-2">
+                      Status
+                    </label>
+                    <select
+                      id="is_active"
+                      value={formData.is_active.toString()}
+                      onChange={(e) => setFormData(prev => ({ ...prev, is_active: e.target.value === 'true' }))}
+                      className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="true">Active</option>
+                      <option value="false">Inactive</option>
+                    </select>
+                  </div>
+
+                  <div className="flex space-x-3 pt-4">
+                    <button
+                      type="submit"
+                      disabled={saving}
+                      className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:cursor-not-allowed"
+                    >
+                      {saving ? 'Saving...' : (editingModel ? 'Update Model' : 'Create Model')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={resetForm}
+                      className="flex-1 bg-slate-600 hover:bg-slate-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </AdminGuard>
   );
+}
+
+export default function SensorModelsPage() {
+  return <SensorModelsPageContent />;
 }

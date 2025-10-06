@@ -16,14 +16,29 @@ The sensors table doesn't exist in your Supabase database yet. Follow these step
 4. Paste it into the SQL editor
 5. Click **"Run"** to execute the schema
 
-## Step 3: Verify Tables Were Created
+## Step 3: Apply Admin Migrations (Optional)
+
+For admin dashboard functionality, run these migrations:
+
+```bash
+# Apply all pending migrations (recommended)
+npx supabase db push
+
+# Or manually run in SQL Editor:
+# - supabase/migrations/20251005233132_admin_system_tables.sql
+# - supabase/migrations/20251005233137_admin_analytics_views.sql
+```
+
+## Step 4: Verify Tables Were Created
 
 1. Go to **Table Editor** (in the left sidebar)
 2. You should see these tables:
    - `sensors`
    - `photos`
+   - `system_logs` (if admin migrations applied)
+   - `feature_flags` (if admin migrations applied)
 
-## Step 4: Test the Connection
+## Step 5: Test the Connection
 
 1. Go back to your app at `/test-db`
 2. Click "Test Database Connection"

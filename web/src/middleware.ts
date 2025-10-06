@@ -2,8 +2,8 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
 export async function middleware(request: NextRequest) {
-  // Temporarily disable middleware to test authentication flow
-  // The ProtectedRoute component will handle authentication checks
+  // Disable admin middleware - use page-level protection instead
+  // This prevents authentication loops and is more reliable
   return NextResponse.next();
 }
 
