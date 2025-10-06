@@ -1,3 +1,6 @@
+-- Consolidated Dexcom Integration Migration
+-- Migration: 20251007000003_consolidated_dexcom_integration.sql
+
 -- Create Dexcom API integration tables
 -- This migration adds support for Dexcom API OAuth tokens and sync data
 
@@ -14,7 +17,7 @@ CREATE TABLE public.dexcom_tokens (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
   last_sync_at TIMESTAMP WITH TIME ZONE,
   is_active BOOLEAN DEFAULT TRUE NOT NULL,
-  
+
   -- Ensure one active token per user
   CONSTRAINT unique_active_token_per_user UNIQUE(user_id, is_active) DEFERRABLE INITIALLY DEFERRED
 );
@@ -49,7 +52,7 @@ CREATE TABLE public.dexcom_sync_log (
 );
 
 -- Add Dexcom-specific fields to sensors table
-ALTER TABLE public.sensors 
+ALTER TABLE public.sensors
 ADD COLUMN dexcom_sensor_id TEXT UNIQUE, -- Dexcom's internal sensor ID
 ADD COLUMN dexcom_activation_time TIMESTAMP WITH TIME ZONE, -- When activated in Dexcom system
 ADD COLUMN dexcom_expiry_time TIMESTAMP WITH TIME ZONE, -- Dexcom's expiry calculation
@@ -104,12 +107,12 @@ CREATE POLICY "System can insert sync logs" ON public.dexcom_sync_log
   FOR INSERT WITH CHECK (true);
 
 -- Add trigger for updated_at timestamps
-CREATE TRIGGER update_dexcom_tokens_updated_at 
-  BEFORE UPDATE ON public.dexcom_tokens 
+CREATE TRIGGER update_dexcom_tokens_updated_at
+  BEFORE UPDATE ON public.dexcom_tokens
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_dexcom_sync_settings_updated_at 
-  BEFORE UPDATE ON public.dexcom_sync_settings 
+CREATE TRIGGER update_dexcom_sync_settings_updated_at
+  BEFORE UPDATE ON public.dexcom_sync_settings
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Comments for documentation

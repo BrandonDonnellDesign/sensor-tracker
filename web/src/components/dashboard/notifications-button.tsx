@@ -36,6 +36,7 @@ export function NotificationsButton() {
         .from('notifications')
         .select('*')
         .eq('user_id', user.id)
+        .is('dismissed_at', null)
         .order('created_at', { ascending: false })
         .limit(50);
 
@@ -99,51 +100,63 @@ export function NotificationsButton() {
     event.stopPropagation(); // Prevent triggering the notification click
     
     try {
-      // Use the client-side supabase instance directly
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        alert('Please log in to delete notifications');
+      // Get the current session to ensure we're authenticated
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        alert('Please log in to dismiss notifications');
         return;
       }
 
-      const { error } = await (supabase as any)
-        .from('notifications')
-        .delete()
-        .eq('id', notificationId)
-        .eq('user_id', user.id);
+      const response = await fetch('/api/notifications', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          action: 'delete',
+          notificationId: notificationId,
+        }),
+      });
 
-      if (error) {
-        console.error('Error deleting notification:', error);
-        alert(`Failed to delete notification: ${error.message}`);
-        return;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to dismiss notification');
       }
 
       // Remove the notification from the local state
       setNotifications(prev => prev.filter(n => n.id !== notificationId));
     } catch (error) {
-      console.error('Error deleting notification:', error);
-      alert('Error deleting notification. Please try again.');
+      console.error('Error dismissing notification:', error);
+      alert('Error dismissing notification. Please try again.');
     }
   };
 
   const handleClearAll = async () => {
     try {
-      // Use the client-side supabase instance directly
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
+      // Get the current session to ensure we're authenticated
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
         alert('Please log in to clear notifications');
         return;
       }
 
-      const { error } = await (supabase as any)
-        .from('notifications')
-        .delete()
-        .eq('user_id', user.id);
+      const response = await fetch('/api/notifications', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          action: 'clear-all',
+        }),
+      });
 
-      if (error) {
-        console.error('Error clearing all notifications:', error);
-        alert(`Failed to clear notifications: ${error.message}`);
-        return;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to clear notifications');
       }
 
       // Clear all notifications from local state

@@ -1,14 +1,49 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
+import { createClient as createBrowserClient } from '@supabase/supabase-js';
 import { getSensorExpirationInfo } from '@dexcom-tracker/shared/utils/sensorExpiration';
 
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
+    let supabase = await createClient();
+    let user = null;
+    
+    // Try to get user from session/cookies first
+    const { data: { user: cookieUser }, error: authError } = await supabase.auth.getUser();
+    
+    if (!authError && cookieUser) {
+      user = cookieUser;
+    } else {
+      // If no user from cookies, try Authorization header
+      const authHeader = request.headers.get('authorization');
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.substring(7);
+        
+        // Create a new client with the token
+        const tokenSupabase = createBrowserClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          {
+            global: {
+              headers: {
+                Authorization: `Bearer ${token}`
+              }
+            }
+          }
+        );
+        
+        const { data: { user: tokenUser }, error: tokenError } = await tokenSupabase.auth.getUser();
+        if (!tokenError && tokenUser) {
+          user = tokenUser;
+          supabase = tokenSupabase;
+        }
+      }
+    }
+    
+    if (!user) {
+      console.error('Authentication failed - no user found');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     const { action, notificationId } = await request.json();
@@ -17,24 +52,86 @@ export async function POST(request: NextRequest) {
         if (!notificationId) {
           return NextResponse.json({ error: 'Notification ID required for delete' }, { status: 400 });
         }
-        const { error: deleteError } = await (supabase as any)
-          .from('notifications')
-          .delete()
-          .eq('id', notificationId)
-          .eq('user_id', user.id);
-        if (deleteError) {
-          return NextResponse.json({ error: 'Failed to delete notification' }, { status: 500 });
+        
+        // For now, use direct update to set dismissed_at (after migration is applied)
+        // First check if dismissed_at column exists
+        const { data: tableInfo } = await (supabase as any)
+          .from('information_schema.columns')
+          .select('column_name')
+          .eq('table_name', 'notifications')
+          .eq('column_name', 'dismissed_at')
+          .single();
+        
+        if (tableInfo) {
+          // Use dismiss functionality if column exists
+          const { error: dismissError } = await (supabase as any)
+            .from('notifications')
+            .update({ 
+              dismissed_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', notificationId)
+            .eq('user_id', user.id);
+            
+          if (dismissError) {
+            console.error('Error dismissing notification:', dismissError);
+            return NextResponse.json({ error: 'Failed to dismiss notification' }, { status: 500 });
+          }
+        } else {
+          // Fallback to delete if column doesn't exist yet
+          const { error: deleteError } = await (supabase as any)
+            .from('notifications')
+            .delete()
+            .eq('id', notificationId)
+            .eq('user_id', user.id);
+            
+          if (deleteError) {
+            console.error('Error deleting notification:', deleteError);
+            return NextResponse.json({ error: 'Failed to delete notification' }, { status: 500 });
+          }
         }
+        
         return NextResponse.json({ success: true });
       }
+      
       case 'clear-all': {
-        const { error: clearError } = await (supabase as any)
-          .from('notifications')
-          .delete()
-          .eq('user_id', user.id);
-        if (clearError) {
-          return NextResponse.json({ error: 'Failed to clear notifications' }, { status: 500 });
+        // For now, use direct update to set dismissed_at (after migration is applied)
+        // First check if dismissed_at column exists
+        const { data: tableInfo } = await (supabase as any)
+          .from('information_schema.columns')
+          .select('column_name')
+          .eq('table_name', 'notifications')
+          .eq('column_name', 'dismissed_at')
+          .single();
+        
+        if (tableInfo) {
+          // Use dismiss functionality if column exists
+          const { error: dismissError } = await (supabase as any)
+            .from('notifications')
+            .update({ 
+              dismissed_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            })
+            .eq('user_id', user.id)
+            .is('dismissed_at', null);
+            
+          if (dismissError) {
+            console.error('Error dismissing all notifications:', dismissError);
+            return NextResponse.json({ error: 'Failed to dismiss notifications' }, { status: 500 });
+          }
+        } else {
+          // Fallback to delete if column doesn't exist yet
+          const { error: clearError } = await (supabase as any)
+            .from('notifications')
+            .delete()
+            .eq('user_id', user.id);
+            
+          if (clearError) {
+            console.error('Error clearing all notifications:', clearError);
+            return NextResponse.json({ error: 'Failed to clear notifications' }, { status: 500 });
+          }
         }
+        
         return NextResponse.json({ success: true });
       }
       default:
@@ -105,13 +202,14 @@ async function generateSensorNotifications(supabase: any, userId: string): Promi
 
       // Check if sensor is expired
       if (expirationInfo.isExpired) {
-        // Check if we already have an expired notification for this sensor
+        // Check if we already have an active (non-dismissed) expired notification for this sensor
         const { data: existingNotification } = await supabase
           .from('notifications')
           .select('id')
           .eq('user_id', userId)
           .eq('sensor_id', sensor.id)
           .eq('type', 'sensor_expired')
+          .is('dismissed_at', null)
           .limit(1);
 
         if (!existingNotification || existingNotification.length === 0) {
