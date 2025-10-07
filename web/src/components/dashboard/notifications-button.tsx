@@ -226,7 +226,7 @@ export function NotificationsButton() {
                       No notifications
                     </p>
                     <p className="text-xs text-gray-400 dark:text-slate-500 text-center mt-1">
-                      You're all caught up!
+                      You&apos;re all caught up!
                     </p>
                   </div>
                 ) : (

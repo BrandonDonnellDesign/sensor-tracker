@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { AdminGuard } from '@/components/providers/admin-guard';
 import { Bell, Send, Clock, AlertTriangle, CheckCircle, RefreshCw, Plus, X } from 'lucide-react';
 
@@ -62,11 +62,7 @@ export default function AdminNotificationsPage() {
     ab_test_weight: 100
   });
 
-  useEffect(() => {
-    loadNotificationData();
-  }, [timeRange]);
-
-  const loadNotificationData = async () => {
+  const loadNotificationData = useCallback(async () => {
     try {
       setLoading(true);
       
@@ -96,7 +92,11 @@ export default function AdminNotificationsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [timeRange]);
+
+  useEffect(() => {
+    loadNotificationData();
+  }, [loadNotificationData]);
 
   const handleRetryFailed = async () => {
     try {
