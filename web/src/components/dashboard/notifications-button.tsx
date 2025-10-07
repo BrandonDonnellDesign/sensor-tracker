@@ -11,7 +11,7 @@ type Notification = {
   sensor_id?: string;
   title: string;
   message: string;
-  type: 'sensor_expiring' | 'sensor_expired' | 'sensor_issue' | 'maintenance_reminder';
+  type: 'sensor_expiring' | 'sensor_expired' | 'sensor_issue' | 'maintenance_reminder' | 'sensor_expiry_warning' | 'welcome' | 'system';
   read: boolean;
   created_at: string;
   updated_at: string;

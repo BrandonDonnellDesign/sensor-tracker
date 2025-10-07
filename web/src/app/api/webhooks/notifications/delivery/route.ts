@@ -19,12 +19,14 @@ interface DeliveryWebhookPayload {
 export async function POST(request: NextRequest) {
   try {
     // Verify webhook signature (implement based on your push service)
-    const signature = headers().get('x-webhook-signature');
-    if (!verifyWebhookSignature(signature, await request.text())) {
+    const headersList = await headers();
+    const signature = headersList.get('x-webhook-signature');
+    const requestText = await request.text();
+    if (!verifyWebhookSignature(signature, requestText)) {
       return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
     }
 
-    const payload: DeliveryWebhookPayload = await request.json();
+    const payload: DeliveryWebhookPayload = JSON.parse(requestText);
     const adminClient = createAdminClient();
 
     // Update notification delivery status
@@ -41,12 +43,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Database update failed' }, { status: 500 });
     }
 
+    // Map status to valid database values
+    const mapStatusToDbValue = (status: string): 'pending' | 'sent' | 'delivered' | 'failed' => {
+      switch (status) {
+        case 'clicked':
+        case 'dismissed':
+        case 'delivered':
+          return 'delivered';
+        case 'failed':
+          return 'failed';
+        default:
+          return 'sent';
+      }
+    };
+
     // Log the delivery event
     const { error: logError } = await adminClient
       .from('notification_delivery_log')
       .insert({
         notification_id: payload.notificationId,
-        status: payload.status,
+        status: mapStatusToDbValue(payload.status),
         provider: payload.provider,
         provider_response: payload.providerResponse || null,
         error_message: payload.errorMessage || null

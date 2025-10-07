@@ -7,7 +7,12 @@ export async function GET(request: NextRequest) {
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     
     // Check Dexcom API health from sync logs
-    let dexcomHealth = { status: 'healthy' as const, successRate: 100, errorCount: 0, responseTime: 200 };
+    let dexcomHealth: { status: 'healthy' | 'degraded' | 'down', successRate: number, errorCount: number, responseTime: number } = { 
+      status: 'healthy', 
+      successRate: 100, 
+      errorCount: 0, 
+      responseTime: 200 
+    };
     try {
       const [successLogs, errorLogs] = await Promise.all([
         adminClient
@@ -41,7 +46,12 @@ export async function GET(request: NextRequest) {
     }
 
     // Check OCR/Photo processing health
-    let ocrHealth = { status: 'healthy' as const, successRate: 100, errorCount: 0, responseTime: 1200 };
+    let ocrHealth: { status: 'healthy' | 'degraded' | 'down', successRate: number, errorCount: number, responseTime: number } = { 
+      status: 'healthy', 
+      successRate: 100, 
+      errorCount: 0, 
+      responseTime: 1200 
+    };
     try {
       const [totalPhotos, deletedPhotos] = await Promise.all([
         adminClient
@@ -73,7 +83,12 @@ export async function GET(request: NextRequest) {
     }
 
     // Check database health by testing a simple query
-    let databaseHealth = { status: 'healthy' as const, successRate: 99.9, errorCount: 0, responseTime: 45 };
+    let databaseHealth: { status: 'healthy' | 'degraded' | 'down', successRate: number, errorCount: number, responseTime: number } = { 
+      status: 'healthy', 
+      successRate: 99.9, 
+      errorCount: 0, 
+      responseTime: 45 
+    };
     try {
       const start = Date.now();
       await adminClient.from('profiles').select('id').limit(1);
@@ -92,7 +107,12 @@ export async function GET(request: NextRequest) {
     }
 
     // Check system logs for general health indicators
-    let systemHealth = { status: 'healthy' as const, successRate: 98, errorCount: 0, responseTime: 50 };
+    let systemHealth: { status: 'healthy' | 'degraded' | 'down', successRate: number, errorCount: number, responseTime: number } = { 
+      status: 'healthy', 
+      successRate: 98, 
+      errorCount: 0, 
+      responseTime: 50 
+    };
     try {
       const { data: errorLogs } = await adminClient
         .from('system_logs')
@@ -112,7 +132,12 @@ export async function GET(request: NextRequest) {
     }
 
     // Check file storage health (photos uploaded successfully)
-    let storageHealth = { status: 'healthy' as const, successRate: 99.5, errorCount: 0, responseTime: 75 };
+    let storageHealth: { status: 'healthy' | 'degraded' | 'down', successRate: number, errorCount: number, responseTime: number } = { 
+      status: 'healthy', 
+      successRate: 99.5, 
+      errorCount: 0, 
+      responseTime: 75 
+    };
     try {
       const { data: recentPhotos } = await adminClient
         .from('photos')
@@ -138,7 +163,12 @@ export async function GET(request: NextRequest) {
     }
 
     // Check notification system health
-    let notificationHealth = { status: 'healthy' as const, successRate: 95, errorCount: 0, responseTime: 200 };
+    let notificationHealth: { status: 'healthy' | 'degraded' | 'down', successRate: number, errorCount: number, responseTime: number } = { 
+      status: 'healthy', 
+      successRate: 95, 
+      errorCount: 0, 
+      responseTime: 200 
+    };
     try {
       const [totalNotifications, readNotifications] = await Promise.all([
         adminClient

@@ -9,7 +9,7 @@ import { BarChart } from '@/components/admin/charts/bar-chart';
 import { DoughnutChart } from '@/components/admin/charts/doughnut-chart';
 import { fetchAnalyticsData, type AnalyticsData } from '@/lib/admin/metrics';
 import { TrendingUp, Users, Zap, Bell, ArrowLeft, Calendar, Download } from 'lucide-react';
-import { exportAnalyticsToCSV } from '@/utils/csv-export';
+import { exportAnalyticsToCSV, exportSummaryToCSV } from '@/utils/csv-export';
 
 export default function AdminAnalyticsPage() {
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);

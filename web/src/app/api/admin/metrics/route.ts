@@ -145,7 +145,7 @@ export async function GET(request: NextRequest) {
         const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
         
         try {
-          const { count } = await adminClient
+          const { count } = await (adminClient as any)
             .from(table)
             .select('id', { count: 'exact', head: true })
             .gte('created_at', dayStart.toISOString())

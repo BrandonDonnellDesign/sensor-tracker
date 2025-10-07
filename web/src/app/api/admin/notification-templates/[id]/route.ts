@@ -3,15 +3,16 @@ import { createAdminClient } from '@/lib/supabase-admin';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const adminClient = createAdminClient();
+    const { id } = await params;
     
     const { data: template, error } = await adminClient
       .from('notification_templates')
       .select('*')
-      .eq('id', params.id)
+      .eq('id', id)
       .single();
 
     if (error) {
@@ -36,11 +37,12 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const adminClient = createAdminClient();
     const body = await request.json();
+    const { id } = await params;
 
     const { data: template, error } = await adminClient
       .from('notification_templates')
@@ -55,7 +57,7 @@ export async function PUT(
         ab_test_weight: body.abTestWeight || 1,
         updated_at: new Date().toISOString()
       })
-      .eq('id', params.id)
+      .eq('id', id)
       .select()
       .single();
 
@@ -81,15 +83,16 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const adminClient = createAdminClient();
+    const { id } = await params;
 
     const { error } = await adminClient
       .from('notification_templates')
       .delete()
-      .eq('id', params.id);
+      .eq('id', id);
 
     if (error) {
       throw error;
