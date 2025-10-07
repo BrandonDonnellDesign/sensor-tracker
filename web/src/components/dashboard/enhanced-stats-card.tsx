@@ -1,8 +1,14 @@
-interface StatsCardProps {
+interface EnhancedStatsCardProps {
   title: string;
   value: string | number;
-  icon: 'sensors' | 'alert' | 'check' | 'calendar' | 'photo';
-  color: 'blue' | 'red' | 'green' | 'purple';
+  icon: 'sensors' | 'alert' | 'check' | 'calendar' | 'photo' | 'trend';
+  color: 'blue' | 'red' | 'green' | 'purple' | 'orange';
+  trend?: {
+    value: number;
+    isPositive: boolean;
+    label: string;
+  };
+  subtitle?: string;
 }
 
 const icons = {
@@ -33,6 +39,11 @@ const icons = {
       <path d="M21 19l-5-5a3 3 0 00-4.24 0L3 19" stroke="currentColor" strokeWidth={2} />
     </svg>
   ),
+  trend: (
+    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+    </svg>
+  ),
 };
 
 const colorClasses = {
@@ -40,15 +51,37 @@ const colorClasses = {
   red: 'bg-gradient-to-br from-red-500 to-red-600 text-white shadow-lg shadow-red-500/25',
   green: 'bg-gradient-to-br from-green-500 to-green-600 text-white shadow-lg shadow-green-500/25',
   purple: 'bg-gradient-to-br from-purple-500 to-purple-600 text-white shadow-lg shadow-purple-500/25',
+  orange: 'bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-500/25',
 };
 
-export function StatsCard({ title, value, icon, color }: StatsCardProps) {
+export function EnhancedStatsCard({ title, value, icon, color, trend, subtitle }: EnhancedStatsCardProps) {
   return (
     <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-slate-700 hover:shadow-lg hover:scale-105 transition-all duration-200">
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between">
         <div className="flex-1">
           <p className="text-sm font-medium text-gray-600 dark:text-slate-400 mb-2">{title}</p>
-          <p className="text-3xl font-bold text-gray-900 dark:text-slate-100">{value}</p>
+          <p className="text-3xl font-bold text-gray-900 dark:text-slate-100 mb-1">{value}</p>
+          {subtitle && (
+            <p className="text-xs text-gray-500 dark:text-slate-500">{subtitle}</p>
+          )}
+          {trend && (
+            <div className="flex items-center mt-3">
+              <div className={`flex items-center text-xs font-medium ${
+                trend.isPositive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+              }`}>
+                <svg 
+                  className={`w-3 h-3 mr-1 ${trend.isPositive ? '' : 'rotate-180'}`} 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 17l9.2-9.2M17 17V7H7" />
+                </svg>
+                {Math.abs(trend.value)}%
+              </div>
+              <span className="text-xs text-gray-500 dark:text-slate-500 ml-2">{trend.label}</span>
+            </div>
+          )}
         </div>
         <div className={`p-4 rounded-xl ${colorClasses[color]} transform hover:scale-110 transition-transform duration-200`}>
           {icons[icon]}

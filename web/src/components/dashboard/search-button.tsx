@@ -22,8 +22,10 @@ export function SearchButton() {
     <div className="relative">
       <button
         onClick={() => setIsOpen(true)}
-        className="flex items-center justify-center rounded-full w-10 h-10 text-gray-500 hover:text-gray-600 dark:text-slate-400 dark:hover:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
-        aria-label="Search"
+        data-search-trigger
+        className="flex items-center justify-center rounded-lg w-9 h-9 text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 transition-all duration-200"
+        aria-label="Search (Alt+S)"
+        title="Search (Alt+S)"
       >
         <MagnifyingGlassIcon className="h-5 w-5" />
       </button>

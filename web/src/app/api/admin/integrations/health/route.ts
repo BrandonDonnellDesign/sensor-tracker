@@ -153,13 +153,13 @@ export async function GET(request: NextRequest) {
       const storageStart = Date.now();
       const { data: recentPhotos } = await adminClient
         .from('sensor_photos')
-        .select('photo_url')
+        .select('file_path')
         .gte('created_at', oneDayAgo)
         .limit(100);
       const storageResponseTime = Date.now() - storageStart;
 
       const totalPhotos = recentPhotos?.length || 0;
-      const photosWithStorage = recentPhotos?.filter(p => p.photo_url).length || 0;
+      const photosWithStorage = recentPhotos?.filter(p => p.file_path).length || 0;
       
       if (totalPhotos > 0) {
         const successRate = (photosWithStorage / totalPhotos) * 100;

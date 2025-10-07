@@ -8,11 +8,13 @@ import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { clsx } from 'clsx';
 import { supabase } from '@/lib/supabase';
 
-const navigation = [
+const primaryNavigation = [
   { name: 'Dashboard', href: '/dashboard', icon: 'home' },
   { name: 'My Sensors', href: '/dashboard/sensors', icon: 'sensors' },
   { name: 'Analytics', href: '/dashboard/analytics', icon: 'analytics' },
-  { name: 'Add Sensor', href: '/dashboard/sensors/new', icon: 'plus' },
+];
+
+const secondaryNavigation = [
   { name: 'Help & FAQ', href: '/dashboard/help', icon: 'help' },
 ];
 
@@ -92,7 +94,45 @@ export function Sidebar() {
     { name: 'Admin Dashboard', href: '/admin', icon: 'admin' },
   ] : [];
 
-  const allNavigation = [...navigation, ...adminNavigation];
+  const [sensorCount, setSensorCount] = useState(0);
+
+  useEffect(() => {
+    const fetchActiveSensorCount = async () => {
+      if (!user?.id) return;
+      
+      try {
+        const { data: sensors } = await supabase
+          .from('sensors')
+          .select(`
+            *,
+            sensor_models (
+              duration_days
+            )
+          `)
+          .eq('user_id', user.id)
+          .eq('is_deleted', false)
+          .is('archived_at', null);
+        
+        if (sensors) {
+          // Calculate active sensors (not expired and not problematic)
+          const activeSensors = sensors.filter((s: any) => {
+            const sensorModel = s.sensor_models || { duration_days: 10 };
+            const expirationDate = new Date(s.date_added);
+            expirationDate.setDate(
+              expirationDate.getDate() + sensorModel.duration_days
+            );
+            return expirationDate > new Date() && !s.is_problematic;
+          });
+          
+          setSensorCount(activeSensors.length);
+        }
+      } catch (error) {
+        console.error('Error fetching active sensor count:', error);
+      }
+    };
+
+    fetchActiveSensorCount();
+  }, [user]);
 
 
   return (
@@ -116,67 +156,169 @@ export function Sidebar() {
         isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
       )}>
         <div className="flex flex-col h-full">
-          {/* Logo */}
-          <div className="flex items-center justify-between px-6 py-5 border-b border-gray-200 dark:border-slate-800">
+          {/* Logo & User Info */}
+          <div className="px-6 py-5 border-b border-gray-200 dark:border-slate-800">
             <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
               </div>
-              <h1 className={clsx(
-                'text-lg font-bold text-gray-900 dark:text-slate-100 transition-opacity duration-200',
+              <div className={clsx(
+                'transition-opacity duration-200',
                 isCollapsed ? 'opacity-0 hidden' : 'opacity-100'
-              )}>Sensor Tracker</h1>
+              )}>
+                <h1 className="text-lg font-bold text-gray-900 dark:text-slate-100">CGM Tracker</h1>
+                <p className="text-xs text-gray-500 dark:text-slate-400">
+                  {user?.email?.split('@')[0] || 'User'}
+                </p>
+              </div>
             </div>
+            
+
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 px-4 py-6 space-y-1">
-            {allNavigation.map((item) => {
-              const isActive = pathname === item.href;
-              return (
+          <nav className="flex-1 px-4 py-6">
+            {/* Primary Navigation */}
+            <div className="space-y-1 mb-8">
+              {primaryNavigation.map((item) => {
+                const isActive = pathname === item.href;
+                const showBadge = item.name === 'My Sensors' && sensorCount > 0;
+                
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    className={clsx(
+                      'flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200',
+                      isActive
+                        ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/25'
+                        : 'text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 hover:text-gray-900 dark:hover:text-slate-100'
+                    )}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    <div className="flex items-center">
+                      <div className={clsx(
+                        'flex items-center justify-center w-5 h-5',
+                        isActive ? 'text-white' : 'text-gray-500 dark:text-slate-400'
+                      )}>
+                        {icons[item.icon as keyof typeof icons]}
+                      </div>
+                      <span className={clsx(
+                        'ml-3 transition-opacity duration-200',
+                        isCollapsed ? 'opacity-0 hidden' : 'opacity-100'
+                      )}>{item.name}</span>
+                    </div>
+                    {showBadge && !isCollapsed && (
+                      <span className={clsx(
+                        'px-2 py-1 text-xs font-medium rounded-full',
+                        isActive 
+                          ? 'bg-white/20 text-white' 
+                          : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                      )}>
+                        {sensorCount}
+                      </span>
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+
+            {/* Admin Navigation */}
+            {isAdmin && (
+              <div className="space-y-1 mb-8">
+                <div className={clsx(
+                  'px-4 py-2 text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider',
+                  isCollapsed ? 'opacity-0 hidden' : 'opacity-100'
+                )}>
+                  Administration
+                </div>
                 <Link
-                  key={item.name}
-                  href={item.href}
+                  href="/admin"
                   className={clsx(
                     'flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200',
-                    isActive
-                      ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/25'
+                    pathname.startsWith('/admin')
+                      ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-lg shadow-purple-500/25'
                       : 'text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 hover:text-gray-900 dark:hover:text-slate-100'
                   )}
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   <div className={clsx(
                     'flex items-center justify-center w-5 h-5',
-                    isActive ? 'text-white' : 'text-gray-500 dark:text-slate-400'
+                    pathname.startsWith('/admin') ? 'text-white' : 'text-gray-500 dark:text-slate-400'
                   )}>
-                    {icons[item.icon as keyof typeof icons]}
+                    {icons.admin}
                   </div>
                   <span className={clsx(
                     'ml-3 transition-opacity duration-200',
                     isCollapsed ? 'opacity-0 hidden' : 'opacity-100'
-                  )}>{item.name}</span>
+                  )}>Admin Dashboard</span>
                 </Link>
-              );
-            })}
+              </div>
+            )}
+
+            {/* Secondary Navigation */}
+            <div className="space-y-1">
+              <div className={clsx(
+                'px-4 py-2 text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider',
+                isCollapsed ? 'opacity-0 hidden' : 'opacity-100'
+              )}>
+                Support
+              </div>
+              {secondaryNavigation.map((item) => {
+                const isActive = pathname === item.href;
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    className={clsx(
+                      'flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200',
+                      isActive
+                        ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/25'
+                        : 'text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 hover:text-gray-900 dark:hover:text-slate-100'
+                    )}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    <div className={clsx(
+                      'flex items-center justify-center w-5 h-5',
+                      isActive ? 'text-white' : 'text-gray-500 dark:text-slate-400'
+                    )}>
+                      {icons[item.icon as keyof typeof icons]}
+                    </div>
+                    <span className={clsx(
+                      'ml-3 transition-opacity duration-200',
+                      isCollapsed ? 'opacity-0 hidden' : 'opacity-100'
+                    )}>{item.name}</span>
+                  </Link>
+                );
+              })}
+            </div>
           </nav>
 
-          {/* Bottom section with collapse toggle */}
+          {/* Bottom section */}
           <div className="p-4 border-t border-gray-200 dark:border-slate-800">
-            <button
-              onClick={() => setIsCollapsed(!isCollapsed)}
-              className="p-2 rounded-lg text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors w-full flex justify-center"
-            >
-              <svg
-                className={clsx('w-5 h-5 transition-transform duration-200', isCollapsed ? 'rotate-180' : '')}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+            <div className="flex items-center justify-between">
+              {!isCollapsed && (
+                <div className="text-xs text-gray-500 dark:text-slate-400">
+                  Press <kbd className="px-1 py-0.5 bg-gray-100 dark:bg-slate-700 rounded text-xs">⌘K</kbd> to search
+                </div>
+              )}
+              <button
+                onClick={() => setIsCollapsed(!isCollapsed)}
+                className="p-2 rounded-lg text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
+                title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
               >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-              </svg>
-            </button>
+                <svg
+                  className={clsx('w-4 h-4 transition-transform duration-200', isCollapsed ? 'rotate-180' : '')}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
       </div>

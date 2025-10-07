@@ -1,6 +1,7 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
+import { useEffect } from 'react';
 import { ChevronRightIcon } from '@heroicons/react/24/solid';
 import Link from 'next/link';
 import { useAuth } from '@/components/providers/auth-provider';
@@ -126,35 +127,42 @@ export function Header() {
   const { user, signOut } = useAuth();
   const pageInfo = getPageInfo(pathname);
 
+
+
   return (
     <header className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-gray-200 dark:border-slate-800 transition-all duration-200 sticky top-0 z-30">
       <div className="mx-auto max-w-7xl px-6 sm:px-8 lg:px-10">
         <div className="flex h-16 items-center justify-between">
           <div className="flex items-center">
             {/* Only show title on mobile */}
-            <h1 className="lg:hidden text-xl font-semibold text-gray-900 dark:text-slate-100">
+            <h1 className="lg:hidden text-lg font-semibold text-gray-900 dark:text-slate-100 truncate">
               {pageInfo.name}
             </h1>
             
             {/* Show breadcrumb on desktop */}
-            <nav className="hidden lg:flex items-center text-gray-500 dark:text-slate-400">
+            <nav className="hidden lg:flex items-center">
               <Link 
                 href="/dashboard"
-                className="text-sm hover:text-gray-700 dark:hover:text-slate-300"
+                className="flex items-center text-sm text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200 transition-colors font-medium"
               >
+                <svg className="w-4 h-4 mr-2 text-blue-500 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5v4" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 5v4" />
+                </svg>
                 Dashboard
               </Link>
               {pageInfo.breadcrumb?.map((item, index) => (
                 <div key={item.href} className="flex items-center">
-                  <ChevronRightIcon className="h-4 w-4 mx-2" />
+                  <ChevronRightIcon className="h-3 w-3 mx-2 text-gray-400 dark:text-slate-500" />
                   {index === (pageInfo.breadcrumb?.length ?? 0) - 1 ? (
-                    <span className="text-sm text-gray-900 dark:text-slate-100">
+                    <span className="text-sm font-semibold text-gray-900 dark:text-slate-100">
                       {item.name}
                     </span>
                   ) : (
                     <Link
                       href={item.href}
-                      className="text-sm hover:text-gray-700 dark:hover:text-slate-300"
+                      className="text-sm text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200 transition-colors font-medium"
                     >
                       {item.name}
                     </Link>
@@ -166,14 +174,13 @@ export function Header() {
           
           {/* Header actions */}
           <div className="flex items-center">
-            <div className="flex items-center space-x-1 sm:space-x-2 mr-2 sm:mr-4">
-              <div className="hidden sm:block">
-                <SearchButton />
-              </div>
+            {/* Main Actions */}
+            <div className="flex items-center space-x-1 sm:space-x-2">
+              <SearchButton />
               <NotificationsButton />
               <ThemeToggle />
             </div>
-            <div className="hidden sm:block h-6 border-l border-gray-200 dark:border-slate-700 mx-2 sm:mx-4" />
+            <div className="h-6 border-l border-gray-200 dark:border-slate-700 mx-3 sm:mx-4" />
             <UserProfileMenu />
           </div>
         </div>

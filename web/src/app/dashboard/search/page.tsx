@@ -25,14 +25,6 @@ export default function SearchPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState(query);
 
-  useEffect(() => {
-    if (query && user) {
-      performSearch(query);
-    } else {
-      setLoading(false);
-    }
-  }, [query, user, performSearch]);
-
   const performSearch = useCallback(async (searchTerm: string) => {
     if (!user?.id || !searchTerm.trim()) {
       setResults([]);
@@ -162,6 +154,14 @@ export default function SearchPage() {
       setLoading(false);
     }
   }, [user?.id]);
+
+  useEffect(() => {
+    if (query && user) {
+      performSearch(query);
+    } else {
+      setLoading(false);
+    }
+  }, [query, user, performSearch]);
 
   const handleNewSearch = (e: React.FormEvent) => {
     e.preventDefault();

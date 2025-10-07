@@ -32,6 +32,7 @@ export function NotificationsButton() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      // Get database notifications (only non-dismissed ones)
       const { data: userNotifications, error } = await (supabase as any)
         .from('notifications')
         .select('*')
@@ -42,7 +43,6 @@ export function NotificationsButton() {
 
       if (error) {
         console.error('Error fetching notifications:', error);
-        // If table doesn't exist yet, show empty notifications
         setNotifications([]);
         return;
       }
@@ -100,7 +100,6 @@ export function NotificationsButton() {
     event.stopPropagation(); // Prevent triggering the notification click
     
     try {
-      // Get the current session to ensure we're authenticated
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         alert('Please log in to dismiss notifications');
@@ -125,7 +124,7 @@ export function NotificationsButton() {
         throw new Error(errorData.error || 'Failed to dismiss notification');
       }
 
-      // Remove the notification from the local state
+      // Remove the notification from the local state immediately for instant feedback
       setNotifications(prev => prev.filter(n => n.id !== notificationId));
     } catch (error) {
       console.error('Error dismissing notification:', error);
@@ -135,7 +134,6 @@ export function NotificationsButton() {
 
   const handleClearAll = async () => {
     try {
-      // Get the current session to ensure we're authenticated
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         alert('Please log in to clear notifications');
@@ -159,7 +157,7 @@ export function NotificationsButton() {
         throw new Error(errorData.error || 'Failed to clear notifications');
       }
 
-      // Clear all notifications from local state
+      // Clear all notifications from local state immediately for instant feedback
       setNotifications([]);
     } catch (error) {
       console.error('Error clearing all notifications:', error);
