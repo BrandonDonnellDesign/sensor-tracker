@@ -288,9 +288,12 @@ export default function AdminOverviewPage() {
           <div className="bg-white dark:bg-slate-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-slate-700">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-medium text-gray-900 dark:text-slate-100">Notifications</h3>
-              <MiniChart data={metrics.notifications.deliveryTrend} color="purple" />
+              <div className="flex items-center space-x-2">
+                <Bell className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                <MiniChart data={metrics.notifications.deliveryTrend} color="purple" />
+              </div>
             </div>
-            <div className="space-y-4">
+            <div className="space-y-4 mb-4">
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600 dark:text-slate-400">Sent Today</span>
                 <span className="font-semibold text-gray-900 dark:text-slate-100">
@@ -299,22 +302,84 @@ export default function AdminOverviewPage() {
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600 dark:text-slate-400">Delivered</span>
-                <span className="font-semibold text-green-600 dark:text-green-400">
-                  {metrics.notifications.delivered.toLocaleString()}
-                </span>
+                <div className="flex items-center space-x-2">
+                  <span className="font-semibold text-green-600 dark:text-green-400">
+                    {metrics.notifications.delivered.toLocaleString()}
+                  </span>
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                </div>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600 dark:text-slate-400">Failed</span>
-                <span className="font-semibold text-red-600 dark:text-red-400">
-                  {metrics.notifications.failed.toLocaleString()}
-                </span>
+                <div className="flex items-center space-x-2">
+                  <span className="font-semibold text-red-600 dark:text-red-400">
+                    {metrics.notifications.failed.toLocaleString()}
+                  </span>
+                  <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                </div>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600 dark:text-slate-400">Delivery Rate</span>
-                <span className="font-semibold text-gray-900 dark:text-slate-100">
-                  {((metrics.notifications.delivered / metrics.notifications.sent) * 100).toFixed(1)}%
-                </span>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600 dark:text-slate-400">Delivery Rate</span>
+                  <div className="flex items-center space-x-2">
+                    <span className="font-semibold text-gray-900 dark:text-slate-100">
+                      {metrics.notifications.sent > 0 ? ((metrics.notifications.delivered / metrics.notifications.sent) * 100).toFixed(1) : '0.0'}%
+                    </span>
+                    <div className={`w-2 h-2 rounded-full ${
+                      metrics.notifications.sent > 0 && (metrics.notifications.delivered / metrics.notifications.sent) >= 0.95 
+                        ? 'bg-green-500' 
+                        : metrics.notifications.sent > 0 && (metrics.notifications.delivered / metrics.notifications.sent) >= 0.85 
+                        ? 'bg-yellow-500' 
+                        : 'bg-red-500'
+                    }`}></div>
+                  </div>
+                </div>
+                <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2">
+                  <div 
+                    className={`h-2 rounded-full transition-all duration-300 ${
+                      metrics.notifications.sent > 0 && (metrics.notifications.delivered / metrics.notifications.sent) >= 0.95 
+                        ? 'bg-green-500' 
+                        : metrics.notifications.sent > 0 && (metrics.notifications.delivered / metrics.notifications.sent) >= 0.85 
+                        ? 'bg-yellow-500' 
+                        : 'bg-red-500'
+                    }`}
+                    style={{ 
+                      width: `${metrics.notifications.sent > 0 ? ((metrics.notifications.delivered / metrics.notifications.sent) * 100) : 0}%` 
+                    }}
+                  ></div>
+                </div>
               </div>
+            </div>
+            <div className="pt-4 border-t border-gray-200 dark:border-slate-600">
+              <h4 className="text-sm font-medium text-gray-900 dark:text-slate-100 mb-2">7-Day Delivery Trend</h4>
+              <LineChart
+                data={{
+                  labels: Array.from({ length: 7 }, (_, i) => {
+                    const date = new Date();
+                    date.setDate(date.getDate() - (6 - i));
+                    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                  }),
+                  datasets: [
+                    {
+                      label: 'Delivered',
+                      data: metrics.notifications.deliveryTrend,
+                      borderColor: 'rgb(34, 197, 94)',
+                      backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                      fill: true,
+                      tension: 0.3,
+                    },
+                    {
+                      label: 'Failed',
+                      data: metrics.notifications.failureTrend || Array(7).fill(0),
+                      borderColor: 'rgb(239, 68, 68)',
+                      backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                      fill: true,
+                      tension: 0.3,
+                    },
+                  ],
+                }}
+                height={120}
+              />
             </div>
           </div>
         </div>

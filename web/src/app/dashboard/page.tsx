@@ -20,13 +20,18 @@ export default function DashboardPage() {
   const { user } = useAuth();
   const [sensors, setSensors] = useState<Sensor[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchSensors = useCallback(async () => {
+  const fetchSensors = useCallback(async (isRefresh = false) => {
     if (!user?.id) return;
     
     try {
       setError(null);
+      if (isRefresh) {
+        setRefreshing(true);
+      }
+      
       const { data, error } = await (supabase as any)
         .from('sensors')
         .select(`
@@ -51,6 +56,7 @@ export default function DashboardPage() {
       setSensors([]); // Set empty array on error
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, [user?.id]);
 
@@ -100,7 +106,7 @@ export default function DashboardPage() {
               <h3 className="text-sm font-medium text-red-800">Error loading sensors</h3>
               <p className="text-sm text-red-700 mt-1">{error}</p>
               <button 
-                onClick={fetchSensors}
+                onClick={() => fetchSensors(true)}
                 className="text-sm text-red-800 underline mt-2 hover:text-red-900"
               >
                 Try again
@@ -140,7 +146,11 @@ export default function DashboardPage() {
 
       {/* Recent Sensors and Quick Actions */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <RecentSensors sensors={recentSensors} onRefresh={fetchSensors} />
+        <RecentSensors 
+          sensors={recentSensors} 
+          onRefresh={() => fetchSensors(true)}
+          isRefreshing={refreshing}
+        />
         <QuickActions />
       </div>
     </div>

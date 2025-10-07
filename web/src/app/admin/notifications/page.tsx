@@ -52,6 +52,8 @@ export default function AdminNotificationsPage() {
   const [recentNotifications, setRecentNotifications] = useState<RecentNotification[]>([]);
   const [timeRange, setTimeRange] = useState<'24h' | '7d' | '30d'>('24h');
   const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<string | null>(null);
+  const [templates, setTemplates] = useState<(NotificationTemplate & { id: string })[]>([]);
   const [templateForm, setTemplateForm] = useState<NotificationTemplate>({
     name: '',
     type: 'sensor_expiry_warning',
@@ -87,6 +89,13 @@ export default function AdminNotificationsPage() {
         setRecentNotifications(recentData);
       }
 
+      // Fetch notification templates
+      const templatesResponse = await fetch('/api/admin/notification-templates');
+      if (templatesResponse.ok) {
+        const templatesData = await templatesResponse.json();
+        setTemplates(templatesData);
+      }
+
     } catch (error) {
       console.error('Error loading notification data:', error);
     } finally {
@@ -117,8 +126,14 @@ export default function AdminNotificationsPage() {
 
   const handleCreateTemplate = async () => {
     try {
-      const response = await fetch('/api/admin/notification-templates', {
-        method: 'POST',
+      const url = editingTemplate 
+        ? `/api/admin/notification-templates/${editingTemplate}`
+        : '/api/admin/notification-templates';
+      
+      const method = editingTemplate ? 'PUT' : 'POST';
+      
+      const response = await fetch(url, {
+        method,
         headers: {
           'Content-Type': 'application/json',
         },
@@ -135,8 +150,9 @@ export default function AdminNotificationsPage() {
       });
 
       if (response.ok) {
-        alert('Template created successfully!');
+        alert(`Template ${editingTemplate ? 'updated' : 'created'} successfully!`);
         setShowTemplateModal(false);
+        setEditingTemplate(null);
         setTemplateForm({
           name: '',
           type: 'sensor_expiry_warning',
@@ -149,11 +165,48 @@ export default function AdminNotificationsPage() {
         loadNotificationData(); // Refresh data
       } else {
         const error = await response.json();
-        alert(`Failed to create template: ${error.message}`);
+        alert(`Failed to ${editingTemplate ? 'update' : 'create'} template: ${error.message}`);
       }
     } catch (error) {
-      console.error('Error creating template:', error);
-      alert('Failed to create template');
+      console.error(`Error ${editingTemplate ? 'updating' : 'creating'} template:`, error);
+      alert(`Failed to ${editingTemplate ? 'update' : 'create'} template`);
+    }
+  };
+
+  const handleEditTemplate = (template: NotificationTemplate & { id: string }) => {
+    setEditingTemplate(template.id);
+    setTemplateForm({
+      name: template.name,
+      type: template.type,
+      title_template: template.title_template,
+      message_template: template.message_template,
+      variables: JSON.stringify(template.variables || {}, null, 2),
+      ab_test_group: template.ab_test_group,
+      ab_test_weight: template.ab_test_weight
+    });
+    setShowTemplateModal(true);
+  };
+
+  const handleDeleteTemplate = async (templateId: string) => {
+    if (!confirm('Are you sure you want to delete this template?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/admin/notification-templates/${templateId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        alert('Template deleted successfully!');
+        loadNotificationData(); // Refresh data
+      } else {
+        const error = await response.json();
+        alert(`Failed to delete template: ${error.message}`);
+      }
+    } catch (error) {
+      console.error('Error deleting template:', error);
+      alert('Failed to delete template');
     }
   };
 
@@ -420,14 +473,92 @@ export default function AdminNotificationsPage() {
           </div>
         </div>
 
+        {/* Notification Templates */}
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-gray-200 dark:border-slate-700">
+          <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100">Notification Templates</h2>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-slate-600">
+              <thead className="bg-gray-50 dark:bg-slate-700">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                    Name
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                    Type
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                    A/B Group
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                    Weight
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white dark:bg-slate-800 divide-y divide-gray-200 dark:divide-slate-600">
+                {templates.map((template) => (
+                  <tr key={template.id} className="hover:bg-gray-50 dark:hover:bg-slate-700/50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900 dark:text-slate-100">
+                        {template.name}
+                      </div>
+                      <div className="text-sm text-gray-500 dark:text-slate-400 truncate max-w-xs">
+                        {template.title_template}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-slate-100 capitalize">
+                      {template.type.replace('_', ' ')}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-slate-100">
+                      {template.ab_test_group}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-slate-100">
+                      {template.ab_test_weight}%
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <button
+                        onClick={() => handleEditTemplate(template)}
+                        className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 mr-4"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDeleteTemplate(template.id)}
+                        className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {templates.length === 0 && (
+              <div className="text-center py-8">
+                <Bell className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-600 dark:text-slate-400">No templates found</p>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Template Creation Modal */}
         {showTemplateModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white dark:bg-slate-800 rounded-lg p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Create New Template</h2>
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100">
+                  {editingTemplate ? 'Edit Template' : 'Create New Template'}
+                </h2>
                 <button
-                  onClick={() => setShowTemplateModal(false)}
+                  onClick={() => {
+                    setShowTemplateModal(false);
+                    setEditingTemplate(null);
+                  }}
                   className="text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200"
                 >
                   <X className="h-6 w-6" />
@@ -538,7 +669,10 @@ export default function AdminNotificationsPage() {
 
               <div className="flex justify-end space-x-4 mt-6">
                 <button
-                  onClick={() => setShowTemplateModal(false)}
+                  onClick={() => {
+                    setShowTemplateModal(false);
+                    setEditingTemplate(null);
+                  }}
                   className="px-4 py-2 text-gray-700 dark:text-slate-300 border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700"
                 >
                   Cancel
@@ -547,7 +681,7 @@ export default function AdminNotificationsPage() {
                   onClick={handleCreateTemplate}
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                 >
-                  Create Template
+                  {editingTemplate ? 'Update Template' : 'Create Template'}
                 </button>
               </div>
             </div>

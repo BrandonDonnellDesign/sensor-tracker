@@ -31,6 +31,7 @@ export interface OverviewMetrics {
     delivered: number;
     failed: number;
     deliveryTrend: number[];
+    failureTrend?: number[];
   };
   retention: {
     weeklyRetention: number;

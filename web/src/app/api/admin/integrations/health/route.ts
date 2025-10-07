@@ -14,6 +14,7 @@ export async function GET(request: NextRequest) {
       responseTime: 200 
     };
     try {
+      const dexcomStart = Date.now();
       const [successLogs, errorLogs] = await Promise.all([
         adminClient
           .from('dexcom_sync_log')
@@ -26,6 +27,7 @@ export async function GET(request: NextRequest) {
           .eq('status', 'error')
           .gte('created_at', oneDayAgo)
       ]);
+      const dexcomResponseTime = Date.now() - dexcomStart;
 
       const successCount = successLogs.count || 0;
       const errorCount = errorLogs.count || 0;
@@ -37,15 +39,17 @@ export async function GET(request: NextRequest) {
           status: successRate >= 95 ? 'healthy' : successRate >= 85 ? 'degraded' : 'down',
           successRate,
           errorCount,
-          responseTime: 180 + Math.floor(Math.random() * 100) // Simulated based on typical API response
+          responseTime: dexcomResponseTime
         };
+      } else {
+        dexcomHealth.responseTime = dexcomResponseTime;
       }
     } catch (error) {
       console.error('Error checking Dexcom health:', error);
       dexcomHealth.status = 'degraded';
     }
 
-    // Check OCR/Photo processing health
+    // Check OCR/Photo processing health (using sensor_photos table)
     let ocrHealth: { status: 'healthy' | 'degraded' | 'down', successRate: number, errorCount: number, responseTime: number } = { 
       status: 'healthy', 
       successRate: 100, 
@@ -53,29 +57,34 @@ export async function GET(request: NextRequest) {
       responseTime: 1200 
     };
     try {
-      const [totalPhotos, deletedPhotos] = await Promise.all([
+      const ocrStart = Date.now();
+      const [totalPhotos, validPhotos] = await Promise.all([
         adminClient
-          .from('photos')
+          .from('sensor_photos')
           .select('id', { count: 'exact', head: true })
           .gte('created_at', oneDayAgo),
         adminClient
-          .from('photos')
+          .from('sensor_photos')
           .select('id', { count: 'exact', head: true })
-          .eq('is_deleted', true)
+          .not('photo_url', 'is', null)
           .gte('created_at', oneDayAgo)
       ]);
+      const ocrResponseTime = Date.now() - ocrStart;
 
       const total = totalPhotos.count || 0;
-      const failed = deletedPhotos.count || 0;
+      const successful = validPhotos.count || 0;
+      const failed = total - successful;
       
       if (total > 0) {
-        const successRate = ((total - failed) / total) * 100;
+        const successRate = (successful / total) * 100;
         ocrHealth = {
           status: successRate >= 90 ? 'healthy' : successRate >= 75 ? 'degraded' : 'down',
           successRate,
           errorCount: failed,
-          responseTime: 1000 + Math.floor(Math.random() * 500)
+          responseTime: ocrResponseTime
         };
+      } else {
+        ocrHealth.responseTime = ocrResponseTime;
       }
     } catch (error) {
       console.error('Error checking OCR health:', error);
@@ -114,18 +123,20 @@ export async function GET(request: NextRequest) {
       responseTime: 50 
     };
     try {
+      const systemStart = Date.now();
       const { data: errorLogs } = await adminClient
         .from('system_logs')
         .select('id')
         .eq('level', 'error')
         .gte('created_at', oneDayAgo);
+      const systemResponseTime = Date.now() - systemStart;
 
       const errorCount = errorLogs?.length || 0;
       systemHealth = {
         status: errorCount < 5 ? 'healthy' : errorCount < 20 ? 'degraded' : 'down',
         successRate: Math.max(80, 100 - errorCount * 2),
         errorCount,
-        responseTime: 40 + Math.floor(Math.random() * 30)
+        responseTime: systemResponseTime
       };
     } catch (error) {
       console.error('Error checking system health:', error);
@@ -139,14 +150,16 @@ export async function GET(request: NextRequest) {
       responseTime: 75 
     };
     try {
+      const storageStart = Date.now();
       const { data: recentPhotos } = await adminClient
-        .from('photos')
-        .select('storage_path')
+        .from('sensor_photos')
+        .select('photo_url')
         .gte('created_at', oneDayAgo)
         .limit(100);
+      const storageResponseTime = Date.now() - storageStart;
 
       const totalPhotos = recentPhotos?.length || 0;
-      const photosWithStorage = recentPhotos?.filter(p => p.storage_path).length || 0;
+      const photosWithStorage = recentPhotos?.filter(p => p.photo_url).length || 0;
       
       if (totalPhotos > 0) {
         const successRate = (photosWithStorage / totalPhotos) * 100;
@@ -154,8 +167,10 @@ export async function GET(request: NextRequest) {
           status: successRate >= 98 ? 'healthy' : successRate >= 90 ? 'degraded' : 'down',
           successRate,
           errorCount: totalPhotos - photosWithStorage,
-          responseTime: 60 + Math.floor(Math.random() * 40)
+          responseTime: storageResponseTime
         };
+      } else {
+        storageHealth.responseTime = storageResponseTime;
       }
     } catch (error) {
       console.error('Error checking storage health:', error);
@@ -170,7 +185,8 @@ export async function GET(request: NextRequest) {
       responseTime: 200 
     };
     try {
-      const [totalNotifications, readNotifications] = await Promise.all([
+      const notificationStart = Date.now();
+      const [totalNotifications, deliveredNotifications] = await Promise.all([
         adminClient
           .from('notifications')
           .select('id', { count: 'exact', head: true })
@@ -178,21 +194,24 @@ export async function GET(request: NextRequest) {
         adminClient
           .from('notifications')
           .select('id', { count: 'exact', head: true })
-          .eq('read', true)
+          .eq('delivery_status', 'delivered')
           .gte('created_at', oneDayAgo)
       ]);
+      const notificationResponseTime = Date.now() - notificationStart;
 
       const total = totalNotifications.count || 0;
-      const read = readNotifications.count || 0;
+      const delivered = deliveredNotifications.count || 0;
       
       if (total > 0) {
-        const readRate = (read / total) * 100;
+        const deliveryRate = (delivered / total) * 100;
         notificationHealth = {
-          status: readRate >= 70 ? 'healthy' : readRate >= 50 ? 'degraded' : 'down',
-          successRate: readRate,
-          errorCount: total - read,
-          responseTime: 180 + Math.floor(Math.random() * 100)
+          status: deliveryRate >= 85 ? 'healthy' : deliveryRate >= 70 ? 'degraded' : 'down',
+          successRate: deliveryRate,
+          errorCount: total - delivered,
+          responseTime: notificationResponseTime
         };
+      } else {
+        notificationHealth.responseTime = notificationResponseTime;
       }
     } catch (error) {
       console.error('Error checking notification health:', error);
