@@ -39,6 +39,161 @@ export interface Database {
         };
         Relationships: [];
       },
+      notifications: {
+        Row: {
+          id: string;
+          user_id: string;
+          sensor_id: string | null;
+          title: string;
+          message: string;
+          type: string;
+          status: 'pending' | 'sent' | 'failed';
+          read: boolean;
+          created_at: string;
+          updated_at: string;
+          dismissed_at: string | null;
+          retry_count: number;
+          last_retry_at: string | null;
+          delivery_status: 'pending' | 'delivered' | 'failed' | null;
+          template_id: string | null;
+          template_variant: string | null;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          sensor_id?: string | null;
+          title: string;
+          message: string;
+          type: string;
+          status?: 'pending' | 'sent' | 'failed';
+          read?: boolean;
+          created_at?: string;
+          updated_at?: string;
+          dismissed_at?: string | null;
+          retry_count?: number;
+          last_retry_at?: string | null;
+          delivery_status?: 'pending' | 'delivered' | 'failed' | null;
+          template_id?: string | null;
+          template_variant?: string | null;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          sensor_id?: string | null;
+          title?: string;
+          message?: string;
+          type?: string;
+          status?: 'pending' | 'sent' | 'failed';
+          read?: boolean;
+          created_at?: string;
+          updated_at?: string;
+          dismissed_at?: string | null;
+          retry_count?: number;
+          last_retry_at?: string | null;
+          delivery_status?: 'pending' | 'delivered' | 'failed' | null;
+          template_id?: string | null;
+          template_variant?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_sensor_id_fkey"
+            columns: ["sensor_id"]
+            isOneToOne: false
+            referencedRelation: "sensors"
+            referencedColumns: ["id"]
+          }
+        ];
+      },
+      notification_templates: {
+        Row: {
+          id: string;
+          name: string;
+          type: string;
+          title_template: string;
+          message_template: string;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+          variables: Json | null;
+          ab_test_group: string | null;
+          ab_test_weight: number;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          type: string;
+          title_template: string;
+          message_template: string;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+          variables?: Json | null;
+          ab_test_group?: string | null;
+          ab_test_weight?: number;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          type?: string;
+          title_template?: string;
+          message_template?: string;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+          variables?: Json | null;
+          ab_test_group?: string | null;
+          ab_test_weight?: number;
+        };
+        Relationships: [];
+      },
+      notification_delivery_log: {
+        Row: {
+          id: string;
+          notification_id: string;
+          status: 'pending' | 'sent' | 'delivered' | 'failed';
+          provider: string;
+          provider_response: Json | null;
+          error_message: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          notification_id: string;
+          status: 'pending' | 'sent' | 'delivered' | 'failed';
+          provider: string;
+          provider_response?: Json | null;
+          error_message?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          notification_id?: string;
+          status?: 'pending' | 'sent' | 'delivered' | 'failed';
+          provider?: string;
+          provider_response?: Json | null;
+          error_message?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "notification_delivery_log_notification_id_fkey"
+            columns: ["notification_id"]
+            isOneToOne: false
+            referencedRelation: "notifications"
+            referencedColumns: ["id"]
+          }
+        ];
+      },
       sensor_photos: {
         Row: {
           id: string

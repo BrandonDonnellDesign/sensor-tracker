@@ -48,6 +48,17 @@ export async function POST(request: NextRequest) {
     }
     const { action, notificationId } = await request.json();
     switch (action) {
+      case 'generate': {
+        // Generate notifications for the authenticated user
+        await generateSensorNotifications(supabase, user.id);
+        await cleanupOldNotifications(supabase);
+        
+        return NextResponse.json({ 
+          success: true, 
+          message: 'Notifications generated successfully' 
+        });
+      }
+      
       case 'delete': {
         if (!notificationId) {
           console.error('Notification ID missing in delete request');
@@ -206,6 +217,8 @@ async function generateSensorNotifications(supabase: any, userId: string): Promi
               title: 'Sensor has expired',
               message: `Your sensor (SN: ${sensor.serial_number}) has expired. Please replace it immediately.`,
               type: 'sensor_expired',
+              status: 'pending',
+              delivery_status: 'pending',
             });
         }
       }
@@ -217,7 +230,7 @@ async function generateSensorNotifications(supabase: any, userId: string): Promi
           .select('id')
           .eq('user_id', userId)
           .eq('sensor_id', sensor.id)
-          .eq('type', 'sensor_critical')
+          .eq('type', 'sensor_expiry_warning')
           .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()) // Within last 24 hours
           .limit(1);
 
@@ -229,7 +242,9 @@ async function generateSensorNotifications(supabase: any, userId: string): Promi
               sensor_id: sensor.id,
               title: 'Sensor expires very soon!',
               message: `URGENT: Your sensor (SN: ${sensor.serial_number}) will expire in ${expirationInfo.daysLeft} day${expirationInfo.daysLeft !== 1 ? 's' : ''}. Replace it now!`,
-              type: 'sensor_critical',
+              type: 'sensor_expiry_warning',
+              status: 'pending',
+              delivery_status: 'pending',
             });
         }
       }
@@ -241,7 +256,7 @@ async function generateSensorNotifications(supabase: any, userId: string): Promi
           .select('id')
           .eq('user_id', userId)
           .eq('sensor_id', sensor.id)
-          .eq('type', 'sensor_expiring')
+          .eq('type', 'sensor_expiry_warning')
           .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()) // Within last 24 hours
           .limit(1);
 
@@ -253,7 +268,9 @@ async function generateSensorNotifications(supabase: any, userId: string): Promi
               sensor_id: sensor.id,
               title: 'Sensor expires soon',
               message: `Your sensor (SN: ${sensor.serial_number}) will expire in ${expirationInfo.daysLeft} day${expirationInfo.daysLeft !== 1 ? 's' : ''}. Please plan to replace it.`,
-              type: 'sensor_expiring',
+              type: 'sensor_expiry_warning',
+              status: 'pending',
+              delivery_status: 'pending',
             });
         }
       }
@@ -266,7 +283,7 @@ async function generateSensorNotifications(supabase: any, userId: string): Promi
           .select('id')
           .eq('user_id', userId)
           .eq('sensor_id', sensor.id)
-          .eq('type', 'sensor_issue')
+          .eq('type', 'system')
           .limit(1);
 
         if (!existingNotification || existingNotification.length === 0) {
@@ -277,7 +294,9 @@ async function generateSensorNotifications(supabase: any, userId: string): Promi
               sensor_id: sensor.id,
               title: 'Sensor issue detected',
               message: `Issue with sensor (SN: ${sensor.serial_number}): ${sensor.issue_notes}`,
-              type: 'sensor_issue',
+              type: 'system',
+              status: 'pending',
+              delivery_status: 'pending',
             });
         }
       }
