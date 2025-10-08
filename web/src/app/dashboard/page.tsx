@@ -8,6 +8,7 @@ import { useAuth } from '@/components/providers/auth-provider';
 import { EnhancedStatsCard } from '@/components/dashboard/enhanced-stats-card';
 import { RecentSensors } from '@/components/dashboard/recent-sensors';
 import { QuickActions } from '@/components/dashboard/quick-actions';
+import { GamificationWidget } from '@/components/gamification/gamification-widget';
 
 import { Database } from '@/lib/database.types';
 
@@ -233,23 +234,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className='min-h-screen bg-gray-50 dark:bg-slate-900'>
-      {/* Header Section */}
-      <div className='bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700'>
-        <div className='px-6 py-6'>
-          <div>
-            <h1 className='text-3xl font-bold text-gray-900 dark:text-slate-100'>
-              Dashboard
-            </h1>
-            <p className='text-lg text-gray-600 dark:text-slate-400 mt-2'>
-              Overview of your CGM sensor tracking
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className='px-6 py-8 space-y-8'>
+    <div className='space-y-6 lg:space-y-8'>
         {error && (
           <div className='bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4'>
             <div className='flex'>
@@ -283,7 +268,7 @@ export default function DashboardPage() {
         )}
 
         {/* Enhanced Stats Grid */}
-        <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6'>
+        <div className='grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 lg:gap-6'>
           <EnhancedStatsCard
             title='Total Sensors'
             value={totalSensors}
@@ -329,14 +314,39 @@ export default function DashboardPage() {
         </div>
 
         {/* Main Content Grid */}
-        <div className='grid grid-cols-1 xl:grid-cols-3 gap-8'>
+        <div className='grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8'>
           {/* Left Column - Current Sensor & Recent Sensors */}
-          <div className='xl:col-span-2 space-y-6'>
-            <RecentSensors
-              sensors={recentSensors}
-              onRefresh={() => fetchSensors(true)}
-              isRefreshing={refreshing}
-            />
+          <div className='lg:col-span-2 space-y-6'>
+            {totalSensors === 0 ? (
+              /* Empty State */
+              <div className='bg-white dark:bg-slate-800 rounded-2xl p-8 shadow-sm border border-gray-200 dark:border-slate-700 text-center'>
+                <div className='w-16 h-16 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-6'>
+                  <svg className='w-8 h-8 text-white' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                    <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M12 6v6m0 0v6m0-6h6m-6 0H6' />
+                  </svg>
+                </div>
+                <h3 className='text-xl font-semibold text-gray-900 dark:text-slate-100 mb-2'>
+                  Welcome to CGM Tracker!
+                </h3>
+                <p className='text-gray-600 dark:text-slate-400 mb-6 max-w-md mx-auto'>
+                  Start tracking your continuous glucose monitor sensors to get insights into their performance and reliability.
+                </p>
+                <Link
+                  href='/dashboard/sensors/new'
+                  className='inline-flex items-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition-colors'>
+                  <svg className='w-5 h-5 mr-2' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                    <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M12 6v6m0 0v6m0-6h6m-6 0H6' />
+                  </svg>
+                  Add Your First Sensor
+                </Link>
+              </div>
+            ) : (
+              <RecentSensors
+                sensors={recentSensors}
+                onRefresh={() => fetchSensors(true)}
+                isRefreshing={refreshing}
+              />
+            )}
 
             {/* Recent Activity & Trends */}
             <div className='bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-slate-700'>
@@ -497,8 +507,10 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Right Column - Quick Actions & Notifications */}
+          {/* Right Column - Gamification & Quick Actions */}
           <div className='space-y-6'>
+            <GamificationWidget />
+            
             <QuickActions
               onRefresh={() => fetchSensors(true)}
               isRefreshing={refreshing}
@@ -677,7 +689,7 @@ export default function DashboardPage() {
                     Most Used Brand
                   </span>
                   <span className='text-sm font-medium text-gray-900 dark:text-slate-100'>
-                    {sensors.length > 0 ? 'Dexcom' : 'N/A'}
+                    {sensors.length > 0 ? 'Various' : 'N/A'}
                   </span>
                 </div>
                 <div className='flex items-center justify-between'>
@@ -703,7 +715,6 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
-      </div>
     </div>
   );
 }

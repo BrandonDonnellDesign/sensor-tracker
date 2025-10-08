@@ -78,15 +78,32 @@ export const getSensorExpirationInfo = (
   expirationDate.setDate(expirationDate.getDate() + sensorModel.duration_days);
 
   const now = new Date();
-  const daysLeft = Math.ceil((expirationDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  const timeLeft = expirationDate.getTime() - now.getTime();
+  const daysLeft = Math.ceil(timeLeft / (1000 * 60 * 60 * 24));
+  const hoursLeft = Math.floor(timeLeft / (1000 * 60 * 60));
 
-  const isExpired = daysLeft < 0;
+  // Check if this is a Dexcom sensor (10-day duration typically)
+  const isDexcom = sensorModel.duration_days === 10 || 
+                   sensorModel.manufacturer?.toLowerCase().includes('dexcom') ||
+                   sensorModel.modelName?.toLowerCase().includes('g6') ||
+                   sensorModel.modelName?.toLowerCase().includes('g7');
+
+  // For Dexcom sensors, consider 12-hour grace period
+  let isExpired = timeLeft < 0;
+  if (isDexcom && timeLeft < 0) {
+    const hoursExpired = Math.abs(hoursLeft);
+    isExpired = hoursExpired >= 12; // Only truly expired after 12-hour grace period
+  }
+
   const isExpiringSoon = daysLeft <= 3 && daysLeft >= 0;
 
   let expirationStatus: 'normal' | 'warning' | 'critical' = 'normal';
   if (isExpired) {
     expirationStatus = 'critical';
-  } else if (daysLeft <= 1) {
+  } else if (timeLeft < 0 && isDexcom) {
+    // In grace period
+    expirationStatus = 'critical';
+  } else if (hoursLeft <= 24) {
     expirationStatus = 'critical';
   } else if (daysLeft <= 3) {
     expirationStatus = 'warning';
@@ -127,9 +144,74 @@ export const formatDaysLeft = (daysLeft: number, expirationInfo?: SensorExpirati
     }
   }
   
-  if (daysLeft === 0) {
-    return 'Expires today';
-  } else if (daysLeft === 1) {
+  // Always calculate precise time remaining when we have expiration info
+  if (expirationInfo) {
+    const now = new Date();
+    const timeLeft = expirationInfo.expirationDate.getTime() - now.getTime();
+    const hoursLeft = Math.floor(timeLeft / (1000 * 60 * 60));
+    const minutesLeft = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+    
+    // Handle expired sensors with grace period for Dexcom
+    if (timeLeft < 0) {
+      const timeExpired = Math.abs(timeLeft);
+      const hoursExpired = Math.floor(timeExpired / (1000 * 60 * 60));
+      const minutesExpired = Math.floor((timeExpired % (1000 * 60 * 60)) / (1000 * 60));
+      
+      // Check if this is a Dexcom sensor (has 12-hour grace period)
+      const isDexcom = expirationInfo.expirationDate && (
+        // Assume Dexcom if 10-day duration (could be enhanced with sensor model info)
+        Math.abs(timeLeft) < (12 * 60 * 60 * 1000) // Within 12 hours of expiration
+      );
+      
+      if (isDexcom && hoursExpired < 12) {
+        // Still in grace period
+        const graceHoursLeft = 11 - hoursExpired;
+        const graceMinutesLeft = 60 - minutesExpired;
+        
+        if (graceHoursLeft === 0 && graceMinutesLeft <= 0) {
+          return 'Grace Period ending';
+        } else if (graceHoursLeft === 0) {
+          return `${graceMinutesLeft} min Grace Period left`;
+        } else if (graceMinutesLeft === 60) {
+          return `${graceHoursLeft + 1}h Grace Period left`;
+        } else {
+          return `${graceHoursLeft}h ${graceMinutesLeft}m Grace Period left`;
+        }
+      }
+    }
+    
+    // Show precise time when less than 24 hours remain (and not expired)
+    if (hoursLeft < 24 && hoursLeft >= 0) {
+      if (hoursLeft === 0) {
+        if (minutesLeft <= 0) {
+          return 'Expiring now';
+        } else if (minutesLeft === 1) {
+          return '1 minute left';
+        } else {
+          return `${minutesLeft} minutes left`;
+        }
+      } else if (hoursLeft === 1) {
+        if (minutesLeft === 0) {
+          return '1 hour left';
+        } else if (minutesLeft === 1) {
+          return '1 hour, 1 minute left';
+        } else {
+          return `1 hour, ${minutesLeft} minutes left`;
+        }
+      } else {
+        if (minutesLeft === 0) {
+          return `${hoursLeft} hours left`;
+        } else if (minutesLeft === 1) {
+          return `${hoursLeft} hours, 1 minute left`;
+        } else {
+          return `${hoursLeft} hours, ${minutesLeft} minutes left`;
+        }
+      }
+    }
+  }
+  
+  // Fall back to day-based display for longer periods only
+  if (daysLeft === 1) {
     return '1 day left';
   } else if (daysLeft < 7) {
     return `${daysLeft} days left`;

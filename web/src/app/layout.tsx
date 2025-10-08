@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/components/providers/auth-provider';
 import { ThemeProvider } from '@/components/providers/theme-provider';
+import { GamificationProvider } from '@/components/providers/gamification-provider';
 
 // Import logout utils for debugging
 import '@/lib/logout-utils';
@@ -36,7 +37,9 @@ export default function RootLayout({
       <body className={inter.className}>
         <ThemeProvider>
           <AuthProvider>
-            {children}
+            <GamificationProvider>
+              {children}
+            </GamificationProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

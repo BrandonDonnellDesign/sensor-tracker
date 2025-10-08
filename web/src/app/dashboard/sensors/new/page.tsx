@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/components/providers/auth-provider';
+import { useGamification } from '@/components/providers/gamification-provider';
 import ImageUpload from '@/components/sensors/image-upload';
 import { type ExtractedSensorData } from '@/utils/sensor-ocr';
 
@@ -18,6 +19,7 @@ interface SensorModel {
 
 export default function NewSensorPage() {
   const { user } = useAuth();
+  const { recordActivity, checkAchievements } = useGamification();
   const router = useRouter();
   
   const [sensorModels, setSensorModels] = useState<SensorModel[]>([]);
@@ -230,6 +232,15 @@ export default function NewSensorPage() {
       }
 
       if (error) throw error;
+
+      // Record gamification activities
+      await recordActivity('sensor_added');
+      if (initialPhotos.length > 0) {
+        await recordActivity('photo_added');
+      }
+      
+      // Check for new achievements
+      await checkAchievements();
 
       router.push('/dashboard/sensors');
     } catch (err: any) {

@@ -1,7 +1,7 @@
 // @ts-nocheck
 /**
- * Supabase Edge Function for Dexcom Data Sync
- * Handles automated synchronization of sensor data from Dexcom API
+ * Supabase Edge Function for Hourly Notifications
+ * Handles automated notification generation for sensor expiry warnings
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';

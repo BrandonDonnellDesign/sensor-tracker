@@ -26,32 +26,51 @@ export async function GET(request: NextRequest) {
       throw new Error('Failed to fetch basic counts');
     }
 
-    // User activity metrics
+    // User activity metrics - based on actual user actions, not profile updates
     let dailyActiveUsers, weeklyActiveUsers, monthlyActiveUsers, newSignups;
     try {
-      const [dailyActive, weeklyActive, monthlyActive, newUsers] = await Promise.all([
+      // Get users who have been active (added/updated sensors, photos, etc.) in different time periods
+      const [
+        dailyActiveSensorUsers,
+        weeklyActiveSensorUsers, 
+        monthlyActiveSensorUsers,
+        newUsers
+      ] = await Promise.all([
+        // Users who added or updated sensors in the last 24 hours
         adminClient
-          .from('profiles')
-          .select('id', { count: 'exact', head: true })
-          .gte('updated_at', oneDayAgo),
+          .from('sensors')
+          .select('user_id')
+          .gte('updated_at', oneDayAgo)
+          .eq('is_deleted', false),
+        // Users who added or updated sensors in the last 7 days
         adminClient
-          .from('profiles')
-          .select('id', { count: 'exact', head: true })
-          .gte('updated_at', sevenDaysAgo),
+          .from('sensors')
+          .select('user_id')
+          .gte('updated_at', sevenDaysAgo)
+          .eq('is_deleted', false),
+        // Users who added or updated sensors in the last 30 days
         adminClient
-          .from('profiles')
-          .select('id', { count: 'exact', head: true })
-          .gte('updated_at', thirtyDaysAgo),
+          .from('sensors')
+          .select('user_id')
+          .gte('updated_at', thirtyDaysAgo)
+          .eq('is_deleted', false),
+        // New signups in the last 7 days
         adminClient
           .from('profiles')
           .select('id', { count: 'exact', head: true })
           .gte('created_at', sevenDaysAgo)
       ]);
       
-      dailyActiveUsers = dailyActive.count || 0;
-      weeklyActiveUsers = weeklyActive.count || 0;
-      monthlyActiveUsers = monthlyActive.count || 0;
+      // Count unique users from sensor activity
+      const dailyActiveUserIds = new Set(dailyActiveSensorUsers.data?.map(s => s.user_id) || []);
+      const weeklyActiveUserIds = new Set(weeklyActiveSensorUsers.data?.map(s => s.user_id) || []);
+      const monthlyActiveUserIds = new Set(monthlyActiveSensorUsers.data?.map(s => s.user_id) || []);
+      
+      dailyActiveUsers = dailyActiveUserIds.size;
+      weeklyActiveUsers = weeklyActiveUserIds.size;
+      monthlyActiveUsers = monthlyActiveUserIds.size;
       newSignups = newUsers.count || 0;
+      
     } catch (err) {
       errorDetails["userActivity"] = err;
       dailyActiveUsers = weeklyActiveUsers = monthlyActiveUsers = newSignups = 0;
@@ -250,16 +269,65 @@ export async function GET(request: NextRequest) {
       generateNotificationFailureTrend(7)
     ]);
 
-    // Calculate retention rates
+    // Calculate retention rates based on actual user activity (sensor usage)
     let weeklyRetention, monthlyRetention;
     try {
-      const totalUsers = usersResult?.count || 0;
-      if (totalUsers > 0) {
-        weeklyRetention = (weeklyActiveUsers / totalUsers) * 100;
-        monthlyRetention = (monthlyActiveUsers / totalUsers) * 100;
-      } else {
-        weeklyRetention = monthlyRetention = 0;
-      }
+      const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000).toISOString();
+      const twoMonthsAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000).toISOString();
+      
+      // Weekly retention: users who were active 2 weeks ago and are still active in the last week
+      const [usersActiveTwoWeeksAgo, currentWeeklyActiveSensorUsers] = await Promise.all([
+        // Users who had sensor activity 8-14 days ago
+        adminClient
+          .from('sensors')
+          .select('user_id')
+          .gte('updated_at', twoWeeksAgo)
+          .lt('updated_at', sevenDaysAgo)
+          .eq('is_deleted', false),
+        // Users who added or updated sensors in the last 7 days (for retention calculation)
+        adminClient
+          .from('sensors')
+          .select('user_id')
+          .gte('updated_at', sevenDaysAgo)
+          .eq('is_deleted', false)
+      ]);
+
+      // Calculate retention manually
+      const oldActiveUsers = new Set(usersActiveTwoWeeksAgo.data?.map(s => s.user_id) || []);
+      const recentActiveUsers = new Set(currentWeeklyActiveSensorUsers.data?.map(s => s.user_id) || []);
+      
+      const weeklyRetainedUsers = [...oldActiveUsers].filter(userId => recentActiveUsers.has(userId)).length;
+
+      const weeklyBase = new Set(usersActiveTwoWeeksAgo.data?.map(s => s.user_id) || []).size;
+      weeklyRetention = weeklyBase > 0 ? (weeklyRetainedUsers / weeklyBase) * 100 : 0;
+
+      // Monthly retention: similar logic for monthly timeframe
+      const [usersActiveTwoMonthsAgo, currentMonthlyActiveSensorUsers] = await Promise.all([
+        adminClient
+          .from('sensors')
+          .select('user_id')
+          .gte('updated_at', twoMonthsAgo)
+          .lt('updated_at', thirtyDaysAgo)
+          .eq('is_deleted', false),
+        // Users who added or updated sensors in the last 30 days (for retention calculation)
+        adminClient
+          .from('sensors')
+          .select('user_id')
+          .gte('updated_at', thirtyDaysAgo)
+          .eq('is_deleted', false)
+      ]);
+
+      const oldMonthlyActiveUsers = new Set(usersActiveTwoMonthsAgo.data?.map(s => s.user_id) || []);
+      const currentMonthlyActiveUserIds = new Set(currentMonthlyActiveSensorUsers.data?.map(s => s.user_id) || []);
+      const monthlyRetainedUsers = [...oldMonthlyActiveUsers].filter(userId => currentMonthlyActiveUserIds.has(userId)).length;
+      const monthlyBase = oldMonthlyActiveUsers.size;
+      
+      monthlyRetention = monthlyBase > 0 ? (monthlyRetainedUsers / monthlyBase) * 100 : 0;
+
+      // Ensure retention doesn't exceed 100% and handle edge cases
+      weeklyRetention = Math.min(100, Math.max(0, weeklyRetention));
+      monthlyRetention = Math.min(100, Math.max(0, monthlyRetention));
+      
     } catch (err) {
       errorDetails["retention"] = err;
       weeklyRetention = monthlyRetention = 0;

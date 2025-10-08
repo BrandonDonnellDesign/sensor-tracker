@@ -9,6 +9,8 @@ import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { SearchButton } from '@/components/dashboard/search-button';
 import { NotificationsButton } from '@/components/dashboard/notifications-button';
 import { UserProfileMenu } from '@/components/dashboard/user-profile-menu';
+import { StreakIndicator } from '@/components/gamification/streak-indicator';
+import { LevelBadge } from '@/components/gamification/level-badge';
 
 const getPageInfo = (pathname: string) => {
   const parts = pathname.split('/');
@@ -130,9 +132,11 @@ export function Header() {
 
 
   return (
-    <header className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-gray-200 dark:border-slate-800 transition-all duration-200 sticky top-0 z-30">
+    <header className="bg-gradient-to-b from-white/95 to-white/90 dark:from-slate-900/95 dark:to-slate-900/90 backdrop-blur-md shadow-sm shadow-gray-200/30 dark:shadow-slate-800/30 transition-all duration-200 sticky top-0 z-30">
       <div className="mx-auto max-w-7xl px-6 sm:px-8 lg:px-10">
-        <div className="flex h-16 items-center justify-between">
+        <div className="flex h-16 items-center justify-between relative">
+          {/* Subtle fade effect at bottom */}
+          <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-gray-200/50 dark:via-slate-700/50 to-transparent"></div>
           <div className="flex items-center">
             {/* Only show title on mobile */}
             <h1 className="lg:hidden text-lg font-semibold text-gray-900 dark:text-slate-100 truncate">
@@ -174,6 +178,12 @@ export function Header() {
           
           {/* Header actions */}
           <div className="flex items-center">
+            {/* Gamification indicators */}
+            <div className="hidden md:flex items-center space-x-3 mr-4">
+              <StreakIndicator size="sm" showLabel={false} />
+              <LevelBadge size="sm" />
+            </div>
+            
             {/* Main Actions */}
             <div className="flex items-center space-x-1 sm:space-x-2">
               <SearchButton />

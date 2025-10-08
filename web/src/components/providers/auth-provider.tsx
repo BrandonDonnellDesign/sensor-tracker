@@ -50,15 +50,56 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
+  // Record login activity for gamification
+  const recordLoginActivity = async (userId: string) => {
+    try {
+      // Ensure user has gamification stats first
+      const { data: existingStats } = await (supabase as any)
+        .from('user_gamification_stats')
+        .select('id')
+        .eq('user_id', userId)
+        .single();
+
+      if (!existingStats) {
+        // Create initial gamification stats
+        await (supabase as any)
+          .from('user_gamification_stats')
+          .insert({ user_id: userId });
+      }
+
+      // Record login activity
+      const { error } = await (supabase as any).rpc('update_daily_activity', {
+        p_user_id: userId,
+        p_activity: 'login'
+      });
+
+      if (error) {
+        console.error('Error recording login activity:', error);
+      }
+    } catch (error) {
+      console.error('Error in recordLoginActivity:', error);
+    }
+  };
+
   useEffect(() => {
     const session = supabase.auth.getSession();
     session.then(({ data }) => {
       const currentUser = data.session?.user ?? null;
       setUser(currentUser);
       
-      // Load profile for date formatting
+      // Load profile for date formatting and record login activity
       if (currentUser?.id) {
         loadUserProfile(currentUser.id);
+        
+        // Record login activity for existing session (user returning to app)
+        // Only record once per session to avoid spam
+        const lastLoginRecorded = sessionStorage.getItem('login_recorded_today');
+        const today = new Date().toDateString();
+        
+        if (lastLoginRecorded !== today) {
+          recordLoginActivity(currentUser.id);
+          sessionStorage.setItem('login_recorded_today', today);
+        }
       } else {
         dateTimeFormatter.setProfile(null);
       }
@@ -66,13 +107,19 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       setLoading(false);
     });
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
       const currentUser = session?.user ?? null;
       setUser(currentUser);
       
-      // Load profile for date formatting
+      // Load profile for date formatting and record login activity
       if (currentUser?.id) {
         loadUserProfile(currentUser.id);
+        
+        // Record login activity for gamification (only on sign in events)
+        if (event === 'SIGNED_IN') {
+          recordLoginActivity(currentUser.id);
+          sessionStorage.setItem('login_recorded_today', new Date().toDateString());
+        }
       } else {
         dateTimeFormatter.setProfile(null);
       }
@@ -89,6 +136,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
     setUser(data.user);
+    
+    // Record login activity
+    if (data.user?.id) {
+      await recordLoginActivity(data.user.id);
+      sessionStorage.setItem('login_recorded_today', new Date().toDateString());
+    }
+    
     return { user: data.user, session: data.session, error };
   };
 

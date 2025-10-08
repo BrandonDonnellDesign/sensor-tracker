@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Database } from '@/lib/database.types';
-import { getSensorExpirationInfo, formatDaysLeft } from '@dexcom-tracker/shared/utils/sensorExpiration';
-import { SensorType } from '@dexcom-tracker/shared';
+import { getSensorExpirationInfo, formatDaysLeft } from '../../../../shared/src/utils/sensorExpiration';
+import { SensorType } from '../../../../shared/src/models/Sensor';
 import { useDateTimeFormatter } from '@/utils/date-formatter';
 
 type Sensor = Database['public']['Tables']['sensors']['Row'] & {
@@ -41,9 +41,71 @@ export function RecentSensors({ sensors, onRefresh, isRefreshing = false }: Rece
       }
     }
     
-    if (daysLeft === 0) {
-      return 'Expires today';
-    } else if (daysLeft === 1) {
+    // Always calculate precise time remaining when we have expiration info
+    if (expirationInfo) {
+      const now = new Date();
+      const timeLeft = expirationInfo.expirationDate.getTime() - now.getTime();
+      const hoursLeft = Math.floor(timeLeft / (1000 * 60 * 60));
+      const minutesLeft = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+      
+      // Handle expired sensors with grace period for Dexcom
+      if (timeLeft < 0) {
+        const timeExpired = Math.abs(timeLeft);
+        const hoursExpired = Math.floor(timeExpired / (1000 * 60 * 60));
+        const minutesExpired = Math.floor((timeExpired % (1000 * 60 * 60)) / (1000 * 60));
+        
+        // Check if this is a Dexcom sensor (has 12-hour grace period)
+        const isDexcom = true; // Assume Dexcom for now, could be enhanced with sensor model info
+        
+        if (isDexcom && hoursExpired < 12) {
+          // Still in grace period
+          const graceHoursLeft = 11 - hoursExpired;
+          const graceMinutesLeft = 60 - minutesExpired;
+          
+          if (graceHoursLeft === 0 && graceMinutesLeft <= 0) {
+            return 'Grace Period ending';
+          } else if (graceHoursLeft === 0) {
+            return `${graceMinutesLeft} min Grace Period left`;
+          } else if (graceMinutesLeft === 60) {
+            return `${graceHoursLeft + 1}h Grace Period left`;
+          } else {
+            return `${graceHoursLeft}h ${graceMinutesLeft}m Grace Period left`;
+          }
+        }
+      }
+      
+      // Show precise time when less than 24 hours remain (and not expired)
+      if (hoursLeft < 24 && hoursLeft >= 0) {
+        if (hoursLeft === 0) {
+          if (minutesLeft <= 0) {
+            return 'Expiring now';
+          } else if (minutesLeft === 1) {
+            return '1 minute left';
+          } else {
+            return `${minutesLeft} minutes left`;
+          }
+        } else if (hoursLeft === 1) {
+          if (minutesLeft === 0) {
+            return '1 hour left';
+          } else if (minutesLeft === 1) {
+            return '1 hour, 1 minute left';
+          } else {
+            return `1 hour, ${minutesLeft} minutes left`;
+          }
+        } else {
+          if (minutesLeft === 0) {
+            return `${hoursLeft} hours left`;
+          } else if (minutesLeft === 1) {
+            return `${hoursLeft} hours, 1 minute left`;
+          } else {
+            return `${hoursLeft} hours, ${minutesLeft} minutes left`;
+          }
+        }
+      }
+    }
+    
+    // Fall back to day-based display for longer periods only
+    if (daysLeft === 1) {
       return '1 day left';
     } else if (daysLeft < 7) {
       return `${daysLeft} days left`;

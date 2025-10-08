@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { BellIcon } from '@heroicons/react/24/outline';
+import { Bell } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useDateTimeFormatter } from '@/utils/date-formatter';
 
@@ -171,7 +171,7 @@ export function NotificationsButton() {
         onClick={() => setIsOpen(!isOpen)}
         className="relative flex items-center justify-center rounded-lg w-9 h-9 text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 transition-all duration-200"
       >
-        <BellIcon className="h-5 w-5" />
+        <Bell className="h-5 w-5" />
         {notifications.some(n => !n.read) && (
           <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-red-500 border-2 border-white dark:border-slate-900">
             <span className="absolute inset-0 rounded-full bg-red-500 animate-ping opacity-75"></span>
@@ -219,7 +219,7 @@ export function NotificationsButton() {
               <div className="max-h-96 overflow-y-auto">
                 {notifications.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-8 px-4">
-                    <BellIcon className="h-12 w-12 text-gray-300 dark:text-slate-600 mb-3" />
+                    <Bell className="h-12 w-12 text-gray-300 dark:text-slate-600 mb-3" />
                     <p className="text-sm text-gray-500 dark:text-slate-400 text-center">
                       No notifications
                     </p>
@@ -250,7 +250,7 @@ export function NotificationsButton() {
                         } else {
                           return (
                             <div className="flex-shrink-0 w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
-                              <BellIcon className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                              <Bell className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                             </div>
                           );
                         }

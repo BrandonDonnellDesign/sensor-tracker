@@ -1,4 +1,4 @@
-import { User, Sensor, Photo } from '@dexcom-tracker/shared';
+import { User, Sensor, Photo } from '../../../shared/src';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 

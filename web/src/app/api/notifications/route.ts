@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import { createClient as createBrowserClient } from '@supabase/supabase-js';
-import { getSensorExpirationInfo } from '@dexcom-tracker/shared/utils/sensorExpiration';
+import { getSensorExpirationInfo } from '../../../../../shared/src/utils/sensorExpiration';
 
 
 export async function POST(request: NextRequest) {

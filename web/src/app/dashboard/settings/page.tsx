@@ -8,7 +8,9 @@ import { NotificationSettings } from '@/components/settings/notification-setting
 import { TimezoneSettings } from '@/components/settings/timezone-settings';
 import { ExportSettings } from '@/components/settings/export-settings';
 import { ProfileSettings } from '@/components/settings/profile-settings';
-import { DexcomIntegrationComingSoon } from '@/components/settings/dexcom-integration-coming-soon';
+import { CgmIntegrations } from '@/components/settings/cgm-integrations';
+import { User, Bell, Settings, Link, BarChart3 } from 'lucide-react';
+
 import { Profile } from '@/types/profile';
 import { dateTimeFormatter } from '@/utils/date-formatter';
 
@@ -94,11 +96,11 @@ export default function SettingsPage() {
   };
 
   const tabs = [
-    { id: 'profile', label: 'Profile', icon: '👤' },
-    { id: 'notifications', label: 'Notifications', icon: '🔔' },
-    { id: 'preferences', label: 'Preferences', icon: '⚙️' },
-    { id: 'integrations', label: 'Integrations', icon: '🔗' },
-    { id: 'export', label: 'Export Data', icon: '📊' },
+    { id: 'profile', label: 'Profile', icon: User },
+    { id: 'notifications', label: 'Notifications', icon: Bell },
+    { id: 'preferences', label: 'Preferences', icon: Settings },
+    { id: 'integrations', label: 'Integrations', icon: Link },
+    { id: 'export', label: 'Export Data', icon: BarChart3 },
   ];
 
   if (loading) {
@@ -126,13 +128,13 @@ export default function SettingsPage() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+              className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap flex items-center ${
                 activeTab === tab.id
                   ? 'border-blue-500 text-blue-600 dark:text-blue-400'
                   : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300 hover:border-gray-300'
               }`}
             >
-              <span className="mr-2">{tab.icon}</span>
+              <tab.icon className="w-4 h-4 mr-2" />
               {tab.label}
             </button>
           ))}
@@ -160,7 +162,7 @@ export default function SettingsPage() {
           />
         )}
         {activeTab === 'integrations' && (
-          <DexcomIntegrationComingSoon />
+          <CgmIntegrations />
         )}
         {activeTab === 'export' && (
           <ExportSettings 

@@ -11,7 +11,6 @@ import { supabase } from '@/lib/supabase';
 const primaryNavigation = [
   { name: 'Dashboard', href: '/dashboard', icon: 'home' },
   { name: 'My Sensors', href: '/dashboard/sensors', icon: 'sensors' },
-  { name: 'Analytics', href: '/dashboard/analytics', icon: 'analytics' },
 ];
 
 const secondaryNavigation = [
@@ -141,7 +140,7 @@ export function Sidebar() {
       <div className="lg:hidden fixed top-4 left-4 z-50">
         <button
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="bg-white dark:bg-slate-800 p-3 rounded-xl shadow-lg border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-all duration-200"
+          className="bg-gradient-to-br from-white to-white/95 dark:from-slate-800 dark:to-slate-800/95 p-3 rounded-xl shadow-lg shadow-gray-200/30 dark:shadow-slate-800/40 text-gray-700 dark:text-slate-300 hover:from-gray-50 hover:to-gray-50/95 dark:hover:from-slate-700 dark:hover:to-slate-700/95 transition-all duration-200"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -151,13 +150,17 @@ export function Sidebar() {
 
       {/* Sidebar */}
       <div className={clsx(
-        'fixed inset-y-0 left-0 z-40 bg-white dark:bg-slate-900 shadow-xl border-r border-gray-200 dark:border-slate-800 transform transition-all duration-300 ease-in-out lg:translate-x-0',
-        isCollapsed ? 'w-20' : 'w-72',
+        'fixed inset-y-0 left-0 z-40 bg-gradient-to-r from-white to-white/95 dark:from-slate-900 dark:to-slate-900/95 shadow-xl shadow-gray-200/20 dark:shadow-slate-800/40 transform transition-all duration-300 ease-in-out lg:translate-x-0',
+        isCollapsed ? 'w-16 lg:w-20' : 'w-72',
         isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
       )}>
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col h-full relative">
+          {/* Subtle fade effect at right edge */}
+          <div className="absolute top-0 bottom-0 right-0 w-px bg-gradient-to-b from-transparent via-gray-200/30 dark:via-slate-700/30 to-transparent"></div>
           {/* Logo & User Info */}
-          <div className="px-6 py-5 border-b border-gray-200 dark:border-slate-800">
+          <div className="px-6 py-5 relative">
+            {/* Subtle separator */}
+            <div className="absolute bottom-0 left-4 right-4 h-px bg-gradient-to-r from-transparent via-gray-200/50 dark:via-slate-700/50 to-transparent"></div>
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
                 <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -297,7 +300,9 @@ export function Sidebar() {
           </nav>
 
           {/* Bottom section */}
-          <div className="p-4 border-t border-gray-200 dark:border-slate-800">
+          <div className="p-4 relative">
+            {/* Subtle separator */}
+            <div className="absolute top-0 left-4 right-4 h-px bg-gradient-to-r from-transparent via-gray-200/50 dark:via-slate-700/50 to-transparent"></div>
             <div className="flex items-center justify-between">
               {!isCollapsed && (
                 <div className="text-xs text-gray-500 dark:text-slate-400">
@@ -326,7 +331,7 @@ export function Sidebar() {
       {/* Mobile menu overlay */}
       {isMobileMenuOpen && (
         <div
-          className="fixed inset-0 z-30 bg-black bg-opacity-50 lg:hidden"
+          className="fixed inset-0 z-30 bg-gradient-to-r from-black/60 via-black/40 to-black/20 backdrop-blur-sm lg:hidden transition-all duration-300"
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}

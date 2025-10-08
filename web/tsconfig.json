@@ -23,8 +23,8 @@
       "@/*": ["./src/*"],
       "@/components/*": ["./src/components/*"],
       "@/lib/*": ["./src/lib/*"],
-      "@/app/*": ["./src/app/*"],
-      "@dexcom-tracker/shared/*": ["../shared/src/*"]
+      "@/app/*": ["./src/app/*"]
+
     }
   },
   "include": [

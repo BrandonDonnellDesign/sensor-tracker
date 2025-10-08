@@ -11,6 +11,7 @@ import PhotoGallery from '@/components/sensors/photo-gallery';
 import { TagSelector } from '@/components/sensors/tag-selector';
 import { TagDisplay } from '@/components/sensors/tag-display';
 import { NotesEditor } from '@/components/sensors/notes-editor';
+import { getSensorExpirationInfo, formatDaysLeft } from '../../../../../../shared/src/utils/sensorExpiration';
 
 type Sensor = Database['public']['Tables']['sensors']['Row'];
 type SensorPhoto = Database['public']['Tables']['sensor_photos']['Row'];
@@ -540,17 +541,35 @@ export default function SensorDetailPage() {
           </svg>
           Back to Sensors
         </Link>
-        <div className='flex items-center justify-between'>
-          <div>
-            <h1 className='text-3xl font-bold text-gray-900 dark:text-slate-100'>
-              {sensor.serial_number}
-            </h1>
-            <p className='text-lg text-gray-600 dark:text-slate-400 mt-2'>
-              {(sensor as any).sensorModel
-                ? `${(sensor as any).sensorModel.manufacturer} ${(sensor as any).sensorModel.model_name} • Sensor Details & Management`
-                : sensor.sensor_type === 'dexcom' ? 'Dexcom • Sensor Details & Management' : 'Abbott FreeStyle Libre • Sensor Details & Management'
-              }
-            </p>
+        <div className='flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4'>
+          <div className="flex-1">
+            <div className="flex items-center space-x-3 mb-2">
+              <h1 className='text-3xl font-bold text-gray-900 dark:text-slate-100'>
+                {sensor.serial_number}
+              </h1>
+              {sensor.lot_number && (
+                <span className="px-2 py-1 bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-400 text-sm rounded-md font-mono">
+                  Lot: {sensor.lot_number}
+                </span>
+              )}
+            </div>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-gray-600 dark:text-slate-400">
+              <span className="font-medium">
+                {(sensor as any).sensorModel
+                  ? `${(sensor as any).sensorModel.manufacturer} ${(sensor as any).sensorModel.model_name}`
+                  : sensor.sensor_type === 'dexcom' ? 'Dexcom G6/G7' : 'Abbott FreeStyle Libre'
+                }
+              </span>
+              <span className="hidden sm:inline text-gray-400">•</span>
+              <span className="text-sm">
+                Applied {new Date(sensor.date_added).toLocaleDateString('en-US', { 
+                  weekday: 'short',
+                  year: 'numeric', 
+                  month: 'short', 
+                  day: 'numeric' 
+                })}
+              </span>
+            </div>
           </div>
           <div className='flex items-center space-x-3'>
             <div

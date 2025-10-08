@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { Search } from 'lucide-react';
 
 export function SearchButton() {
   const [isOpen, setIsOpen] = useState(false);
@@ -27,7 +27,7 @@ export function SearchButton() {
         aria-label="Search (Alt+S)"
         title="Search (Alt+S)"
       >
-        <MagnifyingGlassIcon className="h-5 w-5" />
+        <Search className="h-5 w-5" />
       </button>
 
       {isOpen && (
@@ -39,7 +39,7 @@ export function SearchButton() {
           <div className="absolute right-0 mt-2 w-screen max-w-md rounded-xl bg-white dark:bg-slate-800 shadow-lg ring-1 ring-black/5 dark:ring-white/10 p-4 z-50">
             <form onSubmit={handleSearch}>
               <div className="relative">
-                <MagnifyingGlassIcon className="pointer-events-none absolute left-4 top-3.5 h-5 w-5 text-gray-400 dark:text-slate-500" />
+                <Search className="pointer-events-none absolute left-4 top-3.5 h-5 w-5 text-gray-400 dark:text-slate-500" />
                 <input
                   type="text"
                   className="h-12 w-full rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 pl-11 pr-4 text-gray-900 dark:text-slate-100 placeholder-gray-500 dark:placeholder-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:focus:border-blue-400 dark:focus:ring-blue-400 sm:text-sm"
