@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/components/providers/auth-provider';
 import { GoogleLoginButton } from '@/components/auth/google-login-button';
+import { BarChart3, AlertCircle, CheckCircle, ArrowRight } from 'lucide-react';
 
 export default function LoginPage() {
   const { signIn, user, loading: authLoading } = useAuth();
@@ -55,58 +56,55 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-900 dark:to-slate-800 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full">
-        <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-xl border border-gray-200 dark:border-slate-700 p-8">
-          <div className="text-center mb-8">
-            <div className="mx-auto h-16 w-16 flex items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-500/25 mb-6">
-              <svg
-                className="h-8 w-8 text-white"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                />
-              </svg>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+      {/* Navigation */}
+      <nav className="absolute top-0 w-full z-10 px-6 py-4">
+        <div className="max-w-7xl mx-auto flex justify-between items-center">
+          <Link href="/" className="flex items-center space-x-2">
+            <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
+              <BarChart3 className="w-5 h-5 text-white" />
             </div>
-            <h2 className="text-3xl font-bold text-gray-900 dark:text-slate-100">
-              Welcome Back
-            </h2>
-            <p className="mt-2 text-gray-600 dark:text-slate-400">
-              Sign in to your Sensor Tracker account
-            </p>
-            <p className="mt-4 text-sm text-gray-500 dark:text-slate-500">
-              Don&apos;t have an account?{' '}
-              <Link
-                href="/auth/register"
-                className="font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 transition-colors"
-              >
-                Create one here
-              </Link>
-            </p>
+            <span className="text-xl font-bold text-gray-900 dark:text-white">CGM Tracker</span>
+          </Link>
+          <div className="flex items-center space-x-4">
+            <Link href="/auth/register" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
+              Sign Up
+            </Link>
           </div>
+        </div>
+      </nav>
+
+      <div className="flex items-center justify-center min-h-screen py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full">
+          <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 dark:border-slate-700/50 p-8">
+            <div className="text-center mb-8">
+              <div className="mx-auto h-20 w-20 flex items-center justify-center rounded-3xl bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-500 shadow-2xl shadow-blue-500/25 mb-6">
+                <BarChart3 className="h-10 w-10 text-white" />
+              </div>
+              <h2 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 mb-3">
+                Welcome Back
+              </h2>
+              <p className="text-lg text-gray-600 dark:text-slate-400 mb-6">
+                Sign in to continue your sensor tracking journey
+              </p>
+              <div className="flex items-center justify-center space-x-2 text-sm text-gray-500 dark:text-slate-500">
+                <span>New to CGM Tracker?</span>
+                <Link
+                  href="/auth/register"
+                  className="font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 transition-colors inline-flex items-center"
+                >
+                  Create account
+                  <ArrowRight className="w-4 h-4 ml-1" />
+                </Link>
+              </div>
+            </div>
 
           <form className="space-y-6" onSubmit={handleSubmit}>
             {error && (
               <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-4">
                 <div className="flex">
                   <div className="flex-shrink-0">
-                    <svg
-                      className="h-5 w-5 text-red-500 dark:text-red-400"
-                      viewBox="0 0 20 20"
-                      fill="currentColor"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
+                    <AlertCircle className="h-5 w-5 text-red-500 dark:text-red-400" />
                   </div>
                   <div className="ml-3">
                     <h3 className="text-sm font-semibold text-red-800 dark:text-red-200">
@@ -166,7 +164,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold py-3 px-4 rounded-xl shadow-lg shadow-blue-500/25 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
+                className="w-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 hover:from-blue-600 hover:via-indigo-600 hover:to-purple-600 text-white font-semibold py-4 px-6 rounded-2xl shadow-xl shadow-blue-500/25 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none transform hover:scale-105 hover:shadow-2xl"
               >
                 {loading ? (
                   <div className="flex items-center justify-center">
@@ -174,39 +172,33 @@ export default function LoginPage() {
                     {loginSuccess ? 'Redirecting...' : 'Signing in...'}
                   </div>
                 ) : (
-                  'Sign In'
+                  <div className="flex items-center justify-center">
+                    Sign In
+                    <ArrowRight className="w-5 h-5 ml-2" />
+                  </div>
                 )}
               </button>
             </div>
 
             {loginSuccess && (
-              <div className="bg-green-50 border border-green-200 rounded-md p-4">
+              <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-2xl p-4">
                 <div className="flex">
                   <div className="flex-shrink-0">
-                    <svg
-                      className="h-5 w-5 text-green-400"
-                      viewBox="0 0 20 20"
-                      fill="currentColor"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
+                    <CheckCircle className="h-5 w-5 text-green-500 dark:text-green-400" />
                   </div>
                   <div className="ml-3">
-                    <h3 className="text-sm font-medium text-green-800">
+                    <h3 className="text-sm font-medium text-green-800 dark:text-green-200">
                       Login Successful!
                     </h3>
-                    <p className="text-sm text-green-700 mt-1">
+                    <p className="text-sm text-green-700 dark:text-green-300 mt-1">
                       Redirecting to dashboard...
                     </p>
                     <Link
                       href="/dashboard"
-                      className="text-sm text-green-800 underline mt-2 hover:text-green-900"
+                      className="text-sm text-green-800 dark:text-green-200 underline mt-2 hover:text-green-900 dark:hover:text-green-100 inline-flex items-center"
                     >
                       Click here if not redirected automatically
+                      <ArrowRight className="w-3 h-3 ml-1" />
                     </Link>
                   </div>
                 </div>
@@ -237,6 +229,7 @@ export default function LoginPage() {
               <GoogleLoginButton />
             </div>
           </form>
+          </div>
         </div>
       </div>
     </div>

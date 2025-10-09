@@ -26,34 +26,74 @@ export async function GET(request: NextRequest) {
       throw new Error('Failed to fetch basic counts');
     }
 
-    // User activity metrics - based on actual user actions, not profile updates
+    // User activity metrics - based on comprehensive user activity tracking
     let dailyActiveUsers, weeklyActiveUsers, monthlyActiveUsers, newSignups;
     try {
-      // Get users who have been active (added/updated sensors, photos, etc.) in different time periods
+      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+      const sevenDaysAgoDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const thirtyDaysAgoDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+      // Get users who have been active across different activities and time periods
       const [
-        dailyActiveSensorUsers,
-        weeklyActiveSensorUsers, 
-        monthlyActiveSensorUsers,
+        dailyActivityUsers,
+        dailySensorActivity,
+        dailyPhotoActivity,
+        weeklyActivityUsers,
+        weeklySensorActivity,
+        weeklyPhotoActivity,
+        monthlyActivityUsers,
+        monthlySensorActivity,
+        monthlyPhotoActivity,
         newUsers
       ] = await Promise.all([
-        // Users who added or updated sensors in the last 24 hours
+        // Daily activity from gamification system (login, app usage, etc.)
+        (adminClient as any)
+          .from('daily_activities')
+          .select('user_id')
+          .eq('activity_date', today),
+        // Daily sensor activity
         adminClient
           .from('sensors')
           .select('user_id')
           .gte('updated_at', oneDayAgo)
           .eq('is_deleted', false),
-        // Users who added or updated sensors in the last 7 days
+        // Daily photo activity
+        adminClient
+          .from('sensor_photos')
+          .select('user_id')
+          .gte('created_at', oneDayAgo),
+        // Weekly activity from gamification system
+        (adminClient as any)
+          .from('daily_activities')
+          .select('user_id')
+          .gte('activity_date', sevenDaysAgoDate),
+        // Weekly sensor activity
         adminClient
           .from('sensors')
           .select('user_id')
           .gte('updated_at', sevenDaysAgo)
           .eq('is_deleted', false),
-        // Users who added or updated sensors in the last 30 days
+        // Weekly photo activity
+        adminClient
+          .from('sensor_photos')
+          .select('user_id')
+          .gte('created_at', sevenDaysAgo),
+        // Monthly activity from gamification system
+        (adminClient as any)
+          .from('daily_activities')
+          .select('user_id')
+          .gte('activity_date', thirtyDaysAgoDate),
+        // Monthly sensor activity
         adminClient
           .from('sensors')
           .select('user_id')
           .gte('updated_at', thirtyDaysAgo)
           .eq('is_deleted', false),
+        // Monthly photo activity
+        adminClient
+          .from('sensor_photos')
+          .select('user_id')
+          .gte('created_at', thirtyDaysAgo),
         // New signups in the last 7 days
         adminClient
           .from('profiles')
@@ -61,10 +101,24 @@ export async function GET(request: NextRequest) {
           .gte('created_at', sevenDaysAgo)
       ]);
       
-      // Count unique users from sensor activity
-      const dailyActiveUserIds = new Set(dailyActiveSensorUsers.data?.map(s => s.user_id) || []);
-      const weeklyActiveUserIds = new Set(weeklyActiveSensorUsers.data?.map(s => s.user_id) || []);
-      const monthlyActiveUserIds = new Set(monthlyActiveSensorUsers.data?.map(s => s.user_id) || []);
+      // Combine all activity sources to get comprehensive active user counts
+      const dailyActiveUserIds = new Set([
+        ...(dailyActivityUsers.data?.map((a: any) => a.user_id) || []),
+        ...(dailySensorActivity.data?.map((s: any) => s.user_id) || []),
+        ...(dailyPhotoActivity.data?.map((p: any) => p.user_id) || [])
+      ]);
+      
+      const weeklyActiveUserIds = new Set([
+        ...(weeklyActivityUsers.data?.map((a: any) => a.user_id) || []),
+        ...(weeklySensorActivity.data?.map((s: any) => s.user_id) || []),
+        ...(weeklyPhotoActivity.data?.map((p: any) => p.user_id) || [])
+      ]);
+      
+      const monthlyActiveUserIds = new Set([
+        ...(monthlyActivityUsers.data?.map((a: any) => a.user_id) || []),
+        ...(monthlySensorActivity.data?.map((s: any) => s.user_id) || []),
+        ...(monthlyPhotoActivity.data?.map((p: any) => p.user_id) || [])
+      ]);
       
       dailyActiveUsers = dailyActiveUserIds.size;
       weeklyActiveUsers = weeklyActiveUserIds.size;

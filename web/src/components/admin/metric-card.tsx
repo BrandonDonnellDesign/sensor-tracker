@@ -7,7 +7,7 @@ interface MetricCardProps {
   value: string | number;
   change?: {
     value: number;
-    type: 'increase' | 'decrease';
+    type: 'increase' | 'decrease' | 'neutral';
     period: string;
   };
   icon?: ReactNode;
@@ -57,12 +57,16 @@ export function MetricCard({
           {change && (
             <div className="flex items-center mt-2">
               <span className={`text-sm font-medium ${
-                change.type === 'increase' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                change.type === 'increase' 
+                  ? 'text-green-600 dark:text-green-400' 
+                  : change.type === 'decrease'
+                  ? 'text-red-600 dark:text-red-400'
+                  : 'text-blue-600 dark:text-blue-400'
               }`}>
-                {change.type === 'increase' ? '+' : '-'}{Math.abs(change.value)}%
+                {change.type === 'increase' ? '+' : change.type === 'decrease' ? '-' : ''}{Math.abs(change.value)}{change.period.includes('%') ? '' : '%'}
               </span>
               <span className="text-sm text-gray-500 dark:text-slate-500 ml-1">
-                vs {change.period}
+                {change.type === 'neutral' ? change.period : `vs ${change.period}`}
               </span>
             </div>
           )}

@@ -106,44 +106,44 @@ export default function AdminOverviewPage() {
               value={metrics.userActivity.dailyActive}
               icon={<Users className="h-6 w-6" />}
               color="blue"
-              change={{
-                value: 12.5,
-                type: 'increase',
-                period: 'last week'
-              }}
+              change={metrics.userActivity.dailyActive > 0 && metrics.userActivity.weeklyActive > 0 ? {
+                value: Math.round(((metrics.userActivity.dailyActive / metrics.userActivity.weeklyActive) * 100)),
+                type: 'neutral',
+                period: '% of weekly active'
+              } : undefined}
             />
             <MetricCard
               title="Active Sensors"
               value={metrics.sensorStats.activeSensors}
               icon={<Zap className="h-6 w-6" />}
               color="green"
-              change={{
-                value: 8.2,
-                type: 'increase',
-                period: 'last week'
-              }}
+              change={metrics.sensorStats.activeSensors > 0 && metrics.totalSensors > 0 ? {
+                value: Math.round((metrics.sensorStats.activeSensors / metrics.totalSensors) * 100),
+                type: 'neutral',
+                period: '% of total sensors'
+              } : undefined}
             />
             <MetricCard
               title="New Signups"
               value={metrics.userActivity.newSignups}
               icon={<TrendingUp className="h-6 w-6" />}
               color="purple"
-              change={{
-                value: 15.3,
-                type: 'increase',
-                period: 'yesterday'
-              }}
+              change={metrics.userActivity.newSignups > 0 && metrics.totalUsers > 0 ? {
+                value: Math.round((metrics.userActivity.newSignups / metrics.totalUsers) * 100),
+                type: 'neutral',
+                period: '% growth rate'
+              } : undefined}
             />
             <MetricCard
               title="Weekly Retention"
               value={`${metrics.retention.weeklyRetention.toFixed(1)}%`}
               icon={<Activity className="h-6 w-6" />}
               color="yellow"
-              change={{
-                value: 2.1,
-                type: 'increase',
-                period: 'last month'
-              }}
+              change={metrics.retention.weeklyRetention > 0 ? {
+                value: Math.round(metrics.retention.weeklyRetention),
+                type: metrics.retention.weeklyRetention >= 70 ? 'increase' : metrics.retention.weeklyRetention >= 50 ? 'neutral' : 'decrease',
+                period: '% user retention'
+              } : undefined}
             />
           </div>
         </div>
