@@ -31,8 +31,13 @@ export default function NewSensorPage() {
   const [extractedData, setExtractedData] = useState<ExtractedSensorData | null>(null);
   const [dateAdded, setDateAdded] = useState(() => {
     const now = new Date();
-    // Format for datetime-local input: YYYY-MM-DDTHH:MM
-    return now.toISOString().slice(0, 16);
+    // Format for datetime-local input: YYYY-MM-DDTHH:MM in local time
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,7 +59,6 @@ export default function NewSensorPage() {
       }
 
       setSensorModels((data as SensorModel[]) || []);
-      console.log('Loaded sensor models:', (data as SensorModel[]) || []);
       // Don't set default selection - let OCR auto-populate or user select manually
     };
 
@@ -63,74 +67,47 @@ export default function NewSensorPage() {
 
   // Handle extracted data from OCR
   const handleDataExtracted = (data: ExtractedSensorData) => {
-    console.log('=== Auto-Population Debug ===');
-    console.log('Received extracted data:', data);
-    console.log('Current form state:', {
-      serialNumber,
-      lotNumber,
-      selectedSensorModelId,
-      sensorModelsCount: sensorModels.length
-    });
-    
     setExtractedData(data);
     
     // Auto-populate fields if they're empty and confidence is reasonable
     if (data.confidence > 30) { // Lowered from 60 to 30
-      console.log('Confidence sufficient for auto-population:', data.confidence);
       
       if (data.serialNumber && !serialNumber) {
-        console.log('Auto-populating serial number:', data.serialNumber);
         setSerialNumber(data.serialNumber);
       }
       
       if (data.lotNumber && !lotNumber) {
-        console.log('Auto-populating lot number:', data.lotNumber);
         setLotNumber(data.lotNumber);
       }
       
       // Try to auto-select sensor model based on manufacturer and model name
       if (data.manufacturer) {
-        console.log('Attempting to match sensor model...');
-        console.log('Available models:', sensorModels.map(m => ({ id: m.id, manufacturer: m.manufacturer, model: m.model_name })));
         
         let matchingModel = null;
         
         // First try to match by both manufacturer and model name
         if (data.modelName) {
-          console.log('Trying to match manufacturer + model:', data.manufacturer, data.modelName);
           matchingModel = sensorModels.find(model => {
             const manufacturerMatch = model.manufacturer.toLowerCase() === data.manufacturer?.toLowerCase();
             const modelMatch = model.model_name.toLowerCase().includes(data.modelName?.toLowerCase() || '');
-            console.log('Model check:', model.manufacturer, model.model_name, 'matches:', { manufacturerMatch, modelMatch });
             return manufacturerMatch && modelMatch;
           });
         }
         
         // Fallback to manufacturer only
         if (!matchingModel) {
-          console.log('Trying manufacturer-only match:', data.manufacturer);
           matchingModel = sensorModels.find(model => {
             const match = model.manufacturer.toLowerCase() === data.manufacturer?.toLowerCase();
-            console.log('Manufacturer check:', model.manufacturer, 'matches:', match);
             return match;
           });
         }
         
         // Auto-select if we found a match and either no model is selected OR confidence is high
         if (matchingModel && (!selectedSensorModelId || data.confidence > 70)) {
-          console.log('✅ Found matching model:', matchingModel);
           setSelectedSensorModelId(matchingModel.id);
           setSelectedSensorModel(matchingModel);
-        } else if (matchingModel) {
-          console.log('⚠️ Found matching model but not overriding existing selection:', matchingModel);
-        } else {
-          console.log('❌ No matching model found');
         }
-      } else {
-        console.log('Skipping model selection: no manufacturer detected');
       }
-    } else {
-      console.log('Confidence too low for auto-population:', data.confidence);
     }
   };
 
@@ -157,11 +134,16 @@ export default function NewSensorPage() {
     setError(null);
 
     try {
+      // Convert local time to UTC for database storage
+      // datetime-local input gives local time, toISOString() converts to UTC
+      const localDate = new Date(dateAdded);
+      const utcDateString = localDate.toISOString();
+
       const sensorData: any = {
         user_id: user.id,
         sensor_model_id: selectedSensorModelId,
         serial_number: serialNumber.trim(),
-        date_added: dateAdded,
+        date_added: utcDateString, // Store as UTC in database
         is_problematic: false,
         ...(selectedSensorModel?.manufacturer === 'Dexcom' && { lot_number: lotNumber.trim() }),
       };
@@ -173,7 +155,6 @@ export default function NewSensorPage() {
 
       const createdSensor = data?.[0];
       if (createdSensor?.id && initialPhotos.length > 0) {
-        console.log('Processing photos for new sensor:', initialPhotos);
         
         // For each photo path, move the file to the correct location and create DB record
         await Promise.all(
@@ -186,7 +167,6 @@ export default function NewSensorPage() {
               // Construct the new path
               const newPath = `${user.id}/${createdSensor.id}/${fileName}`;
               
-              console.log('Moving file:', { from: filePath, to: newPath });
               
               // Copy file to new location
               const { data: copyData, error: copyError } = await supabase
@@ -222,7 +202,6 @@ export default function NewSensorPage() {
                 .from('sensor_photos')
                 .remove([filePath]);
               
-              console.log('Successfully processed photo:', newPath);
             } catch (err) {
               console.error('Error processing photo:', err);
               throw err;

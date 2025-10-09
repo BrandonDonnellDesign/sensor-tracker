@@ -151,10 +151,6 @@ html {
   50% { transform: translateY(-10px); }
 }
 
-.card:hover {
-  animation: float 3s ease-in-out infinite;
-}
-
 /* Gradient text animation */
 @keyframes gradient {
   0% { background-position: 0% 50%; }

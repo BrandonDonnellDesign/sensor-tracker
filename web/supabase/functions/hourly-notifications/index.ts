@@ -23,7 +23,7 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
-    console.log('Starting hourly sensor expiry notification generation...');
+    
     // Get sensors with their model info to calculate expiry dates
     const { data: sensors, error: sensorsError } = await supabase
       .from('sensors')
@@ -43,7 +43,6 @@ Deno.serve(async (req) => {
       throw sensorsError;
     }
     if (!sensors || sensors.length === 0) {
-      console.log('No active sensors found');
       return new Response(
         JSON.stringify({
           message: 'No active sensors found',
@@ -72,7 +71,6 @@ Deno.serve(async (req) => {
     });
 
     if (sensorsExpiringSoon.length === 0) {
-      console.log('No sensors expiring soon found');
       return new Response(
         JSON.stringify({
           message: 'No sensors expiring soon found',
@@ -91,7 +89,7 @@ Deno.serve(async (req) => {
     const userIds = [
       ...new Set(sensorsExpiringSoon.map((s: any) => s.user_id)),
     ];
-    console.log(`Found ${userIds.length} users with sensors expiring soon`);
+    
     // Check for existing recent notifications to avoid spam
     const { data: recentNotifications, error: notificationsError } =
       await supabase
@@ -114,7 +112,6 @@ Deno.serve(async (req) => {
       (userId) => !recentUserIds.has(userId)
     );
     if (usersToNotify.length === 0) {
-      console.log('All users already have recent notifications');
       return new Response(
         JSON.stringify({
           message: 'All users already notified recently',
@@ -220,9 +217,7 @@ Deno.serve(async (req) => {
       console.error('Error creating notifications:', insertError);
       throw insertError;
     }
-    console.log(
-      `Successfully created ${createdNotifications?.length || 0} notifications`
-    );
+    
     return new Response(
       JSON.stringify({
         message: 'Sensor expiry notifications generated successfully',

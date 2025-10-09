@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Database } from '@/lib/database.types';
-import { getSensorExpirationInfo, formatDaysLeft } from '../../../../shared/src/utils/sensorExpiration';
-import { SensorType } from '../../../../shared/src/models/Sensor';
+import { getSensorExpirationInfo, formatDaysLeft } from '@/shared/src/utils/sensorExpiration';
+import { SensorType } from '@/shared/src/models/Sensor';
 import { useDateTimeFormatter } from '@/utils/date-formatter';
 
 type Sensor = Database['public']['Tables']['sensors']['Row'] & {
@@ -107,27 +107,10 @@ export function RecentSensors({ sensors, onRefresh, isRefreshing = false }: Rece
     // Fall back to day-based display for longer periods only
     if (daysLeft === 1) {
       return '1 day left';
-    } else if (daysLeft < 7) {
-      return `${daysLeft} days left`;
     } else if (daysLeft < 30) {
-      const weeks = Math.floor(daysLeft / 7);
-      const remainingDays = daysLeft % 7;
-      if (weeks === 1 && remainingDays === 0) {
-        return '1 week left';
-      } else if (weeks === 1) {
-        return `1 week, ${remainingDays} day${remainingDays !== 1 ? 's' : ''} left`;
-      } else if (remainingDays === 0) {
-        return `${weeks} weeks left`;
-      } else {
-        return `${weeks} weeks, ${remainingDays} day${remainingDays !== 1 ? 's' : ''} left`;
-      }
+      return `${daysLeft} days left`;
     } else {
-      const months = Math.floor(daysLeft / 30);
-      if (months === 1) {
-        return '1 month left';
-      } else {
-        return `${months} months left`;
-      }
+      return '30+ days left';
     }
   };
 
@@ -306,7 +289,7 @@ export function RecentSensors({ sensors, onRefresh, isRefreshing = false }: Rece
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-medium text-green-700 dark:text-green-400">
-                    {formatDaysLeft(currentSensor.sensorExpInfo.daysLeft, currentSensor.sensorExpInfo)}
+                    {formatDaysLeftLocal(currentSensor.sensorExpInfo.daysLeft, currentSensor.sensorExpInfo)}
                   </p>
                   <div className="flex items-center justify-end space-x-1 mt-2">
                     {currentSensor.sensorExpInfo.expirationStatus === 'warning' && (

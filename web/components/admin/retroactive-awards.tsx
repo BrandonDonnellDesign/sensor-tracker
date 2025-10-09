@@ -94,8 +94,6 @@ export function RetroactiveAwards() {
         .from('achievements')
         .select('count', { count: 'exact', head: true });
       
-      console.log('Database connection test:', { testData, testError });
-      
       // Check if function exists by querying pg_proc
       const { data: functionExists, error: functionCheckError } = await (supabase as any)
         .from('pg_proc')
@@ -103,16 +101,12 @@ export function RetroactiveAwards() {
         .eq('proname', 'retroactively_award_achievements')
         .limit(1);
       
-      console.log('Function exists check:', { functionExists, functionCheckError });
-      
       // Also check what functions are available
       const { data: allFunctions, error: allFunctionsError } = await (supabase as any)
         .from('pg_proc')
         .select('proname')
         .like('proname', '%award%')
         .limit(10);
-      
-      console.log('Available award functions:', { allFunctions, allFunctionsError });
       
     } catch (err) {
       console.error('Database test error:', err);
@@ -126,13 +120,9 @@ export function RetroactiveAwards() {
     setResults([]);
 
     try {
-      console.log('Testing database connection first...');
       await testDatabaseConnection();
       
-      console.log('Calling retroactively_award_achievements function...');
       const { data, error } = await (supabase as any).rpc('retroactively_award_achievements');
-
-      console.log('RPC response:', { data, error });
 
       if (error) {
         console.error('Supabase RPC error:', error);

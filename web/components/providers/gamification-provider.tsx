@@ -91,15 +91,11 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
     if (!user?.id) return;
 
     try {
-      console.log('Fetching gamification stats for user:', user.id);
-      
       const { data: stats, error: statsError } = await (supabase as any)
         .from('user_gamification_stats')
         .select('*')
         .eq('user_id', user.id)
         .single();
-
-      console.log('Gamification stats query result:', { stats, statsError });
 
       if (statsError && statsError.code !== 'PGRST116') {
         console.error('Error fetching user stats:', statsError);
@@ -107,11 +103,9 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
       }
 
       if (stats) {
-        console.log('Found existing stats:', stats);
         // Update level based on points
         const calculatedLevel = calculateLevel(stats.total_points);
         if (calculatedLevel !== stats.level) {
-          console.log('Updating level from', stats.level, 'to', calculatedLevel);
           const { data: updatedStats } = await (supabase as any)
             .from('user_gamification_stats')
             .update({ level: calculatedLevel })
@@ -124,8 +118,6 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
           setUserStats(stats);
         }
       } else {
-        console.log('No stats found, checking if user has sensors...');
-        
         // Check if user has sensors
         const { data: sensors, error: sensorsError } = await supabase
           .from('sensors')
@@ -133,10 +125,7 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
           .eq('user_id', user.id)
           .eq('is_deleted', false);
         
-        console.log('User sensors:', { sensors, sensorsError });
-        
         if (sensors && sensors.length > 0) {
-          console.log('User has sensors but no gamification stats - need to run retroactive awards');
           // Create stats with sensor data
           const successfulSensors = sensors.filter(s => !s.is_problematic).length;
           const { data: newStats } = await (supabase as any)
@@ -149,10 +138,8 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
             .select()
             .single();
           
-          console.log('Created stats with sensor data:', newStats);
           setUserStats(newStats);
         } else {
-          console.log('No sensors found, creating basic initial stats');
           // Create initial stats
           const { data: newStats } = await (supabase as any)
             .from('user_gamification_stats')
@@ -160,7 +147,6 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
             .select()
             .single();
           
-          console.log('Created new stats:', newStats);
           setUserStats(newStats);
         }
       }
@@ -273,8 +259,6 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
 
       // Refresh stats after recording login activity
       await fetchUserStats();
-      
-      console.log('Login activity recorded successfully');
     } catch (error) {
       console.error('Error in recordLoginActivity:', error);
     }

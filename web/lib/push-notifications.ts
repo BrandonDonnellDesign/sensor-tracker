@@ -29,14 +29,12 @@ export class PushNotificationService {
    */
   async initialize(): Promise<boolean> {
     if (typeof window === 'undefined' || typeof navigator === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in window)) {
-      console.warn('Push notifications not supported');
       return false;
     }
 
     try {
       // Register service worker
       this.registration = await navigator.serviceWorker.register('/sw.js');
-      console.log('Service worker registered:', this.registration);
 
       // Check for existing subscription
       this.subscription = this.registration ? await this.registration.pushManager.getSubscription() : null;
@@ -80,7 +78,6 @@ export class PushNotificationService {
       if (this.subscription) {
         // Save subscription to backend
         await this.saveSubscription(this.subscription);
-        console.log('Push notification subscription successful');
       }
       return this.subscription;
 
@@ -104,7 +101,6 @@ export class PushNotificationService {
       }
       await this.removeSubscription();
       this.subscription = null;
-      console.log('Unsubscribed from push notifications');
       return true;
     } catch (error) {
       console.error('Failed to unsubscribe:', error);

@@ -291,17 +291,9 @@ export function AchievementNotification({
 
           <div className="space-y-6">
             {['tracking', 'consistency', 'milestone', 'special', 'mystery', 'analytics', 'organization', 'meta', 'detail', 'media', 'performance'].map(category => {
-              const categoryAchievements = allAchievements.filter(a => {
+              const categoryAchievements = visibleAchievements.filter(a => {
                 // Only show achievements in this category
-                if (a.category !== category) return false;
-                
-                // For hidden achievements (requirement_type = 'hidden_trigger'), only show if earned
-                if (a.requirement_type === 'hidden_trigger') {
-                  return earnedAchievementIds.has(a.id);
-                }
-                
-                // Show all other achievements
-                return true;
+                return a.category === category;
               });
               if (categoryAchievements.length === 0) return null;
 

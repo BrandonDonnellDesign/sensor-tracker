@@ -6,8 +6,6 @@ import { Handler } from '@netlify/functions';
 
 // Use 'any' for event/context to suppress type errors if types are missing
 const handler: Handler = async (event: any, context: any) => {
-  console.log('Netlify scheduled function: daily-notifications triggered');
-
   // Only allow POST requests or scheduled triggers
   if (event.httpMethod && event.httpMethod !== 'POST') {
     return {
@@ -40,8 +38,6 @@ const handler: Handler = async (event: any, context: any) => {
     if (!response.ok) {
       throw new Error(`API call failed: ${result.error || response.statusText}`);
     }
-
-    console.log('Daily notifications generated successfully:', result);
 
     return {
       statusCode: 200,

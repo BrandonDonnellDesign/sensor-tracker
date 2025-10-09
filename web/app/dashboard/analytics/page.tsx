@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/components/providers/auth-provider';
 import { Database } from '@/lib/database.types';
-import { getSensorExpirationInfo } from '../../../../../shared/src/utils/sensorExpiration';
+import { getSensorExpirationInfo } from '@/shared/src/utils/sensorExpiration';
 
 type Sensor = Database['public']['Tables']['sensors']['Row'] & {
   sensorModel?: {

@@ -31,15 +31,12 @@ export default function AdminGamificationPage() {
     const fetchGamificationStats = async () => {
       try {
         setError(null);
-        console.log('Fetching gamification stats...');
         
         // Get user stats
         const { data: userStats, error: statsError } = await (supabase as any)
           .from('user_gamification_stats')
           .select('*')
           .order('total_points', { ascending: false });
-
-        console.log('User stats query result:', { userStats, statsError });
 
         if (statsError) throw statsError;
 
@@ -48,8 +45,6 @@ export default function AdminGamificationPage() {
           .from('user_achievements')
           .select('user_id');
 
-        console.log('Achievements query result:', { achievements, achievementError });
-
         if (achievementError) throw achievementError;
 
         // Get total available achievements
@@ -57,8 +52,6 @@ export default function AdminGamificationPage() {
           .from('achievements')
           .select('id')
           .eq('is_active', true);
-
-        console.log('Available achievements:', { availableAchievements, availableError });
 
         if (availableError) throw availableError;
 
@@ -69,15 +62,6 @@ export default function AdminGamificationPage() {
         const averageLevel = totalUsers > 0 ? userStats.reduce((sum: number, s: any) => sum + (s.level || 1), 0) / totalUsers : 0;
         const highestStreak = totalUsers > 0 ? Math.max(...userStats.map((s: any) => s.longest_streak || 0)) : 0;
         const topUsers = userStats?.slice(0, 10) || [];
-
-        console.log('Calculated stats:', {
-          totalUsers,
-          totalPoints,
-          totalAchievements,
-          averageLevel,
-          highestStreak,
-          topUsersCount: topUsers.length
-        });
 
         setStats({
           totalUsers,

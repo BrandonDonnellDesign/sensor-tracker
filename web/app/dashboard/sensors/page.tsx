@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/components/providers/auth-provider';
 import { Database } from '@/lib/database.types';
-import { getSensorExpirationInfo, formatDaysLeft } from '../../../../../shared/src/utils/sensorExpiration';
+import { getSensorExpirationInfo, formatDaysLeft } from '@/shared/src/utils/sensorExpiration';
 import { useDateTimeFormatter } from '@/utils/date-formatter';
 import { TagDisplay } from '@/components/sensors/tag-display';
 import { ArchivedSensorsView } from '@/components/sensors/archived-sensors-view';
@@ -48,6 +48,7 @@ export default function SensorsPage() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc'); // Default to newest first for date_added
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [availableTags, setAvailableTags] = useState<any[]>([]);
+  const [userTimezone, setUserTimezone] = useState<string>('UTC'); // Default to UTC
   const [showArchivedView, setShowArchivedView] = useState(false);
 
   const fetchSensors = useCallback(async () => {
@@ -60,7 +61,7 @@ export default function SensorsPage() {
       try {
         const result = await checkAndTagExpiredSensors();
         if (result.success && result.expiredCount > 0) {
-          console.log(`Auto-tagged ${result.expiredCount} expired sensors`);
+          // Auto-tagged expired sensors successfully
         }
       } catch (expiredError) {
         console.warn('Error auto-tagging expired sensors:', expiredError);
@@ -129,6 +130,85 @@ export default function SensorsPage() {
     }
   }, []);
 
+  // Fetch user timezone
+  const fetchUserTimezone = useCallback(async () => {
+    if (!user?.id) return;
+    
+    try {
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('timezone')
+        .eq('id', user.id)
+        .single();
+      
+      if (error) {
+        console.warn('Error fetching user timezone:', error);
+        return;
+      }
+      
+      if (profile?.timezone) {
+        setUserTimezone(profile.timezone);
+      }
+    } catch (error) {
+      console.warn('Error fetching user timezone:', error);
+    }
+  }, [user?.id]);
+
+  // Create timezone-aware date formatter
+  const formatDateTime = useCallback((dateInput: string | Date) => {
+    try {
+      // Handle both string and Date inputs
+      let date: Date;
+      if (dateInput instanceof Date) {
+        date = dateInput;
+      } else {
+        // Handle PostgreSQL timestamp format (e.g., "2025-10-01 16:17:41.032119+00")
+        if (dateInput.includes('+') && !dateInput.includes('T')) {
+          // Convert PostgreSQL format to ISO format
+          const isoString = dateInput.replace(' ', 'T').replace(/\+(\d{2})$/, '+$1:00');
+          date = new Date(isoString);
+        } else {
+          // Try parsing as-is
+          date = new Date(dateInput);
+        }
+      }
+
+      // Check if date is valid
+      if (isNaN(date.getTime())) {
+        console.warn('Invalid date, returning original:', dateInput);
+        return String(dateInput); // Fallback to original string
+      }
+
+      // Use a safer timezone approach
+      try {
+        const formatted = date.toLocaleString('en-US', {
+          timeZone: userTimezone,
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        });
+        return formatted;
+      } catch (timezoneError) {
+        console.warn('Timezone error, falling back to UTC:', userTimezone, timezoneError);
+        // Fallback to UTC if timezone is invalid
+        const utcFormatted = date.toLocaleString('en-US', {
+          timeZone: 'UTC',
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        });
+        return utcFormatted;
+      }
+    } catch (error) {
+      console.warn('Error formatting date:', dateInput, error);
+      return String(dateInput); // Fallback to original string
+    }
+  }, [userTimezone]);
+
   useEffect(() => {
     if (user) {
       fetchSensors();
@@ -141,6 +221,13 @@ export default function SensorsPage() {
       fetchAvailableTags();
     }
   }, [user, fetchAvailableTags]);
+
+  // Fetch user timezone when user changes
+  useEffect(() => {
+    if (user) {
+      fetchUserTimezone();
+    }
+  }, [user, fetchUserTimezone]);
 
   const deleteSensor = async (sensorId: string, event: React.MouseEvent) => {
     event.preventDefault(); // Prevent navigation to sensor detail
@@ -546,7 +633,7 @@ export default function SensorsPage() {
                         <span className="font-semibold">Manufacturer:</span> {model.manufacturer}
                       </div>
                       <div className="flex flex-wrap gap-2 text-xs text-gray-700 dark:text-slate-300 mb-1">
-                        <span className="font-semibold">Expires:</span> {dateFormatter.formatDateTime(expirationInfo.expirationDate)}
+                        <span className="font-semibold">Expires:</span> {formatDateTime(expirationInfo.expirationDate.toISOString())}
                         <span className="font-semibold">Days left:</span> {formatDaysLeft(expirationInfo.daysLeft, expirationInfo)}
                       </div>
                       {sensor.lot_number && (
@@ -571,7 +658,7 @@ export default function SensorsPage() {
                   <div className="flex items-center space-x-4">
                     <div className="text-right">
                       <p className="text-sm text-gray-500 dark:text-slate-400">
-                        Added {dateFormatter.formatDateTime(sensor.date_added)}
+                        Added {formatDateTime(sensor.date_added)}
                       </p>
                       {sensor.is_problematic && (
                         <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 mt-2">

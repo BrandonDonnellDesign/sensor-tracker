@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import { createClient as createBrowserClient } from '@supabase/supabase-js';
-import { getSensorExpirationInfo } from '../../../../../shared/src/utils/sensorExpiration';
+import { getSensorExpirationInfo } from '@/shared/src/utils/sensorExpiration';
 
 
 export async function POST(request: NextRequest) {
@@ -65,9 +65,6 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: 'Notification ID required for delete' }, { status: 400 });
         }
 
-        // Log user and notificationId for debugging
-        console.log('Attempting to dismiss notification:', { notificationId, userId: user.id });
-
         // Always perform the update to dismiss the notification
         const now = new Date().toISOString();
         const { data: updateResult, error: dismissError } = await (supabase as any)
@@ -79,8 +76,6 @@ export async function POST(request: NextRequest) {
           .eq('id', notificationId)
           .eq('user_id', user.id)
           .select();
-
-        console.log('Dismiss update result:', updateResult);
 
         if (dismissError) {
           console.error('Error dismissing notification:', dismissError);
@@ -162,7 +157,6 @@ async function generateSensorNotifications(supabase: any, userId: string): Promi
 
     // Skip notifications if user has disabled them
     if (!notificationsEnabled) {
-      console.log(`Notifications disabled for user ${userId}, skipping...`);
       return;
     }
 

@@ -8,10 +8,6 @@ import { useAuth } from '@/components/providers/auth-provider';
 import { Database } from '@/lib/database.types';
 import ImageUpload from '@/components/sensors/image-upload';
 import PhotoGallery from '@/components/sensors/photo-gallery';
-import { TagSelector } from '@/components/sensors/tag-selector';
-import { TagDisplay } from '@/components/sensors/tag-display';
-import { NotesEditor } from '@/components/sensors/notes-editor';
-import { getSensorExpirationInfo, formatDaysLeft } from '../../../../../../shared/src/utils/sensorExpiration';
 
 type Sensor = Database['public']['Tables']['sensors']['Row'];
 type SensorPhoto = Database['public']['Tables']['sensor_photos']['Row'];
@@ -36,13 +32,12 @@ export default function SensorDetailPage() {
   const [updating, setUpdating] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [deleteAction, setDeleteAction] = useState<'soft' | 'restore' | 'permanent'>('soft');
-  const [editingDate, setEditingDate] = useState(false);
-  const [newDateAdded, setNewDateAdded] = useState('');
   const [editingSerial, setEditingSerial] = useState(false);
   const [newSerialNumber, setNewSerialNumber] = useState('');
   const [editingLot, setEditingLot] = useState(false);
   const [newLotNumber, setNewLotNumber] = useState('');
+  const [editingDate, setEditingDate] = useState(false);
+  const [newDateAdded, setNewDateAdded] = useState('');
   const [editingNotes, setEditingNotes] = useState(false);
   const [newIssueNotes, setNewIssueNotes] = useState('');
   const [photos, setPhotos] = useState<SensorPhoto[]>([]);
@@ -50,12 +45,6 @@ export default function SensorDetailPage() {
   const [sensorModels, setSensorModels] = useState<SensorModel[]>([]);
   const [editingSensorModel, setEditingSensorModel] = useState(false);
   const [newSensorModelId, setNewSensorModelId] = useState('');
-  
-  // Tags state
-  const [sensorTags, setSensorTags] = useState<any[]>([]);
-  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
-  const [editingTags, setEditingTags] = useState(false);
-  const [savingTags, setSavingTags] = useState(false);
 
   const fetchSensor = useCallback(async () => {
     if (!user?.id || !sensorId) return;
@@ -69,6 +58,7 @@ export default function SensorDetailPage() {
         `)
         .eq('id', sensorId)
         .eq('user_id', user.id) // Ensure user can only view their own sensors
+        .eq('is_deleted', false) // Don't show deleted sensors
         .single();
 
       if (error) throw error;
@@ -128,43 +118,6 @@ export default function SensorDetailPage() {
 
     fetchSensorModels();
   }, []);
-
-  // Fetch sensor tags
-  const fetchSensorTags = useCallback(async () => {
-    if (!sensorId) return;
-
-    try {
-      const { data: sensorTags, error } = await supabase
-        .from('sensor_tags')
-        .select(`
-          id,
-          tag_id,
-          tags:tag_id (
-            id,
-            name,
-            category,
-            description,
-            color,
-            created_at
-          )
-        `)
-        .eq('sensor_id', sensorId);
-
-      if (error) {
-        console.error('Error fetching sensor tags:', error);
-        return;
-      }
-
-      setSensorTags(sensorTags || []);
-      setSelectedTagIds((sensorTags || []).map((t: any) => t.tag_id));
-    } catch (error) {
-      console.error('Error fetching sensor tags:', error);
-    }
-  }, [sensorId]);
-
-  useEffect(() => {
-    fetchSensorTags();
-  }, [fetchSensorTags]);
 
 
 
@@ -277,6 +230,133 @@ export default function SensorDetailPage() {
     setNewSensorModelId('');
   };
 
+  const updateSerialNumber = async () => {
+    if (!sensor || !user?.id || !newSerialNumber.trim()) return;
+
+    setUpdating(true);
+    try {
+      const { error } = await supabase
+        .from('sensors')
+        .update({ serial_number: newSerialNumber.trim() })
+        .eq('id', sensor.id)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      setSensor({
+        ...sensor,
+        serial_number: newSerialNumber.trim(),
+      });
+      setEditingSerial(false);
+      setNewSerialNumber('');
+    } catch (error) {
+      console.error('Error updating serial number:', error);
+      setError(
+        error instanceof Error ? error.message : 'Failed to update serial number'
+      );
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const cancelSerialEdit = () => {
+    setEditingSerial(false);
+    setNewSerialNumber('');
+  };
+
+  const startSerialEdit = () => {
+    if (sensor) {
+      setNewSerialNumber(sensor.serial_number);
+      setEditingSerial(true);
+    }
+  };
+
+  const updateLotNumber = async () => {
+    if (!sensor || !user?.id) return;
+
+    setUpdating(true);
+    try {
+      const { error } = await supabase
+        .from('sensors')
+        .update({ lot_number: newLotNumber.trim() || null })
+        .eq('id', sensor.id)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      setSensor({
+        ...sensor,
+        lot_number: newLotNumber.trim() || null,
+      });
+      setEditingLot(false);
+      setNewLotNumber('');
+    } catch (error) {
+      console.error('Error updating lot number:', error);
+      setError(
+        error instanceof Error ? error.message : 'Failed to update lot number'
+      );
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const cancelLotEdit = () => {
+    setEditingLot(false);
+    setNewLotNumber('');
+  };
+
+  const startLotEdit = () => {
+    if (sensor) {
+      setNewLotNumber(sensor.lot_number || '');
+      setEditingLot(true);
+    }
+  };
+
+  const updateIssueNotes = async () => {
+    if (!sensor || !user?.id) return;
+
+    setUpdating(true);
+    try {
+      const { error } = await supabase
+        .from('sensors')
+        .update({ 
+          issue_notes: newIssueNotes.trim() || null,
+          is_problematic: newIssueNotes.trim() ? true : sensor.is_problematic // Mark as problematic if notes are added
+        })
+        .eq('id', sensor.id)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      setSensor({
+        ...sensor,
+        issue_notes: newIssueNotes.trim() || null,
+        is_problematic: newIssueNotes.trim() ? true : sensor.is_problematic,
+      });
+      setEditingNotes(false);
+      setNewIssueNotes('');
+    } catch (error) {
+      console.error('Error updating issue notes:', error);
+      setError(
+        error instanceof Error ? error.message : 'Failed to update issue notes'
+      );
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const cancelNotesEdit = () => {
+    setEditingNotes(false);
+    setNewIssueNotes('');
+  };
+
+  const startNotesEdit = () => {
+    if (sensor) {
+      setNewIssueNotes(sensor.issue_notes || '');
+      setEditingNotes(true);
+    }
+  };
+
   const startSensorModelEdit = () => {
     if (sensor) {
       // For backward compatibility, try to get sensor_model_id, otherwise it might be null
@@ -286,87 +366,11 @@ export default function SensorDetailPage() {
     }
   };
 
-  const saveNotes = async () => {
-    if (!sensor || !user?.id) return;
-
-    setUpdating(true);
-
-    try {
-      const { error } = await supabase
-        .from('sensors')
-        .update({ issue_notes: newIssueNotes })
-        .eq('id', sensor.id)
-        .eq('user_id', user.id);
-
-      if (error) throw error;
-
-      setSensor({ ...sensor, issue_notes: newIssueNotes });
-      setEditingNotes(false);
-    } catch (error) {
-      console.error('Error updating notes:', error);
-      setError(
-        error instanceof Error ? error.message : 'Failed to update notes'
-      );
-    } finally {
-      setUpdating(false);
-    }
-  };
-
-  const saveTags = async () => {
-    if (!sensorId || !user?.id) return;
-
-    setSavingTags(true);
-
-    try {
-      // First, remove all existing tags for this sensor
-      const { error: deleteError } = await supabase
-        .from('sensor_tags')
-        .delete()
-        .eq('sensor_id', sensorId);
-
-      if (deleteError) {
-        throw new Error('Failed to clear existing tags');
-      }
-
-      // Then add the new tags
-      if (selectedTagIds.length > 0) {
-        const sensorTags = selectedTagIds.map(tagId => ({
-          sensor_id: sensorId,
-          tag_id: tagId
-        }));
-
-        const { error: insertError } = await supabase
-          .from('sensor_tags')
-          .insert(sensorTags);
-
-        if (insertError) {
-          throw new Error('Failed to save tags');
-        }
-      }
-
-      await fetchSensorTags(); // Refresh tags
-      setEditingTags(false);
-    } catch (error) {
-      console.error('Error saving tags:', error);
-      setError(
-        error instanceof Error ? error.message : 'Failed to save tags'
-      );
-    } finally {
-      setSavingTags(false);
-    }
-  };
-
   const deleteSensor = async () => {
     if (!sensor || !user?.id) return;
 
     setDeleting(true);
     try {
-        // Delete related notifications first
-        await (supabase as any)
-          .from('notifications')
-          .delete()
-          .eq('sensor_id', sensor.id)
-          .eq('user_id', user.id);
       // Soft delete by setting is_deleted to true
       const { error } = await supabase
         .from('sensors')
@@ -382,78 +386,6 @@ export default function SensorDetailPage() {
       console.error('Error deleting sensor:', error);
       setError(
         error instanceof Error ? error.message : 'Failed to delete sensor'
-      );
-      setDeleting(false);
-      setShowDeleteConfirm(false);
-    }
-  };
-
-  const restoreSensor = async () => {
-    if (!sensor || !user?.id) return;
-
-    setDeleting(true);
-    try {
-      const { error } = await supabase
-        .from('sensors')
-        .update({ is_deleted: false })
-        .eq('id', sensor.id)
-        .eq('user_id', user.id);
-
-      if (error) throw error;
-
-      // Update local state
-      setSensor({ ...sensor, is_deleted: false });
-      setShowDeleteConfirm(false);
-    } catch (error) {
-      console.error('Error restoring sensor:', error);
-      setError(
-        error instanceof Error ? error.message : 'Failed to restore sensor'
-      );
-    } finally {
-      setDeleting(false);
-    }
-  };
-
-  const permanentlyDeleteSensor = async () => {
-    if (!sensor || !user?.id) return;
-
-    setDeleting(true);
-    try {
-      // Delete notifications
-      await (supabase as any)
-        .from('notifications')
-        .delete()
-        .eq('sensor_id', sensor.id)
-        .eq('user_id', user.id);
-      
-      // Delete photos
-      await (supabase as any)
-        .from('sensor_photos')
-        .delete()
-        .eq('sensor_id', sensor.id)
-        .eq('user_id', user.id);
-      
-      // Delete sensor tags
-      await supabase
-        .from('sensor_tags')
-        .delete()
-        .eq('sensor_id', sensor.id);
-      
-      // Permanently delete sensor
-      const { error } = await supabase
-        .from('sensors')
-        .delete()
-        .eq('id', sensor.id)
-        .eq('user_id', user.id);
-
-      if (error) throw error;
-
-      // Redirect to sensors list after successful deletion
-      router.push('/dashboard/sensors');
-    } catch (error) {
-      console.error('Error permanently deleting sensor:', error);
-      setError(
-        error instanceof Error ? error.message : 'Failed to permanently delete sensor'
       );
       setDeleting(false);
       setShowDeleteConfirm(false);
@@ -541,35 +473,17 @@ export default function SensorDetailPage() {
           </svg>
           Back to Sensors
         </Link>
-        <div className='flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4'>
-          <div className="flex-1">
-            <div className="flex items-center space-x-3 mb-2">
-              <h1 className='text-3xl font-bold text-gray-900 dark:text-slate-100'>
-                {sensor.serial_number}
-              </h1>
-              {sensor.lot_number && (
-                <span className="px-2 py-1 bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-400 text-sm rounded-md font-mono">
-                  Lot: {sensor.lot_number}
-                </span>
-              )}
-            </div>
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-gray-600 dark:text-slate-400">
-              <span className="font-medium">
-                {(sensor as any).sensorModel
-                  ? `${(sensor as any).sensorModel.manufacturer} ${(sensor as any).sensorModel.model_name}`
-                  : sensor.sensor_type === 'dexcom' ? 'Dexcom G6/G7' : 'Abbott FreeStyle Libre'
-                }
-              </span>
-              <span className="hidden sm:inline text-gray-400">•</span>
-              <span className="text-sm">
-                Applied {new Date(sensor.date_added).toLocaleDateString('en-US', { 
-                  weekday: 'short',
-                  year: 'numeric', 
-                  month: 'short', 
-                  day: 'numeric' 
-                })}
-              </span>
-            </div>
+        <div className='flex items-center justify-between'>
+          <div>
+            <h1 className='text-3xl font-bold text-gray-900 dark:text-slate-100'>
+              {sensor.serial_number}
+            </h1>
+            <p className='text-lg text-gray-600 dark:text-slate-400 mt-2'>
+              {(sensor as any).sensorModel
+                ? `${(sensor as any).sensorModel.manufacturer} ${(sensor as any).sensorModel.model_name} • Sensor Details & Management`
+                : sensor.sensor_type === 'dexcom' ? 'Dexcom • Sensor Details & Management' : 'Abbott FreeStyle Libre • Sensor Details & Management'
+              }
+            </p>
           </div>
           <div className='flex items-center space-x-3'>
             <div
@@ -589,34 +503,6 @@ export default function SensorDetailPage() {
         </div>
       </div>
 
-      {/* Deleted Sensor Banner */}
-      {sensor.is_deleted && (
-        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
-          <div className="flex items-center">
-            <svg
-              className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mr-2"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
-              />
-            </svg>
-            <div>
-              <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
-                This sensor has been deleted
-              </p>
-              <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">
-                This sensor is currently in the deleted state. You can restore it or permanently delete it using the actions below.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className='grid gap-6 lg:grid-cols-3'>
         {/* Main Info */}
         <div className='lg:col-span-2 space-y-6'>
@@ -633,7 +519,7 @@ export default function SensorDetailPage() {
                       <select
                         value={newSensorModelId}
                         onChange={(e) => setNewSensorModelId(e.target.value)}
-                        className='text-sm border border-gray-300 rounded px-2 py-1 focus:outline-0 focus:ring-3 focus:ring-blue-500'
+                        className='text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500'
                       >
                         <option value="">Select a sensor model...</option>
                         {sensorModels.map((model) => (
@@ -678,8 +564,53 @@ export default function SensorDetailPage() {
                 <dt className='text-sm font-medium text-gray-500 dark:text-slate-400'>
                   Serial Number
                 </dt>
-                <dd className='mt-1 text-sm text-gray-900 dark:text-slate-100 font-mono'>
-                  {sensor.serial_number}
+                <dd className='mt-1'>
+                  {editingSerial ? (
+                    <div className='flex items-center space-x-2'>
+                      <input
+                        type='text'
+                        value={newSerialNumber}
+                        onChange={(e) => setNewSerialNumber(e.target.value)}
+                        className='text-sm border border-gray-300 dark:border-slate-600 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 font-mono'
+                        placeholder='Enter serial number'
+                      />
+                      <button
+                        onClick={updateSerialNumber}
+                        disabled={updating || !newSerialNumber.trim()}
+                        className='text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed'>
+                        {updating ? 'Saving...' : 'Save'}
+                      </button>
+                      <button
+                        onClick={cancelSerialEdit}
+                        disabled={updating}
+                        className='text-xs bg-gray-300 dark:bg-slate-600 text-gray-700 dark:text-slate-300 px-2 py-1 rounded hover:bg-gray-400 dark:hover:bg-slate-500 disabled:opacity-50 disabled:cursor-not-allowed'>
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <div className='flex items-center space-x-2'>
+                      <span className='text-sm text-gray-900 dark:text-slate-100 font-mono'>
+                        {sensor.serial_number}
+                      </span>
+                      <button
+                        onClick={startSerialEdit}
+                        className='text-xs text-blue-600 hover:text-blue-800'
+                        title='Edit serial number'>
+                        <svg
+                          className='w-3 h-3'
+                          fill='none'
+                          stroke='currentColor'
+                          viewBox='0 0 24 24'>
+                          <path
+                            strokeLinecap='round'
+                            strokeLinejoin='round'
+                            strokeWidth={2}
+                            d='M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z'
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
                 </dd>
               </div>
               {sensor.lot_number && (
@@ -687,8 +618,53 @@ export default function SensorDetailPage() {
                   <dt className='text-sm font-medium text-gray-500 dark:text-slate-400'>
                     Lot Number
                   </dt>
-                  <dd className='mt-1 text-sm text-gray-900 dark:text-slate-100 font-mono'>
-                    {sensor.lot_number}
+                  <dd className='mt-1'>
+                    {editingLot ? (
+                      <div className='flex items-center space-x-2'>
+                        <input
+                          type='text'
+                          value={newLotNumber}
+                          onChange={(e) => setNewLotNumber(e.target.value)}
+                          className='text-sm border border-gray-300 dark:border-slate-600 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 font-mono'
+                          placeholder='Enter lot number'
+                        />
+                        <button
+                          onClick={updateLotNumber}
+                          disabled={updating}
+                          className='text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed'>
+                          {updating ? 'Saving...' : 'Save'}
+                        </button>
+                        <button
+                          onClick={cancelLotEdit}
+                          disabled={updating}
+                          className='text-xs bg-gray-300 dark:bg-slate-600 text-gray-700 dark:text-slate-300 px-2 py-1 rounded hover:bg-gray-400 dark:hover:bg-slate-500 disabled:opacity-50 disabled:cursor-not-allowed'>
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <div className='flex items-center space-x-2'>
+                        <span className='text-sm text-gray-900 dark:text-slate-100 font-mono'>
+                          {sensor.lot_number}
+                        </span>
+                        <button
+                          onClick={startLotEdit}
+                          className='text-xs text-blue-600 hover:text-blue-800'
+                          title='Edit lot number'>
+                          <svg
+                            className='w-3 h-3'
+                            fill='none'
+                            stroke='currentColor'
+                            viewBox='0 0 24 24'>
+                            <path
+                              strokeLinecap='round'
+                              strokeLinejoin='round'
+                              strokeWidth={2}
+                              d='M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z'
+                            />
+                          </svg>
+                        </button>
+                      </div>
+                    )}
                   </dd>
                 </div>
               )}
@@ -713,7 +689,7 @@ export default function SensorDetailPage() {
                         type='datetime-local'
                         value={newDateAdded}
                         onChange={(e) => setNewDateAdded(e.target.value)}
-                        className='text-sm border border-gray-300 dark:border-slate-600 rounded px-2 py-1 focus:outline-0 focus:ring-3 focus:ring-blue-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100'
+                        className='text-sm border border-gray-300 dark:border-slate-600 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100'
                       />
                       <button
                         onClick={updateDateAdded}
@@ -771,127 +747,63 @@ export default function SensorDetailPage() {
               </div>
             </dl>
 
-            {/* Notes and Tags section */}
-            <div className='mt-6 pt-6 border-t border-gray-200 dark:border-slate-700 space-y-6'>
-              {/* Notes */}
-              <div>
-                <div className='flex items-center justify-between mb-3'>
-                  <h3 className='text-sm font-medium text-gray-700 dark:text-slate-300'>
-                    Notes
-                  </h3>
-                  {!editingNotes && (
-                    <button
-                      onClick={() => {
-                        setNewIssueNotes(sensor.issue_notes || '');
-                        setEditingNotes(true);
-                      }}
-                      className='text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300'
-                    >
-                      {sensor.issue_notes ? 'Edit' : 'Add Notes'}
-                    </button>
-                  )}
-                </div>
-                
-                {editingNotes ? (
-                  <div className='space-y-3'>
-                    <NotesEditor
-                      value={newIssueNotes}
-                      onChange={setNewIssueNotes}
-                      placeholder="Add notes about this sensor (e.g., 'fell off while swimming', 'adhesive failed early')..."
-                    />
-                    <div className='flex items-center space-x-2'>
-                      <button
-                        onClick={saveNotes}
-                        disabled={updating}
-                        className='text-sm bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed'
-                      >
-                        {updating ? 'Saving...' : 'Save'}
-                      </button>
-                      <button
-                        onClick={() => {
-                          setEditingNotes(false);
-                          setNewIssueNotes(sensor.issue_notes || '');
-                        }}
-                        disabled={updating}
-                        className='text-sm bg-gray-300 dark:bg-slate-600 text-gray-700 dark:text-slate-300 px-3 py-1.5 rounded hover:bg-gray-400 dark:hover:bg-slate-500 disabled:opacity-50 disabled:cursor-not-allowed'
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div>
-                    {sensor.issue_notes ? (
-                      <div className='text-sm text-gray-900 dark:text-slate-100 bg-gray-50 dark:bg-slate-800 p-3 rounded-md'>
-                        {sensor.issue_notes}
-                      </div>
-                    ) : (
-                      <div className='text-sm text-gray-500 dark:text-slate-400 italic'>
-                        No notes added yet. Click &quot;Add Notes&quot; to add details about this sensor.
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Tags */}
-              <div>
-                <div className='flex items-center justify-between mb-3'>
-                  <h3 className='text-sm font-medium text-gray-700 dark:text-slate-300'>
-                    Tags
-                  </h3>
-                  {!editingTags && (
-                    <button
-                      onClick={() => setEditingTags(true)}
-                      className='text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300'
-                    >
-                      {sensorTags.length > 0 ? 'Edit Tags' : 'Add Tags'}
-                    </button>
-                  )}
-                </div>
-                
-                {editingTags ? (
-                  <div className='space-y-3'>
-                    <TagSelector
-                      selectedTagIds={selectedTagIds}
-                      onTagsChange={setSelectedTagIds}
-                    />
-                    <div className='flex items-center space-x-2'>
-                      <button
-                        onClick={saveTags}
-                        disabled={savingTags}
-                        className='text-sm bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed'
-                      >
-                        {savingTags ? 'Saving...' : 'Save Tags'}
-                      </button>
-                      <button
-                        onClick={() => {
-                          setEditingTags(false);
-                          setSelectedTagIds(sensorTags.map((t: any) => t.tag_id));
-                        }}
-                        disabled={savingTags}
-                        className='text-sm bg-gray-300 dark:bg-slate-600 text-gray-700 dark:text-slate-300 px-3 py-1.5 rounded hover:bg-gray-400 dark:hover:bg-slate-500 disabled:opacity-50 disabled:cursor-not-allowed'
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div>
-                    {sensorTags.length > 0 ? (
-                      <TagDisplay 
-                        tags={sensorTags.map((st: any) => st.tags).filter(Boolean)}
-                        size="sm"
+            {sensor.issue_notes && (
+              <div className='mt-6 pt-6 border-t border-gray-200'>
+                <dt className='text-sm font-medium text-gray-500 mb-2'>
+                  Issue Notes
+                </dt>
+                <dd>
+                  {editingNotes ? (
+                    <div className='space-y-2'>
+                      <textarea
+                        value={newIssueNotes}
+                        onChange={(e) => setNewIssueNotes(e.target.value)}
+                        className='w-full text-sm border border-gray-300 dark:border-slate-600 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100'
+                        placeholder='Enter issue notes'
+                        rows={3}
                       />
-                    ) : (
-                      <div className='text-sm text-gray-500 dark:text-slate-400 italic'>
-                        No tags added yet. Click &quot;Add Tags&quot; to categorize this sensor.
+                      <div className='flex items-center space-x-2'>
+                        <button
+                          onClick={updateIssueNotes}
+                          disabled={updating}
+                          className='text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed'>
+                          {updating ? 'Saving...' : 'Save'}
+                        </button>
+                        <button
+                          onClick={cancelNotesEdit}
+                          disabled={updating}
+                          className='text-xs bg-gray-300 dark:bg-slate-600 text-gray-700 dark:text-slate-300 px-2 py-1 rounded hover:bg-gray-400 dark:hover:bg-slate-500 disabled:opacity-50 disabled:cursor-not-allowed'>
+                          Cancel
+                        </button>
                       </div>
-                    )}
-                  </div>
-                )}
+                    </div>
+                  ) : (
+                    <div className='flex items-start space-x-2'>
+                      <span className='text-sm text-gray-900 dark:text-slate-100 bg-red-50 dark:bg-red-900/20 p-3 rounded-md flex-1'>
+                        {sensor.issue_notes}
+                      </span>
+                      <button
+                        onClick={startNotesEdit}
+                        className='text-xs text-blue-600 hover:text-blue-800 mt-3'
+                        title='Edit issue notes'>
+                        <svg
+                          className='w-3 h-3'
+                          fill='none'
+                          stroke='currentColor'
+                          viewBox='0 0 24 24'>
+                          <path
+                            strokeLinecap='round'
+                            strokeLinejoin='round'
+                            strokeWidth={2}
+                            d='M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z'
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
+                </dd>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Photos section */}
@@ -1040,83 +952,24 @@ export default function SensorDetailPage() {
                 </a>
               )}
 
-              {/* Show different actions based on sensor status */}
-              {!sensor.is_deleted ? (
-                <button
-                  onClick={() => {
-                    setDeleteAction('soft');
-                    setShowDeleteConfirm(true);
-                  }}
-                  disabled={deleting}
-                  className='w-full flex items-center justify-center px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-red-100 text-red-700 hover:bg-red-200 disabled:opacity-50 disabled:cursor-not-allowed'>
-                  <svg
-                    className='w-4 h-4 mr-2'
-                    fill='none'
-                    stroke='currentColor'
-                    viewBox='0 0 24 24'>
-                    <path
-                      strokeLinecap='round'
-                      strokeLinejoin='round'
-                      strokeWidth={2}
-                      d='M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1-1H8a1 1 0 00-1 1v3M4 7h16'
-                    />
-                  </svg>
-                  Delete Sensor
-                </button>
-              ) : (
-                <div className="space-y-3">
-                  <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-                    <p className="text-sm text-yellow-800 dark:text-yellow-200 font-medium">
-                      This sensor has been deleted
-                    </p>
-                    <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">
-                      You can restore it or permanently delete it.
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setDeleteAction('restore');
-                      setShowDeleteConfirm(true);
-                    }}
-                    disabled={deleting}
-                    className='w-full flex items-center justify-center px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-green-100 text-green-700 hover:bg-green-200 disabled:opacity-50 disabled:cursor-not-allowed'>
-                    <svg
-                      className='w-4 h-4 mr-2'
-                      fill='none'
-                      stroke='currentColor'
-                      viewBox='0 0 24 24'>
-                      <path
-                        strokeLinecap='round'
-                        strokeLinejoin='round'
-                        strokeWidth={2}
-                        d='M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15'
-                      />
-                    </svg>
-                    Restore Sensor
-                  </button>
-                  <button
-                    onClick={() => {
-                      setDeleteAction('permanent');
-                      setShowDeleteConfirm(true);
-                    }}
-                    disabled={deleting}
-                    className='w-full flex items-center justify-center px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-red-100 text-red-700 hover:bg-red-200 disabled:opacity-50 disabled:cursor-not-allowed'>
-                    <svg
-                      className='w-4 h-4 mr-2'
-                      fill='none'
-                      stroke='currentColor'
-                      viewBox='0 0 24 24'>
-                      <path
-                        strokeLinecap='round'
-                        strokeLinejoin='round'
-                        strokeWidth={2}
-                        d='M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1-1H8a1 1 0 00-1 1v3M4 7h16'
-                      />
-                    </svg>
-                    Permanently Delete
-                  </button>
-                </div>
-              )}
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                disabled={deleting}
+                className='w-full flex items-center justify-center px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-red-100 text-red-700 hover:bg-red-200 disabled:opacity-50 disabled:cursor-not-allowed'>
+                <svg
+                  className='w-4 h-4 mr-2'
+                  fill='none'
+                  stroke='currentColor'
+                  viewBox='0 0 24 24'>
+                  <path
+                    strokeLinecap='round'
+                    strokeLinejoin='round'
+                    strokeWidth={2}
+                    d='M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1-1H8a1 1 0 00-1 1v3M4 7h16'
+                  />
+                </svg>
+                Delete Sensor
+              </button>
             </div>
           </div>
 
@@ -1177,71 +1030,50 @@ export default function SensorDetailPage() {
         </div>
       </div>
 
-      {/* Delete/Restore/Permanent Delete Confirmation Dialog */}
+      {/* Delete Confirmation Dialog */}
       {showDeleteConfirm && (
         <div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50'>
-          <div className='bg-white dark:bg-slate-800 rounded-lg max-w-md w-full p-6'>
+          <div className='bg-white rounded-lg max-w-md w-full p-6'>
             <div className='flex items-center mb-4'>
               <div className='flex-shrink-0'>
                 <svg
-                  className={`h-6 w-6 ${
-                    deleteAction === 'restore' ? 'text-green-600' : 'text-red-600'
-                  }`}
+                  className='h-6 w-6 text-red-600'
                   fill='none'
                   stroke='currentColor'
                   viewBox='0 0 24 24'>
-                  {deleteAction === 'restore' ? (
-                    <path
-                      strokeLinecap='round'
-                      strokeLinejoin='round'
-                      strokeWidth={2}
-                      d='M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15'
-                    />
-                  ) : (
-                    <path
-                      strokeLinecap='round'
-                      strokeLinejoin='round'
-                      strokeWidth={2}
-                      d='M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z'
-                    />
-                  )}
+                  <path
+                    strokeLinecap='round'
+                    strokeLinejoin='round'
+                    strokeWidth={2}
+                    d='M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z'
+                  />
                 </svg>
               </div>
               <div className='ml-3'>
-                <h3 className='text-lg font-medium text-gray-900 dark:text-slate-100'>
-                  {deleteAction === 'soft' && 'Delete Sensor'}
-                  {deleteAction === 'restore' && 'Restore Sensor'}
-                  {deleteAction === 'permanent' && 'Permanently Delete Sensor'}
+                <h3 className='text-lg font-medium text-gray-900'>
+                  Delete Sensor
                 </h3>
               </div>
             </div>
 
             <div className='mb-6'>
-              <p className='text-sm text-gray-500 dark:text-slate-400 mb-2'>
-                {deleteAction === 'soft' && 'Are you sure you want to delete this sensor? It can be restored later.'}
-                {deleteAction === 'restore' && 'Are you sure you want to restore this sensor?'}
-                {deleteAction === 'permanent' && 'Are you sure you want to permanently delete this sensor? This cannot be undone.'}
+              <p className='text-sm text-gray-500 mb-2'>
+                Are you sure you want to delete this sensor?
               </p>
-              <div className='bg-gray-50 dark:bg-slate-700 p-3 rounded-md'>
-                <p className='text-sm font-medium text-gray-900 dark:text-slate-100'>
+              <div className='bg-gray-50 p-3 rounded-md'>
+                <p className='text-sm font-medium text-gray-900'>
                   Serial: {sensor.serial_number}
                 </p>
                 {sensor.lot_number && (
-                  <p className='text-sm text-gray-600 dark:text-slate-400'>
+                  <p className='text-sm text-gray-600'>
                     Lot: {sensor.lot_number}
                   </p>
                 )}
               </div>
-              {deleteAction === 'permanent' && (
-                <p className='text-sm text-red-600 dark:text-red-400 mt-2'>
-                  This action cannot be undone. All associated photos and data will be permanently removed.
-                </p>
-              )}
-              {deleteAction === 'soft' && (
-                <p className='text-sm text-yellow-600 dark:text-yellow-400 mt-2'>
-                  The sensor will be hidden but can be restored from the deleted sensors view.
-                </p>
-              )}
+              <p className='text-sm text-red-600 mt-2'>
+                This action cannot be undone. All associated photos will also be
+                removed.
+              </p>
             </div>
 
             <div className='flex space-x-3'>
@@ -1252,30 +1084,16 @@ export default function SensorDetailPage() {
                 Cancel
               </button>
               <button
-                onClick={() => {
-                  if (deleteAction === 'soft') deleteSensor();
-                  else if (deleteAction === 'restore') restoreSensor();
-                  else if (deleteAction === 'permanent') permanentlyDeleteSensor();
-                }}
+                onClick={deleteSensor}
                 disabled={deleting}
-                className={`flex-1 font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                  deleteAction === 'restore'
-                    ? 'bg-green-600 hover:bg-green-700 text-white'
-                    : 'bg-red-600 hover:bg-red-700 text-white'
-                }`}>
+                className='flex-1 bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed'>
                 {deleting ? (
                   <div className='flex items-center justify-center'>
                     <div className='animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2'></div>
-                    {deleteAction === 'soft' && 'Deleting...'}
-                    {deleteAction === 'restore' && 'Restoring...'}
-                    {deleteAction === 'permanent' && 'Deleting...'}
+                    Deleting...
                   </div>
                 ) : (
-                  <>
-                    {deleteAction === 'soft' && 'Delete Sensor'}
-                    {deleteAction === 'restore' && 'Restore Sensor'}
-                    {deleteAction === 'permanent' && 'Permanently Delete'}
-                  </>
+                  'Delete Sensor'
                 )}
               </button>
             </div>
