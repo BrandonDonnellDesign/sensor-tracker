@@ -53,7 +53,7 @@ export function GamificationWidget({ compact = false }: GamificationWidgetProps)
 
   if (compact) {
     return (
-      <div className="bg-gradient-to-r from-purple-500 to-indigo-600 rounded-xl p-4 text-white">
+      <div className="bg-gradient-to-r from-teal-500 to-cyan-600 rounded-xl p-4 text-white">
         <div className="flex items-center justify-between">
           <div>
             <div className="flex items-center space-x-2">
@@ -120,7 +120,7 @@ export function GamificationWidget({ compact = false }: GamificationWidgetProps)
     <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-slate-700">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-indigo-600 rounded-full flex items-center justify-center">
+          <div className="w-10 h-10 bg-gradient-to-r from-teal-500 to-cyan-600 rounded-full flex items-center justify-center">
             <Award className="h-5 w-5 text-white" />
           </div>
           <div>
@@ -165,7 +165,7 @@ export function GamificationWidget({ compact = false }: GamificationWidgetProps)
         </div>
         <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-3">
           <div 
-            className="bg-gradient-to-r from-purple-500 to-indigo-600 rounded-full h-3 transition-all duration-500"
+            className="bg-gradient-to-r from-teal-500 to-cyan-600 rounded-full h-3 transition-all duration-500"
             style={{ width: `${Math.max(0, Math.min(100, progressToNext))}%` }}
           ></div>
         </div>

@@ -20,7 +20,7 @@ export function StreakIndicator({ size = 'md', showLabel = true }: StreakIndicat
   }
 
   const getStreakColor = (streak: number) => {
-    if (streak >= 30) return 'from-purple-500 to-pink-500';
+    if (streak >= 30) return 'from-teal-500 to-cyan-500';
     if (streak >= 14) return 'from-orange-500 to-red-500';
     if (streak >= 7) return 'from-yellow-500 to-orange-500';
     if (streak >= 3) return 'from-green-500 to-blue-500';

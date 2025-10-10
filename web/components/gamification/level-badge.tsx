@@ -20,8 +20,8 @@ export function LevelBadge({ size = 'md', showProgress = false }: LevelBadgeProp
   }
 
   const getLevelColor = (level: number) => {
-    if (level >= 20) return 'from-purple-500 to-pink-500';
-    if (level >= 15) return 'from-indigo-500 to-purple-500';
+    if (level >= 20) return 'from-teal-500 to-cyan-500';
+    if (level >= 15) return 'from-cyan-500 to-teal-500';
     if (level >= 10) return 'from-blue-500 to-indigo-500';
     if (level >= 5) return 'from-green-500 to-blue-500';
     return 'from-gray-500 to-gray-600';

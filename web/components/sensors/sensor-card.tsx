@@ -43,7 +43,7 @@ export function SensorCard({ sensor, onUpdate }: SensorCardProps) {
               <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                 sensor.sensor_type === 'dexcom' 
                   ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300'
-                  : 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300'
+                  : 'bg-teal-100 dark:bg-teal-900/30 text-teal-800 dark:text-teal-300'
               }`}>
                 {sensor.sensor_type === 'dexcom' ? 'Dexcom' : 'Freestyle'}
               </span>

@@ -178,7 +178,7 @@ export default function EditProfileForm({ profile, onClose, onUpdate }: EditProf
               priority
             />
           ) : (
-            <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+            <div className="w-full h-full bg-gradient-to-br from-blue-500 to-teal-600 rounded-full flex items-center justify-center">
               <span className="text-2xl font-semibold text-white">
                 {formData.full_name?.charAt(0).toUpperCase()}
               </span>

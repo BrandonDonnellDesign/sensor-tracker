@@ -148,8 +148,8 @@ export default function AdminGamificationPage() {
 
             <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-slate-700">
               <div className="flex items-center">
-                <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center">
-                  <Trophy className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                <div className="w-12 h-12 bg-teal-100 dark:bg-teal-900/30 rounded-lg flex items-center justify-center">
+                  <Trophy className="h-6 w-6 text-teal-600 dark:text-teal-400" />
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600 dark:text-slate-400">Achievements</p>
@@ -196,9 +196,9 @@ export default function AdminGamificationPage() {
               <p className="text-sm font-medium text-green-900 dark:text-green-300">Total Earned</p>
               <p className="text-2xl font-bold text-green-600 dark:text-green-400">{stats?.totalAchievements || 0}</p>
             </div>
-            <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-              <p className="text-sm font-medium text-purple-900 dark:text-purple-300">System Points</p>
-              <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">{stats?.totalPoints || 0}</p>
+            <div className="p-4 bg-teal-50 dark:bg-teal-900/20 rounded-lg">
+              <p className="text-sm font-medium text-teal-900 dark:text-teal-300">System Points</p>
+              <p className="text-2xl font-bold text-teal-600 dark:text-teal-400">{stats?.totalPoints || 0}</p>
             </div>
           </div>
           {stats?.totalUsers === 0 && (

@@ -48,7 +48,7 @@ export function AchievementNotification({
     switch (color) {
       case 'gold': return 'from-yellow-400 to-yellow-600';
       case 'silver': return 'from-gray-300 to-gray-500';
-      case 'platinum': return 'from-purple-400 to-purple-600';
+      case 'platinum': return 'from-teal-400 to-cyan-600';
       case 'bronze': return 'from-orange-400 to-orange-600';
       default: return 'from-blue-400 to-blue-600';
     }
@@ -240,7 +240,7 @@ export function AchievementNotification({
 
           {/* Progress Summary */}
           {userStats && (
-            <div className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 mb-6 border border-indigo-200 dark:border-indigo-800">
+            <div className="bg-gradient-to-r from-cyan-50 to-teal-50 dark:from-cyan-900/20 dark:to-teal-900/20 rounded-xl p-4 mb-6 border border-cyan-200 dark:border-cyan-800">
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center mb-4">
                 <div>
                   <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
@@ -249,7 +249,7 @@ export function AchievementNotification({
                   <p className="text-xs text-gray-600 dark:text-slate-400">Earned</p>
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+                  <p className="text-2xl font-bold text-teal-600 dark:text-teal-400">
                     {visibleAchievements.length - userAchievements.length}
                   </p>
                   <p className="text-xs text-gray-600 dark:text-slate-400">Remaining</p>
@@ -459,7 +459,7 @@ export function AchievementNotification({
               <span className={`text-xs font-medium px-2 py-1 rounded-full ${
                 achievement.badge_color === 'gold' ? 'text-yellow-700 bg-yellow-100 dark:text-yellow-300 dark:bg-yellow-900/30' :
                 achievement.badge_color === 'silver' ? 'text-gray-700 bg-gray-100 dark:text-gray-300 dark:bg-gray-900/30' :
-                achievement.badge_color === 'platinum' ? 'text-purple-700 bg-purple-100 dark:text-purple-300 dark:bg-purple-900/30' :
+                achievement.badge_color === 'platinum' ? 'text-teal-700 bg-teal-100 dark:text-teal-300 dark:bg-teal-900/30' :
                 'text-orange-700 bg-orange-100 dark:text-orange-300 dark:bg-orange-900/30'
               }`}>
                 {achievement.badge_color}

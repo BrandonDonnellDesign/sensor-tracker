@@ -1,5 +1,5 @@
 {
-  "name": "dexcom-sensor-tracker",
+  "name": "CGM-sensor-tracker",
   "version": "1.0.0",
   "description": "Cross-platform CGM sensor tracking application",
   "private": true,
