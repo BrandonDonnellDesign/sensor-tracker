@@ -172,9 +172,7 @@ export function Sidebar() {
                 isCollapsed ? 'opacity-0 hidden' : 'opacity-100'
               )}>
                 <h1 className="text-lg font-bold text-gray-900 dark:text-slate-100">CGM Tracker</h1>
-                <p className="text-xs text-gray-500 dark:text-slate-400">
-                  {user?.email?.split('@')[0] || 'User'}
-                </p>
+                {/* Username removed for cleaner sidebar */}
               </div>
             </div>
             
