@@ -21,7 +21,7 @@ export interface ExtractedSensorData {
  * Options for extractSensorData
  */
 export interface ExtractOptions {
-  debug?: boolean;
+  // No debug option
 }
 
 /**
@@ -174,12 +174,10 @@ function extractDexcomG7Serial(rawOriginalText: string, cleanedText: string, deb
   if (gs1Match23 && gs1Match23[1]) {
     const candidate = gs1Match23[1].replace(/[^0-9]/g, '');
     if (candidate.length === 12) {
-      if (debug) console.debug('Found (23) fallback with exact 12 digits:', candidate);
       return candidate;
     }
     const sub = gs1Match23[1].match(/([0-9]{12})/);
     if (sub) {
-      if (debug) console.debug('Found 12-digit substring inside (23) value:', sub[1]);
       return sub[1];
     }
   }
@@ -204,16 +202,13 @@ function extractDexcomG7Serial(rawOriginalText: string, cleanedText: string, deb
 
   // 2) GS1 (21) tag from parseGS1Tags (for perfect matches)
   const gs1 = parseGS1Tags(cleanedText);
-  if (debug) console.debug('GS1 map:', gs1);
   if (gs1['21']) {
     const candidate = gs1['21'].replace(/[^0-9]/g, '');
     if (candidate.length === 12) {
-      if (debug) console.debug('Found GS1 (21) exact 12:', candidate);
       return candidate;
     }
     const sub = candidate.match(/([0-9]{12})/);
     if (sub) {
-      if (debug) console.debug('Found 12-digit substring inside (21) value:', sub[1]);
       return sub[1];
     }
   }
@@ -228,7 +223,6 @@ function extractDexcomG7Serial(rawOriginalText: string, cleanedText: string, deb
     const m = p.exec(cleanedText);
     if (m && m[1]) {
       const cleaned = m[1].replace(/[^0-9]/g, '');
-      if (debug) console.debug('Strict pattern match:', cleaned);
       if (cleaned.length >= 10) return cleaned;
     }
   }
@@ -241,11 +235,9 @@ function extractDexcomG7Serial(rawOriginalText: string, cleanedText: string, deb
     allTokens.push({ token: tokenMatch[1], index: tokenMatch.index });
   }
 
-  if (debug) console.debug('Detected brand tokens:', allTokens);
 
   if (allTokens.length > 0) {
     const candidates = findNumericCandidates(rawOriginalText);
-    if (debug) console.debug('Numeric candidates in raw text:', candidates);
 
     if (candidates.length > 0) {
       const tokenIndex = allTokens[0].index;
@@ -254,7 +246,6 @@ function extractDexcomG7Serial(rawOriginalText: string, cleanedText: string, deb
       const rawTokenIndex = rawTokenMatch ? rawTokenMatch.index || 0 : 0;
 
       const chosen = chooseNearestNumericCandidate(rawOriginalText, rawTokenIndex, candidates);
-      if (debug) console.debug('Chosen nearest numeric candidate:', chosen);
       if (chosen) {
         const sub = chosen.match(/([0-9]{12})/);
         if (sub) return sub[1];
@@ -266,18 +257,15 @@ function extractDexcomG7Serial(rawOriginalText: string, cleanedText: string, deb
   // 5) final fallback: first standalone 12-digit in cleanedText
   const any12 = cleanedText.match(/([0-9]{12})/);
   if (any12) {
-    if (debug) console.debug('Fallback any 12-digit in cleanedText:', any12[1]);
     return any12[1];
   }
 
   // 6) fallback: first 10-14 digit in rawOriginalText
   const rawCandidate = rawOriginalText.match(/([0-9]{10,14})/);
   if (rawCandidate) {
-    if (debug) console.debug('Fallback raw 10-14 digit candidate:', rawCandidate[1]);
     return rawCandidate[1];
   }
 
-  if (debug) console.debug('No Dexcom G7 serial found.');
   return null;
 }
 
@@ -372,36 +360,28 @@ function calculateConfidence(data: Partial<ExtractedSensorData>, cleanedText: st
  *   const result = extractSensorData(ocrText, { debug: true });
  */
 export function extractSensorData(ocrText: string, options: ExtractOptions = {}): ExtractedSensorData {
-  const debug = !!options.debug;
   const raw = typeof ocrText === 'string' ? ocrText : String(ocrText);
   const cleaned = cleanExtractedText(raw);
 
-  if (debug) {
-    console.log('OCR result text:', raw);
-    console.debug('--- OCR RAW ---');
-    console.debug(raw);
-    console.debug('--- CLEANED ---');
-    console.debug(cleaned);
-  }
 
   const { manufacturer, modelName } = detectManufacturerAndModel(cleaned);
 
   // Serial extraction tries use both raw and cleaned texts for best proximity handling
   const serialNumber = manufacturer === 'Dexcom'
-    ? extractDexcomG7Serial(raw, cleaned, debug)
+    ? extractDexcomG7Serial(raw, cleaned)
     : extractWithPatterns(cleaned, [
         /(?:SERIAL|SER|S\/N|SN)[:\s]*([A-Z0-9]{6,14})/i,
         /\b([A-Z0-9]{10,14})\b/i,
       ]);
 
   const lotNumber = manufacturer === 'Dexcom'
-    ? extractDexcomLotNumber(cleaned, raw, debug)
+    ? extractDexcomLotNumber(cleaned, raw)
     : extractWithPatterns(cleaned, [
         /\bLOT[:\s]*([A-Z0-9]{4,14})/i,
         /(?:BATCH|LOT NO)[:\s]*([A-Z0-9]{4,14})/i,
       ]);
 
-  const dates = extractDates(cleaned, debug);
+  const dates = extractDates(cleaned);
   const manufactureDate = dates.manufactureDate;
   const expirationDate = dates.expirationDate;
 
@@ -416,10 +396,6 @@ export function extractSensorData(ocrText: string, options: ExtractOptions = {})
 
   const confidence = calculateConfidence(extractedData, cleaned);
 
-  if (debug) {
-    console.debug('--- FINAL EXTRACTED ---');
-    console.debug({ ...extractedData, confidence });
-  }
 
   return {
     ...extractedData,
