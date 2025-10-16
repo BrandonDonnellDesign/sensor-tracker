@@ -103,4 +103,4 @@ CREATE TRIGGER "on_dexcom_sync_settings_updated" BEFORE UPDATE ON "public"."dexc
     FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
 
 CREATE TRIGGER "on_dexcom_tokens_updated" BEFORE UPDATE ON "public"."dexcom_tokens"
-    FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();
+    FOR EACH ROW EXECUTE FUNCTION "public"."handle_updated_at"();https://unfailed-provisorily-coralie.ngrok-free.dev/api/auth/dexcom/callback

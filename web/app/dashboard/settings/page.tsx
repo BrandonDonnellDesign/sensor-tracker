@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/components/providers/auth-provider';
 import { useSearchParams } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-client';
 import { NotificationSettings } from '@/components/settings/notification-settings';
 import { TimezoneSettings } from '@/components/settings/timezone-settings';
 import { ExportSettings } from '@/components/settings/export-settings';
@@ -27,6 +27,8 @@ export default function SettingsPage() {
     if (tab && ['profile', 'notifications', 'preferences', 'integrations', 'export'].includes(tab)) {
       setActiveTab(tab);
     }
+
+
   }, [searchParams]);
 
   useEffect(() => {
@@ -34,13 +36,19 @@ export default function SettingsPage() {
       if (!user?.id) return;
       
       try {
+        const supabase = createClient();
         const { data, error } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', user.id)
           .single();
 
-        if (error) throw error;
+        if (error) {
+          console.error('Error fetching profile:', error);
+          // Profile should exist from registration - if not, there's an issue
+          return;
+        }
+
         setProfile(data as Profile);
       } catch (error) {
         console.error('Error fetching profile:', error);
@@ -56,6 +64,7 @@ export default function SettingsPage() {
     if (!user?.id) return { success: false, error: 'User not found' };
     
     try {
+      const supabase = createClient();
       const { data: updateData, error } = await supabase
         .from('profiles')
         .update(updates)
