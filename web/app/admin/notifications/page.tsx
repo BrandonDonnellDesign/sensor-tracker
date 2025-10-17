@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { AdminGuard } from '@/components/providers/admin-guard';
+import { AdminGuard } from '@/components/admin/admin-guard';
 import { Bell, Send, Clock, AlertTriangle, CheckCircle, RefreshCw, Plus, X } from 'lucide-react';
 
 interface NotificationStats {

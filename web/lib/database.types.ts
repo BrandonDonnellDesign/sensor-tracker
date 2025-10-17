@@ -297,6 +297,9 @@ export interface Database {
           critical_days_before: number;
           date_format: string;
           time_format: string;
+          preferred_achievement_tracking: string;
+          preferred_achievement_id: string | null;
+          role: 'user' | 'admin';
           created_at: string;
           updated_at: string;
           last_sync_at: string | null;
@@ -316,6 +319,9 @@ export interface Database {
           critical_days_before?: number;
           date_format?: string;
           time_format?: string;
+          preferred_achievement_tracking?: string;
+          preferred_achievement_id?: string | null;
+          role?: 'user' | 'admin';
           created_at?: string;
           updated_at?: string;
           last_sync_at?: string | null;
@@ -335,6 +341,9 @@ export interface Database {
           critical_days_before?: number;
           date_format?: string;
           time_format?: string;
+          preferred_achievement_tracking?: string;
+          preferred_achievement_id?: string | null;
+          role?: 'user' | 'admin';
           created_at?: string;
           updated_at?: string;
           last_sync_at?: string | null;
@@ -674,6 +683,362 @@ export interface Database {
             columns: ['user_id'];
             isOneToOne: false;
             referencedRelation: 'users';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
+      achievements: {
+        Row: {
+          id: string;
+          name: string;
+          description: string;
+          icon: string;
+          points: number;
+          badge_color: string;
+          category: string;
+          requirement_type: string;
+          requirement_value: number;
+          requirement_data: Json;
+          is_repeatable: boolean;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          description: string;
+          icon: string;
+          points?: number;
+          badge_color?: string;
+          category: string;
+          requirement_type: string;
+          requirement_value: number;
+          requirement_data?: Json;
+          is_repeatable?: boolean;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          description?: string;
+          icon?: string;
+          points?: number;
+          badge_color?: string;
+          category?: string;
+          requirement_type?: string;
+          requirement_value?: number;
+          requirement_data?: Json;
+          is_repeatable?: boolean;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      user_achievements: {
+        Row: {
+          id: string;
+          user_id: string;
+          achievement_id: string;
+          earned_at: string;
+          progress_data: Json | null;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          achievement_id: string;
+          earned_at?: string;
+          progress_data?: Json | null;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          achievement_id?: string;
+          earned_at?: string;
+          progress_data?: Json | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'user_achievements_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'user_achievements_achievement_id_fkey';
+            columns: ['achievement_id'];
+            isOneToOne: false;
+            referencedRelation: 'achievements';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
+      user_gamification_stats: {
+        Row: {
+          id: string;
+          user_id: string;
+          total_points: number;
+          level: number;
+          current_streak: number;
+          longest_streak: number;
+          last_activity_date: string | null;
+          sensors_tracked: number;
+          successful_sensors: number;
+          achievements_earned: number;
+          analytics_views: number;
+          stable_sensors: number;
+          archived_sensors: number;
+          account_age_days: number;
+          sensor_edits: number;
+          tags_used: number;
+          sensors_total: number;
+          photos_added: number;
+          page_visited: number;
+          achievement_completion: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          total_points?: number;
+          level?: number;
+          current_streak?: number;
+          longest_streak?: number;
+          last_activity_date?: string | null;
+          sensors_tracked?: number;
+          successful_sensors?: number;
+          achievements_earned?: number;
+          analytics_views?: number;
+          stable_sensors?: number;
+          archived_sensors?: number;
+          account_age_days?: number;
+          sensor_edits?: number;
+          tags_used?: number;
+          sensors_total?: number;
+          photos_added?: number;
+          page_visited?: number;
+          achievement_completion?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          total_points?: number;
+          level?: number;
+          current_streak?: number;
+          longest_streak?: number;
+          last_activity_date?: string | null;
+          sensors_tracked?: number;
+          successful_sensors?: number;
+          achievements_earned?: number;
+          analytics_views?: number;
+          stable_sensors?: number;
+          archived_sensors?: number;
+          account_age_days?: number;
+          sensor_edits?: number;
+          tags_used?: number;
+          sensors_total?: number;
+          photos_added?: number;
+          page_visited?: number;
+          achievement_completion?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'user_gamification_stats_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: true;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
+      daily_activities: {
+        Row: {
+          id: string;
+          user_id: string;
+          activity_date: string;
+          activity_type: string;
+          activity_count: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          activity_date: string;
+          activity_type: string;
+          activity_count?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          activity_date?: string;
+          activity_type?: string;
+          activity_count?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'daily_activities_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
+      roadmap_items: {
+        Row: {
+          id: string;
+          item_id: string;
+          title: string;
+          description: string;
+          status: 'planned' | 'in-progress' | 'completed' | 'future';
+          category: 'core' | 'analytics' | 'integrations' | 'mobile' | 'ai' | 'social' | 'security';
+          priority: 'low' | 'medium' | 'high';
+          target_date: string | null;
+          icon_name: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          item_id: string;
+          title: string;
+          description: string;
+          status?: 'planned' | 'in-progress' | 'completed' | 'future';
+          category: 'core' | 'analytics' | 'integrations' | 'mobile' | 'ai' | 'social' | 'security';
+          priority?: 'low' | 'medium' | 'high';
+          target_date?: string | null;
+          icon_name: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          item_id?: string;
+          title?: string;
+          description?: string;
+          status?: 'planned' | 'in-progress' | 'completed' | 'future';
+          category?: 'core' | 'analytics' | 'integrations' | 'mobile' | 'ai' | 'social' | 'security';
+          priority?: 'low' | 'medium' | 'high';
+          target_date?: string | null;
+          icon_name?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      roadmap_features: {
+        Row: {
+          id: string;
+          roadmap_item_id: string;
+          feature_text: string;
+          sort_order: number;
+          is_completed: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          roadmap_item_id: string;
+          feature_text: string;
+          sort_order?: number;
+          is_completed?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          roadmap_item_id?: string;
+          feature_text?: string;
+          sort_order?: number;
+          is_completed?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'roadmap_features_roadmap_item_id_fkey';
+            columns: ['roadmap_item_id'];
+            isOneToOne: false;
+            referencedRelation: 'roadmap_items';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
+      roadmap_tags: {
+        Row: {
+          id: string;
+          roadmap_item_id: string;
+          tag_name: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          roadmap_item_id: string;
+          tag_name: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          roadmap_item_id?: string;
+          tag_name?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'roadmap_tags_roadmap_item_id_fkey';
+            columns: ['roadmap_item_id'];
+            isOneToOne: false;
+            referencedRelation: 'roadmap_items';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
+      roadmap_dependencies: {
+        Row: {
+          id: string;
+          roadmap_item_id: string;
+          depends_on_item_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          roadmap_item_id: string;
+          depends_on_item_id: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          roadmap_item_id?: string;
+          depends_on_item_id?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'roadmap_dependencies_roadmap_item_id_fkey';
+            columns: ['roadmap_item_id'];
+            isOneToOne: false;
+            referencedRelation: 'roadmap_items';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'roadmap_dependencies_depends_on_item_id_fkey';
+            columns: ['depends_on_item_id'];
+            isOneToOne: false;
+            referencedRelation: 'roadmap_items';
             referencedColumns: ['id'];
           }
         ];

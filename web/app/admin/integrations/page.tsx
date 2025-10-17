@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { AdminGuard } from '@/components/providers/admin-guard';
+import { AdminGuard } from '@/components/admin/admin-guard';
 import { StatusIndicator } from '@/components/admin/status-indicator';
 import { MetricCard } from '@/components/admin/metric-card';
 import { fetchIntegrationHealth, type IntegrationHealth } from '@/lib/admin/metrics';

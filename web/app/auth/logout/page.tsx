@@ -14,7 +14,6 @@ export default function LogoutPage() {
         await signOut();
         router.push('/auth/login');
       } catch (error) {
-        console.error('Logout error:', error);
         // Force redirect even if logout fails
         router.push('/auth/login');
       }

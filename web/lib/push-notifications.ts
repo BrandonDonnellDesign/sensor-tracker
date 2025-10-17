@@ -51,7 +51,7 @@ export class PushNotificationService {
    */
   async subscribe(): Promise<PushSubscription | null> {
     if (typeof window === 'undefined' || typeof Notification === 'undefined' || !this.registration) {
-      console.error('Service worker not registered or Notification API not available');
+
       return null;
     }
 
@@ -59,14 +59,14 @@ export class PushNotificationService {
       // Request permission
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') {
-        console.warn('Push notification permission denied');
+
         return null;
       }
 
       // Subscribe to push notifications
       const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
       if (!vapidPublicKey) {
-        console.error('VAPID public key not configured');
+
         return null;
       }
 
@@ -120,7 +120,7 @@ export class PushNotificationService {
    */
   async showLocalNotification(data: PushNotificationData): Promise<void> {
     if (typeof window === 'undefined' || typeof Notification === 'undefined') {
-      console.warn('Local notifications not supported');
+
       return;
     }
 

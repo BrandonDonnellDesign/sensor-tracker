@@ -19,7 +19,6 @@ export default function LoginPage() {
   // Redirect if already authenticated or after successful login
   useEffect(() => {
     if (!authLoading && user) {
-      console.log('User authenticated, redirecting to dashboard...');
       window.location.href = '/dashboard';
     }
   }, [user, authLoading]);
@@ -27,7 +26,6 @@ export default function LoginPage() {
   // Handle redirect after login success
   useEffect(() => {
     if (loginSuccess && user) {
-      console.log('Login successful, redirecting...');
       window.location.href = '/dashboard';
     }
   }, [loginSuccess, user]);
@@ -38,18 +36,14 @@ export default function LoginPage() {
     setError(null);
 
     try {
-      console.log('Attempting to sign in...');
       await signIn(email, password);
-      console.log('Sign in successful');
       setLoginSuccess(true);
 
       // Fallback redirect in case useEffect doesn't trigger
       setTimeout(() => {
-        console.log('Fallback redirect triggered');
         window.location.href = '/dashboard';
       }, 1000);
     } catch (error: any) {
-      console.error('Login error:', error);
       setError(error.message || 'Login failed');
       setLoading(false);
     }

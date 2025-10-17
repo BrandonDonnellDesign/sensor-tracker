@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/components/providers/auth-provider';
 import { useSearchParams } from 'next/navigation';
-import { createClient } from '@/lib/supabase-client';
+import { supabase } from '@/lib/supabase';
 import { NotificationSettings } from '@/components/settings/notification-settings';
 import { TimezoneSettings } from '@/components/settings/timezone-settings';
 import { ExportSettings } from '@/components/settings/export-settings';
@@ -33,25 +33,63 @@ export default function SettingsPage() {
 
   useEffect(() => {
     const loadProfile = async () => {
-      if (!user?.id) return;
+      console.log('loadProfile called, user:', user?.id);
+      if (!user?.id) {
+        console.log('No user ID, skipping profile load');
+        setLoading(false);
+        return;
+      }
       
       try {
-        const supabase = createClient();
+        console.log('Attempting to fetch profile for user:', user.id);
+        
+        // First try to get existing profile
         const { data, error } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', user.id)
           .single();
+        
+        console.log('Database query result:', { data, error });
 
-        if (error) {
+        if (error && error.code === 'PGRST116') {
+          // Profile doesn't exist, create a basic one with default values
+          console.log('Profile not found, creating default profile for user:', user.id);
+          
+          const defaultProfile: Profile = {
+            id: user.id,
+            username: user.user_metadata?.username || user.email?.split('@')[0] || null,
+            full_name: user.user_metadata?.full_name || null,
+            avatar_url: user.user_metadata?.avatar_url || null,
+            timezone: 'UTC',
+            notifications_enabled: true,
+            dark_mode_enabled: false,
+            glucose_unit: 'mg/dL',
+            push_notifications_enabled: true,
+            in_app_notifications_enabled: true,
+            warning_days_before: 2,
+            critical_days_before: 1,
+            date_format: 'MM/dd/yyyy',
+            time_format: '12h',
+            preferred_achievement_tracking: 'all',
+            preferred_achievement_id: null,
+            role: 'user',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            last_sync_at: null
+          };
+          
+          console.log('Using default profile:', defaultProfile);
+          setProfile(defaultProfile);
+        } else if (error) {
           console.error('Error fetching profile:', error);
-          // Profile should exist from registration - if not, there's an issue
           return;
+        } else {
+          console.log('Profile loaded successfully:', data);
+          setProfile(data as Profile);
         }
-
-        setProfile(data as Profile);
       } catch (error) {
-        console.error('Error fetching profile:', error);
+        console.error('Error in loadProfile:', error);
       } finally {
         setLoading(false);
       }
@@ -64,14 +102,58 @@ export default function SettingsPage() {
     if (!user?.id) return { success: false, error: 'User not found' };
     
     try {
-      const supabase = createClient();
+      
+      // First try to update
       const { data: updateData, error } = await supabase
         .from('profiles')
         .update(updates)
         .eq('id', user.id)
         .select();
 
-      if (error) {
+      if (error && error.code === 'PGRST116') {
+        // Profile doesn't exist, create it first
+        console.log('Profile not found during update, creating it first');
+        
+        const newProfile = {
+          id: user.id,
+          username: user.user_metadata?.username || user.email?.split('@')[0] || null,
+          full_name: user.user_metadata?.full_name || null,
+          avatar_url: user.user_metadata?.avatar_url || null,
+          timezone: 'UTC',
+          notifications_enabled: true,
+          dark_mode_enabled: false,
+          glucose_unit: 'mg/dL' as const,
+          push_notifications_enabled: true,
+          in_app_notifications_enabled: true,
+          warning_days_before: 2,
+          critical_days_before: 1,
+          date_format: 'MM/dd/yyyy',
+          time_format: '12h',
+          preferred_achievement_tracking: 'all',
+          preferred_achievement_id: null,
+          role: 'user' as const,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          last_sync_at: null,
+          ...updates // Apply the updates on top of defaults
+        };
+
+        const { data: createData, error: createError } = await supabase
+          .from('profiles')
+          .insert([newProfile])
+          .select();
+
+        if (createError) {
+          console.error('Error creating profile during update:', createError);
+          throw createError;
+        }
+
+        // Update local state with created profile
+        const createdProfile = createData[0] as Profile;
+        setProfile(createdProfile);
+        dateTimeFormatter.setProfile(createdProfile);
+        return { success: true };
+      } else if (error) {
         console.error('Supabase update error:', error);
         throw error;
       }

@@ -46,7 +46,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         dateTimeFormatter.setProfile(profile as Profile);
       }
     } catch (error) {
-      console.error('Error loading user profile for date formatting:', error);
+      // Silently handle profile loading errors
     }
   };
 
@@ -74,10 +74,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       });
 
       if (error) {
-        console.error('Error recording login activity:', error);
+        // Silently handle login activity recording errors
       }
     } catch (error) {
-      console.error('Error in recordLoginActivity:', error);
+      // Silently handle login activity recording errors
     }
   };
 
@@ -183,7 +183,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     };
 
     const redirectUrl = getRedirectUrl();
-    console.log('OAuth redirect URL:', `${redirectUrl}/dashboard`);
 
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',

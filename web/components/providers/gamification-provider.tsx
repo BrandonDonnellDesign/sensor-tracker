@@ -97,8 +97,39 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
         .eq('user_id', user.id)
         .single();
 
+      // Handle table not existing
+      if (statsError?.message?.includes('relation "public.user_gamification_stats" does not exist')) {
+        console.warn('Gamification tables not yet created. Run migrations to enable gamification features.');
+        setUserStats(null);
+        return;
+      }
+
       if (statsError && statsError.code !== 'PGRST116') {
         console.error('Error fetching user stats:', statsError);
+        // Create default stats if table exists but user has no record
+        if (statsError.code === 'PGRST301' || !statsError.message?.includes('relation')) {
+          try {
+            const { data: newStats, error: createError } = await (supabase as any)
+              .from('user_gamification_stats')
+              .insert({
+                user_id: user.id,
+                total_points: 0,
+                level: 1,
+                current_streak: 0,
+                longest_streak: 0,
+                achievements_earned: 0
+              })
+              .select()
+              .single();
+            
+            if (!createError && newStats) {
+              setUserStats(newStats);
+            }
+          } catch (createErr) {
+            console.warn('Could not create gamification stats:', createErr);
+            setUserStats(null);
+          }
+        }
         return;
       }
 
@@ -152,6 +183,8 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
       }
     } catch (error) {
       console.error('Error in fetchUserStats:', error);
+      // Set null stats on error to prevent crashes
+      setUserStats(null);
     }
   }, [user?.id]);
 

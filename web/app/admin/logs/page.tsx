@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { AdminGuard } from '@/components/admin/admin-guard';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/components/providers/auth-provider';
 
@@ -23,7 +24,7 @@ interface LogSummary {
 export default function AdminLogsPage() {
   const { user } = useAuth();
   const router = useRouter();
-  const [isAdmin, setIsAdmin] = useState(false);
+
   const [loading, setLoading] = useState(true);
   const [logsLoading, setLogsLoading] = useState(false);
   const [logs, setLogs] = useState<SystemLogEvent[]>([]);
@@ -60,37 +61,10 @@ export default function AdminLogsPage() {
   };
 
   useEffect(() => {
-    const checkAdminAccess = async () => {
-      if (!user?.id) {
-        router.push('/auth/login');
-        return;
-      }
-
-      try {
-        const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-
-        if (error || !profile || (profile as any).role !== 'admin') {
-          router.push('/dashboard');
-          return;
-        }
-
-        setIsAdmin(true);
-        // Fetch logs after confirming admin access
-        fetchLogs();
-      } catch (error) {
-        console.error('Admin access check failed:', error);
-        router.push('/dashboard');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    checkAdminAccess();
-  }, [user, router]);
+    // Middleware handles admin access, so we can directly fetch logs
+    fetchLogs();
+    setLoading(false);
+  }, []);
 
   const getLevelColor = (level: string) => {
     switch (level) {
@@ -126,12 +100,9 @@ export default function AdminLogsPage() {
     );
   }
 
-  if (!isAdmin) {
-    return null;
-  }
-
   return (
-    <div className="space-y-6">
+    <AdminGuard>
+      <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
         <div>
@@ -338,6 +309,7 @@ export default function AdminLogsPage() {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </AdminGuard>
   );
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { AdminGuard } from '@/components/providers/admin-guard';
+import { AdminGuard } from '@/components/admin/admin-guard';
 import Link from 'next/link';
 
 interface SystemHealth {

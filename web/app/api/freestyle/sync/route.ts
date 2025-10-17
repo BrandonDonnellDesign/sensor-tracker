@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
                 .insert({
                   user_id: user.id,
                   serial_number: device.serialNumber,
-                  sensor_type: 'freestyle_libre',
+                  sensor_type: 'freestyle',
                   date_added: new Date(device.lastUpload).toISOString(),
                   notes: `Auto-imported from Freestyle Libre - ${device.deviceType}`,
                 })

@@ -169,13 +169,13 @@ export function NotificationsButton() {
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative flex items-center justify-center rounded-lg w-9 h-9 text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 transition-all duration-200"
+        className="relative flex items-center space-x-2 px-3 py-2 text-xs text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors w-full"
+        title="Notifications"
       >
-        <Bell className="h-5 w-5" />
+        <Bell className="w-4 h-4" />
+        <span>Notifications</span>
         {notifications.some(n => !n.read) && (
-          <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-red-500 border-2 border-white dark:border-slate-900">
-            <span className="absolute inset-0 rounded-full bg-red-500 animate-ping opacity-75"></span>
-          </span>
+          <div className="absolute top-1 left-1 w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
         )}
       </button>
 
@@ -185,7 +185,7 @@ export function NotificationsButton() {
             className="fixed inset-0 z-40"
             onClick={() => setIsOpen(false)}
           />
-          <div className="absolute right-0 mt-3 w-80 sm:w-96 max-w-[calc(100vw-2rem)] rounded-xl bg-white dark:bg-slate-800 shadow-xl ring-1 ring-black/5 dark:ring-white/10 z-50 border border-gray-200 dark:border-slate-700">
+          <div className="absolute left-full ml-2 bottom-0 w-80 sm:w-96 max-w-[calc(100vw-20rem)] rounded-xl bg-white dark:bg-slate-800 shadow-xl ring-1 ring-black/5 dark:ring-white/10 z-50 border border-gray-200 dark:border-slate-700">
             <div className="p-0">
               <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-slate-700">
                 <div className="flex items-center gap-2">

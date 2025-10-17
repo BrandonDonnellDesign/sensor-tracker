@@ -4,11 +4,18 @@ import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/components/providers/auth-provider';
+import { useGamification } from '@/components/providers/gamification-provider';
 
-import { EnhancedStatsCard } from '@/components/dashboard/enhanced-stats-card';
-import { RecentSensors } from '@/components/dashboard/recent-sensors';
-import { QuickActions } from '@/components/dashboard/quick-actions';
-import { GamificationWidget } from '@/components/gamification/gamification-widget';
+// New enhanced components
+import { HeroSection } from '@/components/dashboard/hero-section';
+import { EnhancedStatsGrid } from '@/components/dashboard/enhanced-stats-grid';
+import { ActivityTimeline } from '@/components/dashboard/activity-timeline';
+import { QuickInsights } from '@/components/dashboard/quick-insights';
+import { CompactGamification } from '@/components/dashboard/compact-gamification';
+import { StreamlinedQuickActions } from '@/components/dashboard/streamlined-quick-actions';
+import { DashboardSkeleton } from '@/components/dashboard/dashboard-skeleton';
+
+
 
 import { Database } from '@/lib/database.types';
 
@@ -22,10 +29,34 @@ type Sensor = Database['public']['Tables']['sensors']['Row'] & {
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const { userAchievements } = useGamification();
   const [sensors, setSensors] = useState<Sensor[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [adminError, setAdminError] = useState<string | null>(null);
+
+  // Check for admin access errors from middleware
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const errorParam = urlParams.get('error');
+    
+    if (errorParam === 'admin_required') {
+      setAdminError('Admin access required. You do not have permission to access the admin panel.');
+    } else if (errorParam === 'no_profile') {
+      setAdminError('No profile found. Please create your profile or contact an administrator.');
+    } else if (errorParam === 'auth_error') {
+      setAdminError('Authentication error occurred while checking admin access.');
+    } else if (errorParam === 'middleware_error') {
+      setAdminError('System error occurred during access verification. Please try again.');
+    }
+    
+    // Clear the error parameter from URL
+    if (errorParam) {
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
+    }
+  }, []);
 
   const fetchSensors = useCallback(
     async (isRefresh = false) => {
@@ -180,9 +211,10 @@ export default function DashboardPage() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [fetchSensors]);
 
+  // Calculate dashboard metrics
   const totalSensors = sensors.length;
   const problematicSensors = sensors.filter((s) => s.is_problematic).length;
-  const recentSensors = sensors.slice(0, 5);
+
 
   // Calculate this month's sensors
   const thisMonthSensors = sensors.filter((s) => {
@@ -225,120 +257,134 @@ export default function DashboardPage() {
     return expirationDate > new Date() && !s.is_problematic;
   }).length;
 
-  if (loading) {
-    return (
-      <div className='flex items-center justify-center h-64'>
-        <div className='animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600'></div>
-      </div>
+  // Find current active sensor
+  const currentSensor = sensors.find((s) => {
+    const sensorModel = s.sensor_models || { duration_days: 10 };
+    const expirationDate = new Date(s.date_added);
+    expirationDate.setDate(
+      expirationDate.getDate() + sensorModel.duration_days
     );
+    return expirationDate > new Date() && !s.is_problematic;
+  });
+
+  // Prepare stats for enhanced grid
+  const statsData = {
+    totalSensors,
+    activeSensors,
+    successRate,
+    problematicSensors,
+    sensorTrend,
+    lastMonthSensors,
+    thisMonthSensors
+  };
+
+  if (loading) {
+    return <DashboardSkeleton />;
   }
 
   return (
-    <div className="space-y-8 px-2 py-4 max-w-7xl mx-auto">
-      {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 text-center">
-          <h3 className="text-sm font-medium text-red-800 dark:text-red-300 mb-2">Error loading sensors</h3>
-          <p className="text-sm text-red-700 dark:text-red-400 mb-2">{error}</p>
-          <button
-            onClick={() => fetchSensors(true)}
-            className="text-sm text-red-800 dark:text-red-300 underline hover:text-red-900 dark:hover:text-red-200">
-            Try again
-          </button>
-        </div>
-      )}
-
-      {/* Main Stats Card */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-        <EnhancedStatsCard
-          title="Total Sensors"
-          value={totalSensors}
-          icon="sensors"
-          color="blue"
-          subtitle="All time"
-        />
-        <EnhancedStatsCard
-          title="Active Sensors"
-          value={activeSensors}
-          icon="check"
-          color="green"
-          subtitle="Currently working"
-        />
-        <EnhancedStatsCard
-          title="Success Rate"
-          value={`${Math.round(successRate)}%`}
-          icon="trend"
-          color="purple"
-          subtitle="Performance"
-        />
-        <EnhancedStatsCard
-          title="Issues"
-          value={problematicSensors}
-          icon="alert"
-          color={problematicSensors > 0 ? "red" : "green"}
-          subtitle="Need attention"
-        />
-      </div>
-
-      {/* Recent Sensors or Empty State */}
-      <div className="mt-8">
-        {totalSensors === 0 ? (
-          <div className="bg-white dark:bg-slate-800 rounded-2xl p-8 shadow-sm border border-gray-200 dark:border-slate-700 text-center">
-            <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-6">
-              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-slate-100 mb-2">Welcome to CGM Tracker!</h3>
-            <p className="text-gray-600 dark:text-slate-400 mb-6 max-w-md mx-auto">Start tracking your continuous glucose monitor sensors to get insights into their performance and reliability.</p>
-            <Link
-              href="/dashboard/sensors/new"
-              className="inline-flex items-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition-colors">
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-              Add Your First Sensor
-            </Link>
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
+      <div className="max-w-7xl mx-auto px-4 lg:px-6 py-4 lg:py-6">
+        {/* Admin Access Error */}
+        {adminError && (
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-4 text-center mb-6">
+            <h3 className="text-sm font-medium text-yellow-800 dark:text-yellow-300 mb-2">Access Denied</h3>
+            <p className="text-sm text-yellow-700 dark:text-yellow-400 mb-2">{adminError}</p>
+            <button
+              onClick={() => setAdminError(null)}
+              className="text-sm text-yellow-800 dark:text-yellow-300 underline hover:text-yellow-900 dark:hover:text-yellow-200">
+              Dismiss
+            </button>
           </div>
-        ) : (
-          <RecentSensors
-            sensors={recentSensors}
-            onRefresh={() => fetchSensors(true)}
-            isRefreshing={refreshing}
-          />
+        )}
+
+        {/* Error State */}
+        {error && (
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 text-center mb-6">
+            <h3 className="text-sm font-medium text-red-800 dark:text-red-300 mb-2">Error loading sensors</h3>
+            <p className="text-sm text-red-700 dark:text-red-400 mb-2">{error}</p>
+            <button
+              onClick={() => fetchSensors(true)}
+              className="text-sm text-red-800 dark:text-red-300 underline hover:text-red-900 dark:hover:text-red-200">
+              Try again
+            </button>
+          </div>
+        )}
+
+        {/* Hero Section */}
+        <HeroSection 
+          currentSensor={currentSensor}
+          totalSensors={totalSensors}
+        />
+
+        {/* Enhanced Stats Grid */}
+        <EnhancedStatsGrid stats={statsData} />
+
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 lg:gap-8 mb-6 lg:mb-8">
+          {/* Left Column - Activity & Insights */}
+          <div className="xl:col-span-2 space-y-6 lg:space-y-8">
+            {/* Activity Timeline */}
+            <ActivityTimeline 
+              sensors={sensors}
+              userAchievements={userAchievements || []}
+            />
+
+            {/* Quick Insights */}
+            <QuickInsights sensors={sensors} />
+
+
+          </div>
+
+          {/* Right Column - Actions & Gamification */}
+          <div className="space-y-6 lg:space-y-8">
+            {/* Compact Gamification */}
+            <CompactGamification />
+
+            {/* Streamlined Quick Actions */}
+            <StreamlinedQuickActions 
+              onRefresh={() => fetchSensors(true)}
+              isRefreshing={refreshing}
+              problematicCount={problematicSensors}
+            />
+          </div>
+        </div>
+
+
+
+        {/* Empty State for New Users */}
+        {totalSensors === 0 && (
+          <div className="bg-white dark:bg-slate-800 rounded-3xl p-12 shadow-sm border border-gray-200 dark:border-slate-700 text-center">
+            <div className="max-w-md mx-auto">
+              <div className="w-20 h-20 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-8">
+                <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100 mb-4">
+                Welcome to CGM Tracker!
+              </h2>
+              <p className="text-gray-600 dark:text-slate-400 mb-8 leading-relaxed">
+                Start tracking your continuous glucose monitor sensors to unlock powerful insights, 
+                achievements, and optimize your CGM experience.
+              </p>
+              <div className="space-y-4">
+                <Link
+                  href="/dashboard/sensors/new"
+                  className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-2xl transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl">
+                  <svg className="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                  Add Your First Sensor
+                </Link>
+                <div className="text-sm text-gray-500 dark:text-slate-500">
+                  Or press <kbd className="bg-gray-100 dark:bg-slate-700 px-2 py-1 rounded text-xs">Alt+N</kbd>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
       </div>
-
-      {/* Quick Actions & Gamification */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-        <QuickActions onRefresh={() => fetchSensors(true)} isRefreshing={refreshing} />
-        <GamificationWidget />
-      </div>
-
-      {/* Collapsible Insights Section */}
-      <details className="mt-8 bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-slate-700">
-        <summary className="text-lg font-semibold text-gray-900 dark:text-slate-100 cursor-pointer">More Insights</summary>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-          <div className="text-center p-4 rounded-lg bg-gray-50 dark:bg-slate-700/50">
-            <p className="text-lg font-bold text-gray-900 dark:text-slate-100">{sensors.length > 0 ? Math.round(sensors.reduce((acc, sensor) => { const model = sensor.sensor_models || { duration_days: 10 }; return acc + model.duration_days; }, 0) / sensors.length) : 0}</p>
-            <p className="text-xs text-gray-600 dark:text-slate-400">Avg. Duration (days)</p>
-          </div>
-          <div className="text-center p-4 rounded-lg bg-gray-50 dark:bg-slate-700/50">
-            <p className="text-lg font-bold text-gray-900 dark:text-slate-100">{sensors.length > 0 ? Math.round((sensors.filter((s) => !s.is_problematic).length / sensors.length) * 100) : 0}%</p>
-            <p className="text-xs text-gray-600 dark:text-slate-400">Reliability Rate</p>
-          </div>
-          <div className="text-center p-4 rounded-lg bg-gray-50 dark:bg-slate-700/50">
-            <p className="text-lg font-bold text-indigo-600 dark:text-indigo-400">{(() => { const brands = sensors.reduce((acc, sensor) => { const brand = sensor.sensor_models?.manufacturer || 'Unknown'; acc[brand] = (acc[brand] || 0) + 1; return acc; }, {} as Record<string, number>); return (Object.entries(brands).sort(([, a], [, b]) => b - a)[0]?.[0] || 'None'); })()}</p>
-            <p className="text-xs text-gray-600 dark:text-slate-400">Most Used Brand</p>
-          </div>
-          <div className="text-center p-4 rounded-lg bg-gray-50 dark:bg-slate-700/50">
-            <p className="text-lg font-bold text-gray-900 dark:text-slate-100">{problematicSensors > 0 && totalSensors > 0 ? `${Math.round((problematicSensors / totalSensors) * 100)}%` : '0%'}</p>
-            <p className="text-xs text-gray-600 dark:text-slate-400">Replacement Rate</p>
-          </div>
-        </div>
-        <div className="pt-4 text-right">
-          <Link href="/dashboard/analytics" className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium">View detailed analytics →</Link>
-        </div>
-      </details>
     </div>
   );
 }

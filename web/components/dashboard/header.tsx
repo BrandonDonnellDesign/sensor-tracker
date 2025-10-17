@@ -4,13 +4,8 @@ import { usePathname } from 'next/navigation';
 import { useEffect } from 'react';
 import { ChevronRightIcon } from '@heroicons/react/24/solid';
 import Link from 'next/link';
-import { useAuth } from '@/components/providers/auth-provider';
-import { ThemeToggle } from '@/components/ui/theme-toggle';
-import { SearchButton } from '@/components/dashboard/search-button';
-import { NotificationsButton } from '@/components/dashboard/notifications-button';
-import { UserProfileMenu } from '@/components/dashboard/user-profile-menu';
-import { StreakIndicator } from '@/components/gamification/streak-indicator';
-import { LevelBadge } from '@/components/gamification/level-badge';
+
+
 
 const getPageInfo = (pathname: string) => {
   const parts = pathname.split('/');
@@ -126,7 +121,6 @@ const getPageInfo = (pathname: string) => {
 
 export function Header() {
   const pathname = usePathname();
-  const { user, signOut } = useAuth();
   const pageInfo = getPageInfo(pathname);
 
 
@@ -176,23 +170,7 @@ export function Header() {
             </nav>
           </div>
           
-          {/* Header actions */}
-          <div className="flex items-center">
-            {/* Gamification indicators */}
-            <div className="hidden md:flex items-center space-x-3 mr-4">
-              <StreakIndicator size="sm" showLabel={false} />
-              <LevelBadge size="sm" />
-            </div>
-            
-            {/* Main Actions */}
-            <div className="flex items-center space-x-1 sm:space-x-2">
-              <SearchButton />
-              <NotificationsButton />
-              <ThemeToggle />
-            </div>
-            <div className="h-6 border-l border-gray-200 dark:border-slate-700 mx-3 sm:mx-4" />
-            <UserProfileMenu />
-          </div>
+
         </div>
       </div>
     </header>
