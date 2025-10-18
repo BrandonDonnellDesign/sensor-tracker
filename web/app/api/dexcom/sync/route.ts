@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
+import { systemLogger } from '@/lib/system-logger';
 
 interface DexcomDevice {
   transmitterGeneration: string;
@@ -27,6 +28,7 @@ export async function POST(request: NextRequest) {
     // Get the current user
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
+      await systemLogger.warn('dexcom', 'Sync attempted without authentication');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -39,6 +41,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (tokenError || !tokenData) {
+      await systemLogger.warn('dexcom', 'Sync attempted without active connection', user.id);
       return NextResponse.json({ error: 'No active Dexcom connection found' }, { status: 404 });
     }
 
@@ -48,10 +51,13 @@ export async function POST(request: NextRequest) {
     
     if (now >= expiresAt) {
       // Try to refresh the token
+      await systemLogger.info('dexcom', 'Token expired, attempting refresh', user.id);
       const refreshResult = await refreshDexcomToken(tokenData.refresh_token_encrypted, user.id, supabase);
       if (!refreshResult.success) {
+        await systemLogger.error('dexcom', 'Token refresh failed', user.id);
         return NextResponse.json({ error: 'Token expired and refresh failed' }, { status: 401 });
       }
+      await systemLogger.info('dexcom', 'Token refreshed successfully', user.id);
       tokenData.access_token_encrypted = refreshResult.access_token;
     }
 
@@ -156,6 +162,13 @@ export async function POST(request: NextRequest) {
         api_calls_made: 2, // devices + egvs
       });
 
+    await systemLogger.info('dexcom', 'Sync completed successfully', user.id, {
+      devicesFound: syncResults.devices.length,
+      newSensors: syncResults.sensors.length,
+      egvReadings: syncResults.egvs.length,
+      errors: syncResults.errors.length
+    });
+
     return NextResponse.json({
       success: true,
       data: syncResults,
@@ -164,6 +177,7 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Dexcom sync error:', error);
+    await systemLogger.error('dexcom', `Sync failed with error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     return NextResponse.json({ error: 'Sync failed' }, { status: 500 });
   }
 }

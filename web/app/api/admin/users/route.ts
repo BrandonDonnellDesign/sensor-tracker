@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { systemLogger } from '@/lib/system-logger';
 
 // Create a service role client for admin operations
 const supabaseAdmin = createClient(
@@ -59,6 +60,7 @@ export async function GET(request: NextRequest) {
     // Check if user is admin
     const isAdmin = await checkAdminAccess(request);
     if (!isAdmin) {
+      await systemLogger.warn('users', 'Non-admin attempted to access user management');
       return NextResponse.json({ error: 'Unauthorized - Admin access required' }, { status: 403 });
     }
 
@@ -118,6 +120,7 @@ export async function GET(request: NextRequest) {
 
     const sortedUsers = users.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
+    await systemLogger.info('users', 'Admin fetched user list', undefined, { userCount: sortedUsers.length });
     return NextResponse.json({ users: sortedUsers });
   } catch (error) {
     console.error('Error in GET /api/admin/users:', error);
@@ -150,9 +153,11 @@ export async function PATCH(request: NextRequest) {
 
     if (error) {
       console.error('Error updating user profile:', error);
+      await systemLogger.error('users', `Admin failed to update user profile: ${error.message}`, userId);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    await systemLogger.info('users', 'Admin updated user profile', userId, { updates });
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error in PATCH /api/admin/users:', error);
@@ -180,9 +185,11 @@ export async function DELETE(request: NextRequest) {
 
     if (error) {
       console.error('Error deleting user:', error);
+      await systemLogger.error('users', `Admin failed to delete user: ${error.message}`, userId);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    await systemLogger.warn('users', 'Admin deleted user account', userId);
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error in DELETE /api/admin/users:', error);

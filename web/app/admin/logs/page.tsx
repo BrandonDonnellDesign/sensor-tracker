@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { AdminGuard } from '@/components/admin/admin-guard';
 import { supabase } from '@/lib/supabase';
@@ -33,19 +33,46 @@ export default function AdminLogsPage() {
     warnings_24h: 0,
     info_24h: 0
   });
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalCount: 0,
+    hasNextPage: false,
+    hasPrevPage: false
+  });
 
-  const fetchLogs = async () => {
+  const [levelFilter, setLevelFilter] = useState<string>('');
+  const [categoryFilter, setCategoryFilter] = useState<string>('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const logsPerPage = 10;
+
+  const fetchLogs = useCallback(async (page: number = currentPage) => {
     setLogsLoading(true);
     try {
-      const response = await fetch('/api/admin/logs');
+      const params = new URLSearchParams();
+      params.append('limit', logsPerPage.toString());
+      params.append('offset', ((page - 1) * logsPerPage).toString());
+      if (levelFilter) params.append('level', levelFilter);
+      if (categoryFilter) params.append('category', categoryFilter);
+
+      const response = await fetch(`/api/admin/logs?${params.toString()}`);
       const result = await response.json();
 
       if (result.success) {
         setLogs(result.data.logs);
         setLogSummary(result.data.summary);
+        setPagination(result.data.pagination);
+        setCurrentPage(page);
       } else {
         setLogs([]);
         setLogSummary({ errors_24h: 0, warnings_24h: 0, info_24h: 0 });
+        setPagination({
+          currentPage: 1,
+          totalPages: 1,
+          totalCount: 0,
+          hasNextPage: false,
+          hasPrevPage: false
+        });
         // Show error to user
         alert('Failed to fetch logs: ' + (result.error || 'Unknown error'));
         console.error('Failed to fetch logs:', result.error);
@@ -58,13 +85,19 @@ export default function AdminLogsPage() {
     } finally {
       setLogsLoading(false);
     }
-  };
+  }, [currentPage, levelFilter, categoryFilter, logsPerPage]);
 
   useEffect(() => {
-    // Middleware handles admin access, so we can directly fetch logs
-    fetchLogs();
+    // Reset to page 1 when filters change
+    setCurrentPage(1);
+    fetchLogs(1);
     setLoading(false);
-  }, []);
+  }, [levelFilter, categoryFilter, fetchLogs]);
+
+  useEffect(() => {
+    // Fetch logs when page changes
+    fetchLogs(currentPage);
+  }, [currentPage, fetchLogs]);
 
   const getLevelColor = (level: string) => {
     switch (level) {
@@ -122,16 +155,48 @@ export default function AdminLogsPage() {
             Monitor system events and activity from real database data
           </p>
         </div>
-        <button
-          onClick={fetchLogs}
-          disabled={logsLoading}
-          className="flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 hover:from-blue-600 hover:via-indigo-600 hover:to-purple-600 disabled:from-gray-400 disabled:via-gray-400 disabled:to-gray-400 text-white rounded-lg shadow-lg transition-all duration-200 transform hover:scale-105"
-        >
-          <svg className={`w-4 h-4 mr-2 ${logsLoading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-          </svg>
-          {logsLoading ? 'Refreshing...' : 'Refresh Logs'}
-        </button>
+        <div className="flex items-center space-x-3">
+          <select
+            value={levelFilter}
+            onChange={(e) => setLevelFilter(e.target.value)}
+            className="px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 text-sm"
+          >
+            <option value="">All Levels</option>
+            <option value="error">Errors</option>
+            <option value="warn">Warnings</option>
+            <option value="info">Info</option>
+          </select>
+          
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            className="px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 text-sm"
+          >
+            <option value="">All Categories</option>
+            <option value="users">Users</option>
+            <option value="sensors">Sensors</option>
+            <option value="photos">Photos</option>
+            <option value="ocr">OCR</option>
+            <option value="dexcom">Dexcom</option>
+            <option value="notifications">Notifications</option>
+            <option value="system">System</option>
+            <option value="database">Database</option>
+            <option value="storage">Storage</option>
+            <option value="quality">Quality</option>
+            <option value="monitoring">Monitoring</option>
+          </select>
+
+          <button
+            onClick={() => fetchLogs()}
+            disabled={logsLoading}
+            className="flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 hover:from-blue-600 hover:via-indigo-600 hover:to-purple-600 disabled:from-gray-400 disabled:via-gray-400 disabled:to-gray-400 text-white rounded-lg shadow-lg transition-all duration-200 transform hover:scale-105"
+          >
+            <svg className={`w-4 h-4 mr-2 ${logsLoading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            {logsLoading ? 'Refreshing...' : 'Refresh Logs'}
+          </button>
+        </div>
       </div>
 
       {/* Log Level Summary */}
@@ -207,7 +272,7 @@ export default function AdminLogsPage() {
               }
             </p>
             <button
-              onClick={fetchLogs}
+              onClick={() => fetchLogs()}
               className="px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-lg hover:from-blue-600 hover:to-indigo-600 transition-all duration-200"
             >
               Retry Loading
@@ -271,6 +336,39 @@ export default function AdminLogsPage() {
           </div>
         )}
       </div>
+
+      {/* Pagination Controls */}
+      {logs.length > 0 && (
+        <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl rounded-xl shadow-lg border border-white/20 dark:border-slate-700/50 px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-gray-600 dark:text-slate-400">
+              Showing {((currentPage - 1) * logsPerPage) + 1} to {Math.min(currentPage * logsPerPage, pagination.totalCount)} of {pagination.totalCount} entries
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => setCurrentPage(currentPage - 1)}
+                disabled={!pagination.hasPrevPage || logsLoading}
+                className="px-3 py-1 text-sm bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Previous
+              </button>
+              
+              <span className="text-sm text-gray-600 dark:text-slate-400">
+                Page {pagination.currentPage} of {pagination.totalPages}
+              </span>
+              
+              <button
+                onClick={() => setCurrentPage(currentPage + 1)}
+                disabled={!pagination.hasNextPage || logsLoading}
+                className="px-3 py-1 text-sm bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Implementation Details */}
       <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl p-4 md:p-5 border border-green-200/50 dark:border-green-700/50 shadow-lg">

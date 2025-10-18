@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Loader2, ExternalLink, RefreshCw, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase-client';
+import { systemLogger } from '@/lib/system-logger';
 
 interface DexcomConnection {
   id: string;
@@ -94,6 +95,8 @@ export function DexcomSettings({ user }: DexcomSettingsProps) {
         return;
       }
 
+      await systemLogger.info('dexcom', 'User initiated Dexcom connection', user.id);
+
       // Redirect to Dexcom OAuth
       const clientId = process.env.NEXT_PUBLIC_DEXCOM_CLIENT_ID;
       const redirectUri = process.env.NEXT_PUBLIC_DEXCOM_REDIRECT_URI || `${window.location.origin}/api/auth/dexcom/callback`;
@@ -107,6 +110,7 @@ export function DexcomSettings({ user }: DexcomSettingsProps) {
       window.location.href = authUrl;
     } catch (error) {
       console.error('Error initiating Dexcom connection:', error);
+      await systemLogger.error('dexcom', `Failed to initiate connection: ${error instanceof Error ? error.message : 'Unknown error'}`, user?.id);
       showToast("Connection failed", "Failed to initiate Dexcom connection. Please try again.", "destructive");
     } finally {
       setIsConnecting(false);
@@ -117,6 +121,8 @@ export function DexcomSettings({ user }: DexcomSettingsProps) {
     try {
       if (!user) return;
       
+      await systemLogger.info('dexcom', 'User initiated Dexcom disconnection', user.id);
+      
       const supabase = createClient();
 
       await (supabase as any)
@@ -126,9 +132,11 @@ export function DexcomSettings({ user }: DexcomSettingsProps) {
 
       setConnection(null);
       
+      await systemLogger.info('dexcom', 'Dexcom account disconnected successfully', user.id);
       showToast("Disconnected", "Your Dexcom account has been disconnected.");
     } catch (error) {
       console.error('Error disconnecting Dexcom:', error);
+      await systemLogger.error('dexcom', `Failed to disconnect: ${error instanceof Error ? error.message : 'Unknown error'}`, user.id);
       showToast("Error", "Failed to disconnect Dexcom account.", "destructive");
     }
   };
@@ -136,6 +144,8 @@ export function DexcomSettings({ user }: DexcomSettingsProps) {
   const handleSync = async () => {
     setIsSyncing(true);
     try {
+      await systemLogger.info('dexcom', 'User initiated manual sync', user?.id);
+      
       const response = await fetch('/api/dexcom/sync', {
         method: 'POST',
       });
@@ -143,13 +153,16 @@ export function DexcomSettings({ user }: DexcomSettingsProps) {
       const result = await response.json();
 
       if (response.ok) {
+        await systemLogger.info('dexcom', 'Manual sync completed successfully', user?.id);
         showToast("Sync completed", result.message);
         loadDexcomData();
       } else {
+        await systemLogger.error('dexcom', `Manual sync failed: ${result.error}`, user?.id);
         showToast("Sync failed", result.error || "Failed to sync with Dexcom.", "destructive");
       }
     } catch (error) {
       console.error('Error syncing with Dexcom:', error);
+      await systemLogger.error('dexcom', `Manual sync error: ${error instanceof Error ? error.message : 'Unknown error'}`, user?.id);
       showToast("Sync failed", "Failed to sync with Dexcom. Please try again.", "destructive");
     } finally {
       setIsSyncing(false);

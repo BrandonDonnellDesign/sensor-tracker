@@ -126,6 +126,10 @@ export function AdminDashboardClient() {
       case 'user': return action.includes('registered') ? UserPlus : Users;
       case 'sensor': return Activity;
       case 'system': return Settings;
+      case 'dexcom': return Zap;
+      case 'notifications': return Bell;
+      case 'photos': return Activity;
+      case 'ocr': return Activity;
       case 'roadmap': return Map;
       case 'achievement': return Award;
       default: return Bell;
@@ -139,6 +143,10 @@ export function AdminDashboardClient() {
       case 'user': return action.includes('registered') ? 'bg-green-500' : 'bg-blue-500';
       case 'sensor': return 'bg-blue-500';
       case 'system': return 'bg-orange-500';
+      case 'dexcom': return 'bg-cyan-500';
+      case 'notifications': return 'bg-purple-500';
+      case 'photos': return 'bg-pink-500';
+      case 'ocr': return 'bg-teal-500';
       case 'roadmap': return 'bg-purple-500';
       case 'achievement': return 'bg-yellow-500';
       default: return 'bg-gray-500';

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import { createClient as createBrowserClient } from '@supabase/supabase-js';
 import { getSensorExpirationInfo } from '@/shared/src/utils/sensorExpiration';
+import { systemLogger } from '@/lib/system-logger';
 
 
 export async function POST(request: NextRequest) {
@@ -44,14 +45,17 @@ export async function POST(request: NextRequest) {
     
     if (!user) {
       console.error('Authentication failed - no user found');
+      await systemLogger.warn('notifications', 'Notification action attempted without authentication');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     const { action, notificationId } = await request.json();
     switch (action) {
       case 'generate': {
         // Generate notifications for the authenticated user
+        await systemLogger.info('notifications', 'Generating notifications for user', user.id);
         await generateSensorNotifications(supabase, user.id);
         await cleanupOldNotifications(supabase);
+        await systemLogger.info('notifications', 'Notifications generated successfully', user.id);
         
         return NextResponse.json({ 
           success: true, 
@@ -79,9 +83,11 @@ export async function POST(request: NextRequest) {
 
         if (dismissError) {
           console.error('Error dismissing notification:', dismissError);
+          await systemLogger.error('notifications', `Failed to dismiss notification: ${dismissError.message}`, user.id);
           return NextResponse.json({ error: 'Failed to dismiss notification' }, { status: 500 });
         }
 
+        await systemLogger.info('notifications', 'Notification dismissed', user.id, { notificationId });
         return NextResponse.json({ success: true });
       }
       
@@ -123,12 +129,15 @@ export async function POST(request: NextRequest) {
           }
         }
         
+        await systemLogger.info('notifications', 'All notifications cleared', user.id);
         return NextResponse.json({ success: true });
       }
       default:
+        await systemLogger.warn('notifications', `Invalid action attempted: ${action}`, user.id);
         return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }
   } catch (error) {
+    await systemLogger.error('notifications', `Notification API error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

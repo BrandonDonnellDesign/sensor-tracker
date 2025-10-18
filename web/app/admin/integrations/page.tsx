@@ -7,8 +7,31 @@ import { MetricCard } from '@/components/admin/metric-card';
 import { fetchIntegrationHealth, type IntegrationHealth } from '@/lib/admin/metrics';
 import { ArrowLeft, RefreshCw, AlertTriangle, CheckCircle, Clock, Zap } from 'lucide-react';
 
+interface UsageStats {
+  dexcomApiCalls: number;
+  ocrRequests: number;
+  databaseQueries: number;
+  failedRequests: number;
+}
+
+interface ActivityLog {
+  service: string;
+  operation: string;
+  status: 'success' | 'failed';
+  duration: string;
+  time: string;
+  details?: string;
+}
+
 export default function AdminIntegrationsPage() {
   const [integrations, setIntegrations] = useState<IntegrationHealth[]>([]);
+  const [usageStats, setUsageStats] = useState<UsageStats>({
+    dexcomApiCalls: 0,
+    ocrRequests: 0,
+    databaseQueries: 0,
+    failedRequests: 0
+  });
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
@@ -16,8 +39,25 @@ export default function AdminIntegrationsPage() {
   const loadIntegrations = async () => {
     try {
       setError(null);
-      const data = await fetchIntegrationHealth();
-      setIntegrations(data);
+      
+      // Load integration health
+      const healthData = await fetchIntegrationHealth();
+      setIntegrations(healthData);
+      
+      // Load usage statistics
+      const usageResponse = await fetch('/api/admin/integrations/usage');
+      if (usageResponse.ok) {
+        const usage = await usageResponse.json();
+        setUsageStats(usage);
+      }
+      
+      // Load activity logs
+      const activityResponse = await fetch('/api/admin/integrations/activity?limit=10');
+      if (activityResponse.ok) {
+        const activity = await activityResponse.json();
+        setActivityLogs(activity);
+      }
+      
       setLastRefresh(new Date());
     } catch (err) {
       console.error('Error loading integrations:', err);
@@ -207,19 +247,27 @@ export default function AdminIntegrationsPage() {
           <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100 mb-4">API Usage (24h)</h2>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">1,247</div>
+              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                {usageStats.dexcomApiCalls.toLocaleString()}
+              </div>
               <div className="text-sm text-gray-600 dark:text-slate-400">Dexcom API Calls</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-green-600 dark:text-green-400">89</div>
+              <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                {usageStats.ocrRequests.toLocaleString()}
+              </div>
               <div className="text-sm text-gray-600 dark:text-slate-400">OCR Requests</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">3,456</div>
+              <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+                {usageStats.databaseQueries.toLocaleString()}
+              </div>
               <div className="text-sm text-gray-600 dark:text-slate-400">Database Queries</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-red-600 dark:text-red-400">12</div>
+              <div className="text-2xl font-bold text-red-600 dark:text-red-400">
+                {usageStats.failedRequests.toLocaleString()}
+              </div>
               <div className="text-sm text-gray-600 dark:text-slate-400">Failed Requests</div>
             </div>
           </div>
@@ -250,19 +298,18 @@ export default function AdminIntegrationsPage() {
                 </tr>
               </thead>
               <tbody className="bg-white dark:bg-slate-800 divide-y divide-gray-200 dark:divide-slate-600">
-                {[
-                  { service: 'Dexcom API', operation: 'Sync glucose data', status: 'success', duration: '245ms', time: '2 min ago' },
-                  { service: 'OCR Service', operation: 'Process sensor image', status: 'success', duration: '1.2s', time: '5 min ago' },
-                  { service: 'Push Notifications', operation: 'Send reminder', status: 'success', duration: '156ms', time: '8 min ago' },
-                  { service: 'Dexcom API', operation: 'Refresh token', status: 'failed', duration: '30s', time: '12 min ago' },
-                  { service: 'File Storage', operation: 'Upload image', status: 'success', duration: '89ms', time: '15 min ago' },
-                ].map((log, index) => (
+                {activityLogs.map((log, index) => (
                   <tr key={index}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-slate-100">
                       {log.service}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-slate-100">
-                      {log.operation}
+                      <div>{log.operation}</div>
+                      {log.details && (
+                        <div className="text-xs text-gray-500 dark:text-slate-400 truncate max-w-xs">
+                          {log.details}
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -281,6 +328,13 @@ export default function AdminIntegrationsPage() {
                     </td>
                   </tr>
                 ))}
+                {activityLogs.length === 0 && !loading && (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-8 text-center text-gray-500 dark:text-slate-400">
+                      No recent activity found
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

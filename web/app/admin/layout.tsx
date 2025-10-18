@@ -8,7 +8,13 @@ import {
   Shield,
   ArrowLeft,
   Home,
-  Award
+  Award,
+  Bell,
+  FileText,
+  Wrench,
+  Link2,
+  Database,
+  Eye
 } from 'lucide-react';
 
 export const metadata: Metadata = {
@@ -18,16 +24,10 @@ export const metadata: Metadata = {
 
 const adminNavItems = [
   {
-    name: 'Roadmap',
-    href: '/admin/roadmap',
-    icon: Map,
-    description: 'Manage product roadmap'
-  },
-  {
-    name: 'Gamification',
-    href: '/admin/gamification',
-    icon: Award,
-    description: 'Manage achievements & stats'
+    name: 'Overview',
+    href: '/admin/overview',
+    icon: Eye,
+    description: 'System overview & stats'
   },
   {
     name: 'Users',
@@ -40,6 +40,48 @@ const adminNavItems = [
     href: '/admin/analytics',
     icon: BarChart3,
     description: 'System analytics'
+  },
+  {
+    name: 'Notifications',
+    href: '/admin/notifications',
+    icon: Bell,
+    description: 'Notification management'
+  },
+  {
+    name: 'Logs',
+    href: '/admin/logs',
+    icon: FileText,
+    description: 'System logs & monitoring'
+  },
+  {
+    name: 'Gamification',
+    href: '/admin/gamification',
+    icon: Award,
+    description: 'Manage achievements & stats'
+  },
+  {
+    name: 'Roadmap',
+    href: '/admin/roadmap',
+    icon: Map,
+    description: 'Manage product roadmap'
+  },
+  {
+    name: 'Integrations',
+    href: '/admin/integrations',
+    icon: Link2,
+    description: 'External integrations'
+  },
+  {
+    name: 'Sensor Models',
+    href: '/admin/sensor-models',
+    icon: Database,
+    description: 'Manage sensor models'
+  },
+  {
+    name: 'Maintenance',
+    href: '/admin/maintenance',
+    icon: Wrench,
+    description: 'System maintenance'
   },
   {
     name: 'Settings',

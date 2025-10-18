@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase-server';
 import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { systemLogger } from '@/lib/system-logger';
 
 export async function POST(request: Request) {
   try {
@@ -13,6 +14,7 @@ export async function POST(request: Request) {
     
     if (authError || !user) {
       console.log('Authentication failed:', authError);
+      await systemLogger.warn('users', 'Profile creation attempted without authentication');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -24,6 +26,7 @@ export async function POST(request: Request) {
       .single();
 
     if (existingProfile) {
+      await systemLogger.warn('users', 'Attempted to create duplicate profile', user.id);
       return NextResponse.json({ error: 'Profile already exists' }, { status: 400 });
     }
 
@@ -69,12 +72,19 @@ export async function POST(request: Request) {
 
     if (createError) {
       console.error('Error creating profile:', createError);
+      await systemLogger.error('users', `Profile creation failed: ${createError.message}`, user.id);
       return NextResponse.json({ error: createError.message }, { status: 500 });
     }
+
+    await systemLogger.info('users', 'Profile created successfully', user.id, {
+      username: newProfile.username,
+      timezone: newProfile.timezone
+    });
 
     return NextResponse.json({ profile: createdProfile });
   } catch (error) {
     console.error('Profile creation error:', error);
+    await systemLogger.error('users', `Profile creation unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

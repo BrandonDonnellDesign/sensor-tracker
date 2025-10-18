@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
+import { systemLogger } from '@/lib/system-logger';
 
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
@@ -9,11 +10,13 @@ export async function GET(request: NextRequest) {
 
   if (error) {
     console.error('Dexcom OAuth error:', error);
+    await systemLogger.error('dexcom', `OAuth callback error: ${error}`);
     return NextResponse.redirect(new URL('/dashboard/settings?dexcom_error=' + encodeURIComponent(error), requestUrl.origin));
   }
 
   if (!code || !state) {
     console.error('Missing code or state parameter');
+    await systemLogger.error('dexcom', 'OAuth callback missing required parameters');
     return NextResponse.redirect(new URL('/dashboard/settings?dexcom_error=missing_parameters', requestUrl.origin));
   }
 
@@ -107,10 +110,14 @@ export async function GET(request: NextRequest) {
         api_calls_made: 1,
       });
 
+    // Log to system logs
+    await systemLogger.info('dexcom', 'Dexcom account connected successfully', userId);
+
     return NextResponse.redirect(new URL('/dashboard/settings?dexcom_success=connected&tab=integrations', requestUrl.origin));
 
   } catch (error) {
     console.error('Dexcom OAuth callback error:', error);
+    await systemLogger.error('dexcom', `OAuth callback unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     return NextResponse.redirect(new URL('/dashboard/settings?dexcom_error=unexpected_error', requestUrl.origin));
   }
 }

@@ -18,8 +18,9 @@ export interface RecentActivity {
   action: string;
   details: string;
   timestamp: string;
-  type: 'user' | 'sensor' | 'system' | 'roadmap' | 'achievement';
+  type: 'user' | 'sensor' | 'system' | 'roadmap' | 'achievement' | 'dexcom' | 'notifications' | 'photos' | 'ocr';
   user_email?: string;
+  user_hash?: string;
 }
 
 /**
@@ -176,32 +177,111 @@ export async function fetchRecentActivity(): Promise<RecentActivity[]> {
 
     const activities: RecentActivity[] = [];
     const now = new Date();
-    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
-    // Fetch recent user registrations (profiles created recently)
-    const { data: recentUsers, error: usersError } = await supabase
-      .from('profiles')
-      .select('id, created_at, full_name')
-      .gte('created_at', sevenDaysAgo.toISOString())
+    // Fetch recent system logs
+    const { data: systemLogs, error: logsError } = await supabase
+      .from('system_logs')
+      .select('id, created_at, level, category, message, user_hash')
+      .gte('created_at', twentyFourHoursAgo.toISOString())
       .order('created_at', { ascending: false })
-      .limit(10);
+      .limit(20);
 
-    if (usersError) {
-      console.error('Error fetching recent users:', usersError);
+    if (logsError) {
+      console.error('Error fetching system logs:', logsError);
+      return [];
     }
 
-    recentUsers?.forEach(user => {
-      const displayName = user.full_name || 'New user';
+    // Convert system logs to activity format
+    systemLogs?.forEach(log => {
+      // Map categories to activity types
+      let activityType: 'user' | 'sensor' | 'system' | 'roadmap' | 'achievement' | 'dexcom' | 'notifications' | 'photos' | 'ocr' = 'system';
+      switch (log.category) {
+        case 'users':
+        case 'auth':
+          activityType = 'user';
+          break;
+        case 'sensors':
+          activityType = 'sensor';
+          break;
+        case 'dexcom':
+        case 'notifications':
+        case 'photos':
+        case 'ocr':
+          activityType = log.category;
+          break;
+        default:
+          activityType = 'system';
+      }
+
+      // Create user-friendly action names
+      let action = log.message;
+      let details = log.message;
+
+      // Enhance common log messages
+      if (log.message.includes('logged in successfully')) {
+        action = 'User logged in';
+        details = 'User authentication successful';
+      } else if (log.message.includes('Profile created successfully')) {
+        action = 'New user registered';
+        details = 'User profile created and initialized';
+      } else if (log.message.includes('Dexcom account connected')) {
+        action = 'Dexcom integration connected';
+        details = 'User successfully connected their Dexcom account';
+      } else if (log.message.includes('Dexcom sync completed')) {
+        action = 'Dexcom sync completed';
+        details = 'Automatic Dexcom data synchronization finished';
+      } else if (log.message.includes('New sensor added')) {
+        action = 'New sensor added';
+        details = 'User added a new CGM sensor to their account';
+      } else if (log.message.includes('Photo uploaded')) {
+        action = 'Photo uploaded';
+        details = 'User uploaded a sensor photo';
+      } else if (log.message.includes('OCR processing completed')) {
+        action = 'OCR processing completed';
+        details = 'Sensor image processed successfully';
+      } else if (log.message.includes('Push notification sent')) {
+        action = 'Notification sent';
+        details = 'Push notification delivered to user';
+      } else if (log.message.includes('failed') || log.message.includes('error')) {
+        action = `Error: ${log.category}`;
+        details = log.message;
+      }
+
       activities.push({
-        id: `user-reg-${user.id}`,
-        action: 'New user registered',
-        details: `${displayName} joined the platform`,
-        timestamp: user.created_at,
-        type: 'user'
+        id: log.id,
+        action,
+        details,
+        timestamp: log.created_at,
+        type: activityType,
+        user_hash: log.user_hash || undefined
       });
     });
 
-    // Fetch recent sensor additions
+
+
+    // Also fetch some recent database events for additional context
+    const { data: recentUsers, error: usersError } = await supabase
+      .from('profiles')
+      .select('id, created_at, full_name')
+      .gte('created_at', twentyFourHoursAgo.toISOString())
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    if (!usersError && recentUsers) {
+      recentUsers.forEach(user => {
+        const displayName = user.full_name || 'New user';
+        activities.push({
+          id: `user-reg-${user.id}`,
+          action: 'New user registered',
+          details: `${displayName} joined the platform`,
+          timestamp: user.created_at,
+          type: 'user'
+        });
+      });
+    }
+
+    // Fetch recent sensor additions for additional context
     const { data: recentSensors, error: sensorsError } = await supabase
       .from('sensors')
       .select(`
@@ -212,18 +292,12 @@ export async function fetchRecentActivity(): Promise<RecentActivity[]> {
         sensor_type,
         serial_number
       `)
-      .gte('date_added', sevenDaysAgo.toISOString())
+      .gte('date_added', twentyFourHoursAgo.toISOString())
       .eq('is_deleted', false)
       .order('date_added', { ascending: false })
-      .limit(15);
+      .limit(5);
 
-    if (sensorsError) {
-      console.error('Error fetching recent sensors:', sensorsError);
-      return activities; // Return early if sensor fetch fails
-    }
-
-    // Get user info for sensors
-    if (recentSensors && recentSensors.length > 0) {
+    if (!sensorsError && recentSensors && recentSensors.length > 0) {
       const userIds = [...new Set(recentSensors.map(s => s.user_id))];
       const { data: sensorUsers } = await supabase
         .from('profiles')
@@ -248,135 +322,11 @@ export async function fetchRecentActivity(): Promise<RecentActivity[]> {
       });
     }
 
-    // Fetch recent sensor issues/problems
-    const { data: problematicSensors } = await supabase
-      .from('sensors')
-      .select(`
-        id,
-        updated_at,
-        user_id,
-        sensor_type,
-        serial_number
-      `)
-      .eq('is_problematic', true)
-      .gte('updated_at', sevenDaysAgo.toISOString())
-      .order('updated_at', { ascending: false })
-      .limit(10);
-
-    if (problematicSensors && problematicSensors.length > 0) {
-      const problemUserIds = [...new Set(problematicSensors.map(s => s.user_id))];
-      const { data: problemUsers } = await supabase
-        .from('profiles')
-        .select('id, full_name')
-        .in('id', problemUserIds);
-
-      const problemUserMap = new Map(problemUsers?.map(u => [u.id, u]) || []);
-
-      problematicSensors.forEach(sensor => {
-        const user = problemUserMap.get(sensor.user_id);
-        const userName = user?.full_name || 'User';
-        const sensorType = sensor.sensor_type === 'dexcom' ? 'Dexcom' : 'FreeStyle';
-        const sensorName = `${sensorType} CGM`;
-        
-        activities.push({
-          id: `sensor-issue-${sensor.id}`,
-          action: 'Sensor issue reported',
-          details: `${sensorName} (${sensor.serial_number}) marked as problematic by ${userName}`,
-          timestamp: sensor.updated_at,
-          type: 'sensor'
-        });
-      });
-    }
-
-    // Fetch recent achievements (if gamification stats exist)
-    try {
-      const { data: recentAchievements } = await supabase
-        .from('user_gamification_stats')
-        .select(`
-          id,
-          updated_at,
-          level,
-          total_points,
-          user_id
-        `)
-        .gte('updated_at', sevenDaysAgo.toISOString())
-        .order('updated_at', { ascending: false })
-        .limit(10);
-
-      if (recentAchievements && recentAchievements.length > 0) {
-        const achievementUserIds = [...new Set(recentAchievements.map(a => a.user_id))];
-        const { data: achievementUsers } = await supabase
-          .from('profiles')
-          .select('id, full_name')
-          .in('id', achievementUserIds);
-
-        const achievementUserMap = new Map(achievementUsers?.map(u => [u.id, u]) || []);
-
-        recentAchievements.forEach(achievement => {
-          const user = achievementUserMap.get(achievement.user_id);
-          const userName = user?.full_name || 'User';
-          
-          activities.push({
-            id: `achievement-${achievement.id}`,
-            action: 'Achievement unlocked',
-            details: `${userName} reached level ${achievement.level} with ${achievement.total_points} points`,
-            timestamp: achievement.updated_at,
-            type: 'achievement'
-          });
-        });
-      }
-    } catch (error) {
-      // Gamification table might not exist yet
-      console.warn('Gamification stats not available:', error);
-    }
-
-    // Fetch recent profile updates (only if updated after creation)
-    const { data: recentProfileUpdates } = await supabase
-      .from('profiles')
-      .select('id, full_name, updated_at, created_at')
-      .gte('updated_at', sevenDaysAgo.toISOString())
-      .order('updated_at', { ascending: false })
-      .limit(8);
-
-    recentProfileUpdates?.forEach(profile => {
-      // Only include if updated_at is different from created_at (actual updates)
-      if (profile.updated_at !== profile.created_at) {
-        const userName = profile.full_name || 'User';
-        
-        activities.push({
-          id: `profile-update-${profile.id}`,
-          action: 'Profile updated',
-          details: `${userName} updated their profile information`,
-          timestamp: profile.updated_at,
-          type: 'user'
-        });
-      }
-    });
-
-    // Add some system activities (these could be from logs or other sources)
-    const systemActivities = [
-      {
-        id: 'system-backup',
-        action: 'System backup completed',
-        details: 'Daily database backup completed successfully',
-        timestamp: new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
-        type: 'system' as const
-      },
-      {
-        id: 'system-maintenance',
-        action: 'Maintenance window',
-        details: 'Scheduled maintenance completed - performance optimizations applied',
-        timestamp: new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
-        type: 'system' as const
-      }
-    ];
-
-    activities.push(...systemActivities);
-
-    // Sort by timestamp (most recent first) and limit to 15 items
+    // Sort all activities by timestamp (most recent first)
     activities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
-    return activities.slice(0, 15);
+    // Return the most recent 5 activities for the main dashboard
+    return activities.slice(0, 5);
   } catch (error) {
     console.error('Error in fetchRecentActivity:', error);
     return [];

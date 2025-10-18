@@ -387,6 +387,37 @@ export default function AdminOverviewPage() {
 
 
 
+        {/* Recent Activity */}
+        <div className="bg-white dark:bg-slate-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-slate-700">
+          <h3 className="text-lg font-medium text-gray-900 dark:text-slate-100 mb-4">Recent Activity</h3>
+          <div className="space-y-3">
+            <div className="flex items-center space-x-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+              <div className="flex-1">
+                <p className="text-sm text-gray-900 dark:text-slate-100">System monitoring active</p>
+                <p className="text-xs text-gray-600 dark:text-slate-400">All integrations running smoothly</p>
+              </div>
+              <span className="text-xs text-gray-500 dark:text-slate-500">Now</span>
+            </div>
+            <div className="flex items-center space-x-3 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+              <div className="flex-1">
+                <p className="text-sm text-gray-900 dark:text-slate-100">New users registered</p>
+                <p className="text-xs text-gray-600 dark:text-slate-400">{metrics.userActivity.newSignups} signups today</p>
+              </div>
+              <span className="text-xs text-gray-500 dark:text-slate-500">Today</span>
+            </div>
+            <div className="flex items-center space-x-3 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+              <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+              <div className="flex-1">
+                <p className="text-sm text-gray-900 dark:text-slate-100">Notifications delivered</p>
+                <p className="text-xs text-gray-600 dark:text-slate-400">{metrics.notifications.delivered} messages sent</p>
+              </div>
+              <span className="text-xs text-gray-500 dark:text-slate-500">Today</span>
+            </div>
+          </div>
+        </div>
+
         {/* Quick Actions */}
         <div className="bg-white dark:bg-slate-800 shadow rounded-lg p-6">
           <h3 className="text-lg font-medium text-gray-900 dark:text-slate-100 mb-4">Quick Actions</h3>
