@@ -332,6 +332,55 @@ export function RoadmapAdmin() {
     );
   }
 
+  // Helper to get a quarter label from an item
+  const getQuarterLabel = (item: DatabaseRoadmapItem) => {
+    if (item.estimated_quarter) return item.estimated_quarter;
+    if (item.target_date) {
+      try {
+        const d = new Date(item.target_date);
+        if (isNaN(d.getTime())) return 'Unscheduled';
+        const year = d.getFullYear();
+        const month = d.getMonth(); // 0-based
+        const quarter = Math.floor(month / 3) + 1;
+        return `Q${quarter} ${year}`;
+      } catch (e) {
+        return 'Unscheduled';
+      }
+    }
+    return 'Unscheduled';
+  };
+
+  // Group items by quarter and sort groups chronologically, then sort items by sort_order
+  const groupedItems: Record<string, DatabaseRoadmapItem[]> = {};
+  items.forEach(item => {
+    const q = getQuarterLabel(item) || 'Unscheduled';
+    if (!groupedItems[q]) groupedItems[q] = [];
+    groupedItems[q].push(item);
+  });
+
+  const sortQuarterKey = (key: string) => {
+    // Parse keys like 'Q1 2025' -> [2025,1]. Put 'Unscheduled' at the end.
+    if (key === 'Unscheduled') return [9999, 9];
+    const m = key.match(/Q(\d)\s+(\d{4})/);
+    if (m) {
+      const quarter = parseInt(m[1], 10);
+      const year = parseInt(m[2], 10);
+      return [year, quarter];
+    }
+    return [9999, 9];
+  };
+
+  const sortedGroupKeys = Object.keys(groupedItems).sort((a, b) => {
+    const pa = sortQuarterKey(a);
+    const pb = sortQuarterKey(b);
+    if (pa[0] !== pb[0]) return pa[0] - pb[0];
+    return pa[1] - pb[1];
+  });
+
+  sortedGroupKeys.forEach(k => {
+    groupedItems[k].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+  });
+
   return (
     <div className="space-y-6">
       {/* Error Display */}
@@ -631,96 +680,90 @@ export function RoadmapAdmin() {
         )}
       </AnimatePresence>
 
-      {/* Items List */}
-      <div className="space-y-4">
-        {items.map((item) => {
-          const statusOption = statusOptions.find(s => s.value === item.status);
-          const categoryOption = categoryOptions.find(c => c.value === item.category);
-          const priorityOption = priorityOptions.find(p => p.value === item.priority);
-          
-          return (
-            <motion.div
-              key={item.id}
-              layout
-              className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-6"
-            >
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1">
-                  <div className="flex items-center space-x-3 mb-2">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">
-                      {item.title}
-                    </h3>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusOption?.bgColor} ${statusOption?.color}`}>
-                      {statusOption?.label}
-                    </span>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${priorityOption?.color} bg-gray-100 dark:bg-slate-700`}>
-                      {priorityOption?.label}
-                    </span>
-                  </div>
-                  <p className="text-gray-600 dark:text-slate-400 mb-2">
-                    {item.description}
-                  </p>
-                  <div className="flex items-center space-x-4 text-sm text-gray-500 dark:text-slate-400">
-                    <span>ID: {item.item_id}</span>
-                    <span>{categoryOption?.label}</span>
-                    {item.target_date && <span>Due: {new Date(item.target_date).toLocaleDateString()}</span>}
-                    <span>{item.features?.length || 0} features</span>
-                  </div>
-                </div>
-                
-                <div className="flex items-center space-x-2">
-                  <button 
-                    onClick={() => handleEditItem(item)}
-                    className="p-2 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                    title="Edit item"
+      {/* Items List grouped by quarter */}
+      <div className="space-y-6">
+        {sortedGroupKeys.map((groupKey) => (
+          <div key={groupKey}>
+            <h4 className="text-sm font-semibold text-gray-700 dark:text-slate-300 mb-3">
+              {groupKey}
+            </h4>
+            <div className="space-y-4">
+              {groupedItems[groupKey].map((item) => {
+                const statusOption = statusOptions.find(s => s.value === item.status);
+                const categoryOption = categoryOptions.find(c => c.value === item.category);
+                const priorityOption = priorityOptions.find(p => p.value === item.priority);
+                return (
+                  <motion.div
+                    key={item.id}
+                    layout
+                    className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-6"
                   >
-                    <Edit className="w-4 h-4" />
-                  </button>
-                  <button 
-                    onClick={() => handleDeleteItem(item.item_id)}
-                    className="p-2 text-red-400 hover:text-red-600 transition-colors"
-                    title="Delete item"
-                    disabled={saving}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-3 mb-2">
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">
+                            {item.title}
+                          </h3>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusOption?.bgColor} ${statusOption?.color}`}>
+                            {statusOption?.label}
+                          </span>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${priorityOption?.color} bg-gray-100 dark:bg-slate-700`}>
+                            {priorityOption?.label}
+                          </span>
+                        </div>
+                        <p className="text-gray-600 dark:text-slate-400 mb-2">
+                          {item.description}
+                        </p>
+                        <div className="flex items-center space-x-4 text-sm text-gray-500 dark:text-slate-400">
+                          <span>ID: {item.item_id}</span>
+                          <span>{categoryOption?.label}</span>
+                          <span>{item.features?.length || 0} features</span>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center space-x-2">
+                        <button 
+                          onClick={() => handleEditItem(item)}
+                          className="p-2 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                          title="Edit item"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteItem(item.item_id)}
+                          className="p-2 text-red-400 hover:text-red-600 transition-colors"
+                          title="Delete item"
+                          disabled={saving}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
 
-              {/* Target Date Display */}
-              {item.target_date && (
-                <div className="mb-4">
-                  <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-slate-400">
-                    <Calendar className="w-4 h-4" />
-                    <span>Target: {new Date(item.target_date).toLocaleDateString()}</span>
-                    <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 rounded text-xs font-medium">
-                      {item.estimated_quarter}
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              {/* Status Controls */}
-              <div className="flex items-center space-x-2">
-                <label className="text-sm font-medium text-gray-700 dark:text-slate-300">
-                  Status:
-                </label>
-                <select
-                  value={item.status}
-                  onChange={(e) => handleStatusChange(item.item_id, e.target.value as DatabaseRoadmapItem['status'])}
-                  disabled={saving}
-                  className="px-3 py-1 border border-gray-300 dark:border-slate-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100"
-                >
-                  {statusOptions.map(option => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </motion.div>
-          );
-        })}
+                    {/* Status Controls */}
+                    <div className="flex items-center space-x-2">
+                      <label className="text-sm font-medium text-gray-700 dark:text-slate-300">
+                        Status:
+                      </label>
+                      <select
+                        value={item.status}
+                        onChange={(e) => handleStatusChange(item.item_id, e.target.value as DatabaseRoadmapItem['status'])}
+                        disabled={saving}
+                        className="px-3 py-1 border border-gray-300 dark:border-slate-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100"
+                      >
+                        {statusOptions.map(option => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </div>
 
       {items.length === 0 && (

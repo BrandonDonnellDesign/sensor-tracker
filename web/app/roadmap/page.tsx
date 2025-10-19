@@ -1,14 +1,13 @@
-import { Metadata } from 'next';
+'use client';
+
+import { useState } from 'react';
 import Link from 'next/link';
 import { Home } from 'lucide-react';
 import { DynamicRoadmap } from '@/components/roadmap/dynamic-roadmap';
-
-export const metadata: Metadata = {
-  title: 'Product Roadmap | CGM Sensor Tracker',
-  description: 'See what we\'re building to make CGM tracking even better',
-};
+import { FeedbackModal } from '@/components/roadmap/feedback-modal';
 
 export default function RoadmapPage() {
+  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
       <div className="max-w-6xl mx-auto px-4 py-8">
@@ -56,16 +55,30 @@ export default function RoadmapPage() {
               We&apos;d love to hear your ideas! Your feedback helps shape our roadmap.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <button className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg font-medium transition-colors">
+              <button 
+                onClick={() => setIsFeedbackModalOpen(true)}
+                className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+              >
                 Submit Feedback
               </button>
-              <button className="bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700 px-6 py-2 rounded-lg font-medium transition-colors">
+              <a
+                href="https://github.com/your-repo/discussions"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700 px-6 py-2 rounded-lg font-medium transition-colors text-center"
+              >
                 Join Community
-              </button>
+              </a>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Feedback Modal */}
+      <FeedbackModal 
+        isOpen={isFeedbackModalOpen}
+        onClose={() => setIsFeedbackModalOpen(false)}
+      />
     </div>
   );
 }

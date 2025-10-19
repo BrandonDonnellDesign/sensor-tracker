@@ -7,7 +7,7 @@ import { StatusIndicator } from '@/components/admin/status-indicator';
 import { MiniChart } from '@/components/admin/mini-chart';
 import { LineChart } from '@/components/admin/charts/line-chart';
 import { fetchOverviewMetrics, fetchIntegrationHealth, type OverviewMetrics, type IntegrationHealth } from '@/lib/admin/metrics';
-import { Users, Activity, Zap, Camera, Bell, TrendingUp, AlertTriangle, CheckCircle, Award } from 'lucide-react';
+import { Users, Activity, Zap, Camera, Bell, TrendingUp, AlertTriangle, CheckCircle, Award, MessageSquare } from 'lucide-react';
 
 
 export default function AdminOverviewPage() {
@@ -421,7 +421,7 @@ export default function AdminOverviewPage() {
         {/* Quick Actions */}
         <div className="bg-white dark:bg-slate-800 shadow rounded-lg p-6">
           <h3 className="text-lg font-medium text-gray-900 dark:text-slate-100 mb-4">Quick Actions</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
             <a
               href="/admin/analytics"
               className="p-4 border border-gray-200 dark:border-slate-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
@@ -461,6 +461,14 @@ export default function AdminOverviewPage() {
               <Activity className="h-5 w-5 text-red-600 dark:text-red-400 mb-2" />
               <h4 className="font-medium text-gray-900 dark:text-slate-100">System Logs</h4>
               <p className="text-sm text-gray-600 dark:text-slate-400 mt-1">Recent system activity</p>
+            </a>
+            <a
+              href="/admin/feedback"
+              className="p-4 border border-gray-200 dark:border-slate-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
+            >
+              <MessageSquare className="h-5 w-5 text-orange-600 dark:text-orange-400 mb-2" />
+              <h4 className="font-medium text-gray-900 dark:text-slate-100">User Feedback</h4>
+              <p className="text-sm text-gray-600 dark:text-slate-400 mt-1">Feature requests & bugs</p>
             </a>
           </div>
         </div>

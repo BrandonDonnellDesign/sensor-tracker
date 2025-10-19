@@ -137,6 +137,37 @@ export function DynamicRoadmap({
     });
   }, [items, selectedCategory, selectedStatus, showCompleted]);
 
+  // Group items by quarter for better organization
+  const groupedItems = useMemo(() => {
+    const groups: Record<string, DatabaseRoadmapItem[]> = {};
+    
+    filteredItems.forEach((item) => {
+      const quarter = item.estimated_quarter;
+      if (!groups[quarter]) {
+        groups[quarter] = [];
+      }
+      groups[quarter].push(item);
+    });
+
+    // Sort quarters chronologically
+    const sortedQuarters = Object.keys(groups).sort((a, b) => {
+      // Extract year and quarter number for proper sorting
+      const [aQ, aYear] = a.split(' ');
+      const [bQ, bYear] = b.split(' ');
+      
+      if (aYear !== bYear) {
+        return parseInt(aYear) - parseInt(bYear);
+      }
+      
+      return parseInt(aQ.replace('Q', '')) - parseInt(bQ.replace('Q', ''));
+    });
+
+    return sortedQuarters.map(quarter => ({
+      quarter,
+      items: groups[quarter]
+    }));
+  }, [filteredItems]);
+
   if (loading) {
     return (
       <div className='flex items-center justify-center py-12'>
@@ -347,10 +378,34 @@ export function DynamicRoadmap({
         </motion.div>
       )}
 
-      {/* Roadmap Items */}
-      <div className='space-y-6'>
+      {/* Roadmap Items Grouped by Quarter */}
+      <div className='space-y-8'>
         <AnimatePresence mode='popLayout'>
-          {filteredItems.map((item) => {
+          {groupedItems.map(({ quarter, items: quarterItems }) => (
+            <motion.div
+              key={quarter}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className='space-y-4'>
+              
+              {/* Quarter Header */}
+              <div className='flex items-center space-x-3 mb-6'>
+                <div className='flex items-center space-x-2'>
+                  <Calendar className='w-5 h-5 text-blue-600 dark:text-blue-400' />
+                  <h3 className='text-xl font-bold text-gray-900 dark:text-slate-100'>
+                    {quarter}
+                  </h3>
+                </div>
+                <div className='flex-1 h-px bg-gradient-to-r from-blue-200 to-transparent dark:from-blue-800'></div>
+                <span className='text-sm text-gray-500 dark:text-slate-400 bg-gray-100 dark:bg-slate-800 px-2 py-1 rounded-full'>
+                  {quarterItems.length} {quarterItems.length === 1 ? 'item' : 'items'}
+                </span>
+              </div>
+
+              {/* Quarter Items */}
+              <div className='space-y-4'>
+                {quarterItems.map((item) => {
             const statusConfig_ = statusConfig[item.status];
             const categoryConfig_ = categoryConfig[item.category];
             const StatusIcon = statusConfig_.icon;
@@ -400,7 +455,7 @@ export function DynamicRoadmap({
                       </div>
 
                       <div className='flex items-center space-x-4 mb-4 text-sm text-gray-500 dark:text-slate-400'>
-                        <span className='flex items-center'>
+                        <span className='flex items-center font-medium'>
                           <Calendar className='w-4 h-4 mr-1' />
                           {item.estimated_quarter}
                         </span>
@@ -417,10 +472,6 @@ export function DynamicRoadmap({
                               : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
                           }`}>
                           {item.priority} priority
-                        </span>
-                        <span className='text-xs text-gray-400'>
-                          Updated{' '}
-                          {new Date(item.updated_at).toLocaleDateString()}
                         </span>
                       </div>
 
@@ -463,8 +514,11 @@ export function DynamicRoadmap({
                   </div>
                 </div>
               </motion.div>
-            );
-          })}
+                );
+              })}
+              </div>
+            </motion.div>
+          ))}
         </AnimatePresence>
       </div>
 

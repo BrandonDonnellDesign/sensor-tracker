@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Bell } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useDateTimeFormatter } from '@/utils/date-formatter';
@@ -21,6 +22,100 @@ export function NotificationsButton() {
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const dateFormatter = useDateTimeFormatter();
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const [animateOpen, setAnimateOpen] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+  const [panelStyle, setPanelStyle] = useState<React.CSSProperties | undefined>(undefined);
+
+  // Close when clicking/tapping outside or pressing Escape
+  useEffect(() => {
+    let openTimer: ReturnType<typeof setTimeout> | undefined;
+    let closeTimer: ReturnType<typeof setTimeout> | undefined;
+
+    const onPointerDown = (e: Event) => {
+      const target = e.target as Node;
+      if (panelRef.current && buttonRef.current) {
+        if (!panelRef.current.contains(target) && !buttonRef.current.contains(target)) {
+          // Close via isOpen so the main effect handles animation/unmount timing
+          setIsOpen(false);
+        }
+      }
+    };
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsOpen(false);
+      }
+    };
+
+    if (isOpen) {
+      setIsMounted(true);
+      // Small timeout to allow CSS animation class to apply
+      openTimer = setTimeout(() => setAnimateOpen(true), 10);
+      document.addEventListener('pointerdown', onPointerDown as EventListener);
+      document.addEventListener('touchstart', onPointerDown as EventListener);
+      document.addEventListener('keydown', onKeyDown as EventListener);
+    } else {
+      // Start closing animation if panel is mounted
+      if (isMounted) {
+        setAnimateOpen(false);
+        closeTimer = setTimeout(() => setIsMounted(false), 200);
+      }
+    }
+
+    return () => {
+      if (openTimer) clearTimeout(openTimer);
+      if (closeTimer) clearTimeout(closeTimer);
+      document.removeEventListener('pointerdown', onPointerDown as EventListener);
+      document.removeEventListener('touchstart', onPointerDown as EventListener);
+      document.removeEventListener('keydown', onKeyDown as EventListener);
+    };
+  }, [isOpen, isMounted]);
+
+  // Position the panel: anchored to the button on desktop (lg and up), centered bottom on mobile
+  useEffect(() => {
+    if (!isMounted) return;
+
+    const updatePos = () => {
+      if (!buttonRef.current || !panelRef.current || typeof window === 'undefined') return;
+
+      const isDesktop = window.innerWidth >= 1024; // lg breakpoint
+      const btnRect = buttonRef.current.getBoundingClientRect();
+      const panelRect = panelRef.current.getBoundingClientRect();
+
+      if (isDesktop) {
+        // Anchor to the right of the button by default
+        let left = btnRect.right + 8; // small gap
+        let top = btnRect.top;
+
+        // If panel would overflow right edge, clamp it
+        const overflowX = left + panelRect.width - window.innerWidth - 12;
+        if (overflowX > 0) left = Math.max(12, left - overflowX);
+
+        // If panel overflows bottom, shift up
+        if (top + panelRect.height > window.innerHeight - 12) {
+          top = Math.max(12, window.innerHeight - panelRect.height - 12);
+        }
+
+        setPanelStyle({ position: 'absolute', left: left + window.scrollX, top: top + window.scrollY, transform: 'translateY(0)' });
+      } else {
+        // Centered fixed bottom for small screens
+        setPanelStyle({ position: 'fixed', left: '50%', bottom: '1.5rem', transform: 'translateX(-50%)' });
+      }
+    };
+
+    // run after a short delay so the panel's size is accurate
+    const t = setTimeout(updatePos, 20);
+    window.addEventListener('resize', updatePos);
+    window.addEventListener('scroll', updatePos, true);
+
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener('resize', updatePos);
+      window.removeEventListener('scroll', updatePos, true);
+    };
+  }, [isMounted, animateOpen]);
 
   // Load notifications on component mount
   useEffect(() => {
@@ -168,6 +263,7 @@ export function NotificationsButton() {
   return (
     <div className="relative">
       <button
+        ref={buttonRef}
         onClick={() => setIsOpen(!isOpen)}
         className="relative flex items-center space-x-2 px-3 py-2 text-xs text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors w-full"
         title="Notifications"
@@ -179,13 +275,23 @@ export function NotificationsButton() {
         )}
       </button>
 
-      {isOpen && (
+  {isMounted && typeof document !== 'undefined' && createPortal(
         <>
+          {/* Fullscreen overlay to capture outside clicks and prevent underlying UI from receiving the click */}
           <div
-            className="fixed inset-0 z-40"
+            className="fixed inset-0 z-[9998]"
             onClick={() => setIsOpen(false)}
+            aria-hidden="true"
           />
-          <div className="absolute left-full ml-2 bottom-0 w-80 sm:w-96 max-w-[calc(100vw-20rem)] rounded-xl bg-white dark:bg-slate-800 shadow-xl ring-1 ring-black/5 dark:ring-white/10 z-50 border border-gray-200 dark:border-slate-700">
+          {/* Panel is fixed and centered at the bottom for a cleaner popup on small screens */}
+          <div
+            ref={panelRef}
+            style={panelStyle}
+            className={`z-[9999] w-80 sm:w-96 max-w-[calc(100vw-2rem)] rounded-xl bg-white dark:bg-slate-800 shadow-xl ring-1 ring-black/5 dark:ring-white/10 border border-gray-200 dark:border-slate-700 transform transition-all duration-200 ${animateOpen ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}
+            role="dialog"
+            aria-modal="true"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="p-0">
               <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-slate-700">
                 <div className="flex items-center gap-2">
@@ -308,7 +414,7 @@ export function NotificationsButton() {
               </div>
             </div>
           </div>
-        </>
+        </>, document.body
       )}
     </div>
   );

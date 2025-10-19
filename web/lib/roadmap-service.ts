@@ -81,7 +81,7 @@ export interface RoadmapStats {
  */
 export async function fetchRoadmapItems(): Promise<DatabaseRoadmapItem[]> {
   try {
-    // Fetch roadmap items with features and tags
+    // Fetch roadmap items with features and tags, ordered by status priority and sort_order
     const { data: items, error } = await supabase
       .from('roadmap_items')
       .select(`
@@ -121,14 +121,40 @@ export async function fetchRoadmapItems(): Promise<DatabaseRoadmapItem[]> {
           `)
           .eq('item_id', item.id);
 
+        // Defensive: if deps is not an array, set dependencies to undefined
+        let dependencies: any[] | undefined = undefined;
+        if (Array.isArray(deps)) {
+          dependencies = deps
+            .map(d => d.depends_on)
+            .filter(dep => dep && typeof (dep as any).id === 'string' && typeof (dep as any).title === 'string') as unknown as DatabaseRoadmapItem[];
+        }
+
         return {
           ...item,
-          dependencies: deps?.map(d => d.depends_on).filter(Boolean) || []
-        };
+          dependencies
+        } as DatabaseRoadmapItem;
       })
     );
 
-    return itemsWithDependencies.map(transformDatabaseItem);
+    // Only keep items with a valid sort_order property
+    // Only keep items with a numeric sort_order
+    const validItems = itemsWithDependencies.filter(item => typeof item.sort_order === 'number');
+    // Sort items by status priority and then by sort_order
+    const sortedItems = validItems.sort((a, b) => {
+      const statusPriority = {
+        'in-progress': 1,
+        'planned': 2,
+        'future': 3,
+        'completed': 4
+      };
+      const aPriority = statusPriority[a.status as keyof typeof statusPriority] || 5;
+      const bPriority = statusPriority[b.status as keyof typeof statusPriority] || 5;
+      if (aPriority !== bPriority) {
+        return aPriority - bPriority;
+      }
+      return a.sort_order - b.sort_order;
+    });
+    return sortedItems.map(transformDatabaseItem);
   } catch (error) {
     console.error('Error in fetchRoadmapItems:', error);
     return [];
