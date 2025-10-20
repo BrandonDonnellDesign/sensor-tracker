@@ -282,13 +282,6 @@ export function CompactGamification({ className = '' }: CompactGamificationProps
         
         <div className="flex items-center space-x-2">
           <button
-            onClick={() => window.location.href = '/dashboard/settings?tab=preferences'}
-            className="p-2 text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
-            title="Customize widget"
-          >
-            <Settings className="w-4 h-4" />
-          </button>
-          <button
             onClick={() => setShowAchievements(true)}
             className="bg-gradient-to-r from-teal-500 to-blue-600 hover:from-teal-600 hover:to-blue-700 text-white rounded-xl px-4 py-2 text-sm font-medium transition-all duration-200 hover:scale-105 shadow-md"
           >

@@ -11,6 +11,7 @@ interface IntegrationCardProps {
   features: string[];
 }
 
+
 function IntegrationCard({
   title,
   description,
@@ -29,24 +30,20 @@ function IntegrationCard({
             <Zap className='w-2.5 h-2.5 text-white' />
           </div>
         </div>
-
         <h3 className='text-xl font-bold text-gray-900 dark:text-slate-100 mb-3'>
           {title}
         </h3>
-
         <div className='inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 mb-4'>
           <Zap className='w-3 h-3 mr-1' />
           Coming Soon
         </div>
       </div>
-
       {/* Description */}
       <div className='text-center mb-6'>
         <p className='text-gray-600 dark:text-slate-400 text-sm leading-relaxed'>
           {description}
         </p>
       </div>
-
       {/* Features */}
       <div className='space-y-2'>
         {features.map((feature, index) => (
@@ -75,18 +72,15 @@ export function CgmIntegrations() {
             <Zap className='w-3 h-3 text-white' />
           </div>
         </div>
-
         <h2 className='text-2xl font-bold text-gray-900 dark:text-slate-100 mb-4'>
           CGM Integrations
         </h2>
-
         <p className='text-gray-600 dark:text-slate-400 text-lg leading-relaxed max-w-2xl mx-auto mb-8'>
           Automatic sensor data sync from your CGM devices is currently in
           development. These features will allow you to automatically import
           sensor information, eliminating manual entry.
         </p>
       </div>
-
       {/* Integration Cards */}
       <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
         <IntegrationCard
@@ -100,7 +94,6 @@ export function CgmIntegrations() {
             'Historical data import',
           ]}
         />
-
         <IntegrationCard
           title='Freestyle Libre Integration'
           description='Sync your Freestyle Libre data automatically for seamless glucose monitoring and tracking.'
@@ -113,7 +106,6 @@ export function CgmIntegrations() {
           ]}
         />
       </div>
-
       {/* Footer */}
       <div className='text-center bg-gray-50 dark:bg-slate-700/50 rounded-lg p-6'>
         <h3 className='text-lg font-semibold text-gray-900 dark:text-slate-100 mb-2'>

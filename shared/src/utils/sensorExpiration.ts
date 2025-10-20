@@ -74,12 +74,14 @@ export const getSensorExpirationInfo = (
     };
   }
 
+  // Expiration date is exactly duration_days after startDate (not including start day)
   const expirationDate = new Date(startDate);
   expirationDate.setDate(expirationDate.getDate() + sensorModel.duration_days);
 
   const now = new Date();
+  // Calculate days left as whole days remaining (floor, not ceil)
   const timeLeft = expirationDate.getTime() - now.getTime();
-  const daysLeft = Math.ceil(timeLeft / (1000 * 60 * 60 * 24));
+  const daysLeft = Math.floor(timeLeft / (1000 * 60 * 60 * 24));
   const hoursLeft = Math.floor(timeLeft / (1000 * 60 * 60));
 
   // Check if this is a Dexcom sensor (10-day duration typically)
@@ -210,10 +212,10 @@ export const formatDaysLeft = (daysLeft: number, expirationInfo?: SensorExpirati
     }
   }
   
-  // Fall back to day-based display for longer periods only
+  // Always show days for durations under 14 days
   if (daysLeft === 1) {
     return '1 day left';
-  } else if (daysLeft < 7) {
+  } else if (daysLeft < 14) {
     return `${daysLeft} days left`;
   } else if (daysLeft < 30) {
     const weeks = Math.floor(daysLeft / 7);
@@ -222,8 +224,10 @@ export const formatDaysLeft = (daysLeft: number, expirationInfo?: SensorExpirati
       return '1 week left';
     } else if (weeks === 1) {
       return `1 week, ${remainingDays} days left`;
-    } else {
+    } else if (remainingDays === 0) {
       return `${weeks} weeks left`;
+    } else {
+      return `${weeks} weeks, ${remainingDays} days left`;
     }
   } else {
     const months = Math.floor(daysLeft / 30);
