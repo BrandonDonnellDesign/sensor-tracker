@@ -1,19 +1,20 @@
-
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import { createClient as createBrowserClient } from '@supabase/supabase-js';
-import { getSensorExpirationInfo } from '@/shared/src/utils/sensorExpiration';
+import { getSensorExpirationInfo } from '@/utils/sensor-expiration';
 import { systemLogger } from '@/lib/system-logger';
-
 
 export async function POST(request: NextRequest) {
   try {
     let supabase = await createClient();
     let user = null;
-    
+
     // Try to get user from session/cookies first
-    const { data: { user: cookieUser }, error: authError } = await supabase.auth.getUser();
-    
+    const {
+      data: { user: cookieUser },
+      error: authError,
+    } = await supabase.auth.getUser();
+
     if (!authError && cookieUser) {
       user = cookieUser;
     } else {
@@ -21,7 +22,7 @@ export async function POST(request: NextRequest) {
       const authHeader = request.headers.get('authorization');
       if (authHeader && authHeader.startsWith('Bearer ')) {
         const token = authHeader.substring(7);
-        
+
         // Create a new client with the token
         const tokenSupabase = createBrowserClient(
           process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -29,53 +30,72 @@ export async function POST(request: NextRequest) {
           {
             global: {
               headers: {
-                Authorization: `Bearer ${token}`
-              }
-            }
+                Authorization: `Bearer ${token}`,
+              },
+            },
           }
         );
-        
-        const { data: { user: tokenUser }, error: tokenError } = await tokenSupabase.auth.getUser();
+
+        const {
+          data: { user: tokenUser },
+          error: tokenError,
+        } = await tokenSupabase.auth.getUser();
         if (!tokenError && tokenUser) {
           user = tokenUser;
           supabase = tokenSupabase;
         }
       }
     }
-    
+
     if (!user) {
       console.error('Authentication failed - no user found');
-      await systemLogger.warn('notifications', 'Notification action attempted without authentication');
+      await systemLogger.warn(
+        'notifications',
+        'Notification action attempted without authentication'
+      );
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     const { action, notificationId } = await request.json();
     switch (action) {
       case 'generate': {
         // Generate notifications for the authenticated user
-        await systemLogger.info('notifications', 'Generating notifications for user', user.id);
+        await systemLogger.info(
+          'notifications',
+          'Generating notifications for user',
+          user.id
+        );
         await generateSensorNotifications(supabase, user.id);
         await cleanupOldNotifications(supabase);
-        await systemLogger.info('notifications', 'Notifications generated successfully', user.id);
-        
-        return NextResponse.json({ 
-          success: true, 
-          message: 'Notifications generated successfully' 
+        await systemLogger.info(
+          'notifications',
+          'Notifications generated successfully',
+          user.id
+        );
+
+        return NextResponse.json({
+          success: true,
+          message: 'Notifications generated successfully',
         });
       }
-      
+
       case 'delete': {
         if (!notificationId) {
           console.error('Notification ID missing in delete request');
-          return NextResponse.json({ error: 'Notification ID required for delete' }, { status: 400 });
+          return NextResponse.json(
+            { error: 'Notification ID required for delete' },
+            { status: 400 }
+          );
         }
 
         // Always perform the update to dismiss the notification
         const now = new Date().toISOString();
-        const { data: updateResult, error: dismissError } = await (supabase as any)
+        const { data: updateResult, error: dismissError } = await (
+          supabase as any
+        )
           .from('notifications')
-          .update({ 
+          .update({
             dismissed_at: now,
-            updated_at: now
+            updated_at: now,
           })
           .eq('id', notificationId)
           .eq('user_id', user.id)
@@ -83,14 +103,26 @@ export async function POST(request: NextRequest) {
 
         if (dismissError) {
           console.error('Error dismissing notification:', dismissError);
-          await systemLogger.error('notifications', `Failed to dismiss notification: ${dismissError.message}`, user.id);
-          return NextResponse.json({ error: 'Failed to dismiss notification' }, { status: 500 });
+          await systemLogger.error(
+            'notifications',
+            `Failed to dismiss notification: ${dismissError.message}`,
+            user.id
+          );
+          return NextResponse.json(
+            { error: 'Failed to dismiss notification' },
+            { status: 500 }
+          );
         }
 
-        await systemLogger.info('notifications', 'Notification dismissed', user.id, { notificationId });
+        await systemLogger.info(
+          'notifications',
+          'Notification dismissed',
+          user.id,
+          { notificationId }
+        );
         return NextResponse.json({ success: true });
       }
-      
+
       case 'clear-all': {
         // For now, use direct update to set dismissed_at (after migration is applied)
         // First check if dismissed_at column exists
@@ -100,21 +132,24 @@ export async function POST(request: NextRequest) {
           .eq('table_name', 'notifications')
           .eq('column_name', 'dismissed_at')
           .single();
-        
+
         if (tableInfo) {
           // Use dismiss functionality if column exists
           const { error: dismissError } = await (supabase as any)
             .from('notifications')
-            .update({ 
+            .update({
               dismissed_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
+              updated_at: new Date().toISOString(),
             })
             .eq('user_id', user.id)
             .is('dismissed_at', null);
-            
+
           if (dismissError) {
             console.error('Error dismissing all notifications:', dismissError);
-            return NextResponse.json({ error: 'Failed to dismiss notifications' }, { status: 500 });
+            return NextResponse.json(
+              { error: 'Failed to dismiss notifications' },
+              { status: 500 }
+            );
           }
         } else {
           // Fallback to delete if column doesn't exist yet
@@ -122,40 +157,67 @@ export async function POST(request: NextRequest) {
             .from('notifications')
             .delete()
             .eq('user_id', user.id);
-            
+
           if (clearError) {
             console.error('Error clearing all notifications:', clearError);
-            return NextResponse.json({ error: 'Failed to clear notifications' }, { status: 500 });
+            return NextResponse.json(
+              { error: 'Failed to clear notifications' },
+              { status: 500 }
+            );
           }
         }
-        
-        await systemLogger.info('notifications', 'All notifications cleared', user.id);
+
+        await systemLogger.info(
+          'notifications',
+          'All notifications cleared',
+          user.id
+        );
         return NextResponse.json({ success: true });
       }
       default:
-        await systemLogger.warn('notifications', `Invalid action attempted: ${action}`, user.id);
+        await systemLogger.warn(
+          'notifications',
+          `Invalid action attempted: ${action}`,
+          user.id
+        );
         return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }
   } catch (error) {
-    await systemLogger.error('notifications', `Notification API error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    await systemLogger.error(
+      'notifications',
+      `Notification API error: ${
+        error instanceof Error ? error.message : 'Unknown error'
+      }`
+    );
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
   }
 }
 
 /**
  * Generate notifications based on sensor data with user preferences
  */
-async function generateSensorNotifications(supabase: any, userId: string): Promise<void> {
+async function generateSensorNotifications(
+  supabase: any,
+  userId: string
+): Promise<void> {
   try {
     // Get user's notification preferences
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('warning_days_before, critical_days_before, notifications_enabled, push_notifications_enabled, in_app_notifications_enabled')
+      .select(
+        'warning_days_before, critical_days_before, notifications_enabled, push_notifications_enabled, in_app_notifications_enabled'
+      )
       .eq('id', userId)
       .single();
 
     if (profileError) {
-      console.error('Error fetching user profile for notifications:', profileError);
+      console.error(
+        'Error fetching user profile for notifications:',
+        profileError
+      );
       // Continue with defaults if profile not found
     }
 
@@ -189,15 +251,20 @@ async function generateSensorNotifications(supabase: any, userId: string): Promi
     for (const sensor of sensors) {
       const sensorModel: any = {
         id: 'fallback',
-        manufacturer: (sensor as any).sensor_type === 'dexcom' ? 'Dexcom' : 'Abbott',
-        modelName: (sensor as any).sensor_type === 'dexcom' ? 'G6' : 'FreeStyle Libre',
+        manufacturer:
+          (sensor as any).sensor_type === 'dexcom' ? 'Dexcom' : 'Abbott',
+        modelName:
+          (sensor as any).sensor_type === 'dexcom' ? 'G6' : 'FreeStyle Libre',
         durationDays: (sensor as any).sensor_type === 'dexcom' ? 11 : 14,
         isActive: true,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
-      
-      const expirationInfo = getSensorExpirationInfo(new Date(sensor.date_added), sensorModel);
+
+      const expirationInfo = getSensorExpirationInfo(
+        new Date(sensor.date_added),
+        sensorModel
+      );
 
       // Check if sensor is expired
       if (expirationInfo.isExpired) {
@@ -212,21 +279,22 @@ async function generateSensorNotifications(supabase: any, userId: string): Promi
           .limit(1);
 
         if (!existingNotification || existingNotification.length === 0) {
-          await supabase
-            .from('notifications')
-            .insert({
-              user_id: userId,
-              sensor_id: sensor.id,
-              title: 'Sensor has expired',
-              message: `Your sensor (SN: ${sensor.serial_number}) has expired. Please replace it immediately.`,
-              type: 'sensor_expired',
-              status: 'pending',
-              delivery_status: 'pending',
-            });
+          await supabase.from('notifications').insert({
+            user_id: userId,
+            sensor_id: sensor.id,
+            title: 'Sensor has expired',
+            message: `Your sensor (SN: ${sensor.serial_number}) has expired. Please replace it immediately.`,
+            type: 'sensor_expired',
+            status: 'pending',
+            delivery_status: 'pending',
+          });
         }
       }
       // Check if sensor is in critical period (within critical_days_before)
-      else if (expirationInfo.daysLeft <= criticalDays && expirationInfo.daysLeft >= 0) {
+      else if (
+        expirationInfo.daysLeft <= criticalDays &&
+        expirationInfo.daysLeft >= 0
+      ) {
         // Check if we already have a critical notification for this sensor
         const { data: existingNotification } = await supabase
           .from('notifications')
@@ -234,25 +302,33 @@ async function generateSensorNotifications(supabase: any, userId: string): Promi
           .eq('user_id', userId)
           .eq('sensor_id', sensor.id)
           .eq('type', 'sensor_expiry_warning')
-          .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()) // Within last 24 hours
+          .gte(
+            'created_at',
+            new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+          ) // Within last 24 hours
           .limit(1);
 
         if (!existingNotification || existingNotification.length === 0) {
-          await supabase
-            .from('notifications')
-            .insert({
-              user_id: userId,
-              sensor_id: sensor.id,
-              title: 'Sensor expires very soon!',
-              message: `URGENT: Your sensor (SN: ${sensor.serial_number}) will expire in ${expirationInfo.daysLeft} day${expirationInfo.daysLeft !== 1 ? 's' : ''}. Replace it now!`,
-              type: 'sensor_expiry_warning',
-              status: 'pending',
-              delivery_status: 'pending',
-            });
+          await supabase.from('notifications').insert({
+            user_id: userId,
+            sensor_id: sensor.id,
+            title: 'Sensor expires very soon!',
+            message: `URGENT: Your sensor (SN: ${
+              sensor.serial_number
+            }) will expire in ${expirationInfo.daysLeft} day${
+              expirationInfo.daysLeft !== 1 ? 's' : ''
+            }. Replace it now!`,
+            type: 'sensor_expiry_warning',
+            status: 'pending',
+            delivery_status: 'pending',
+          });
         }
       }
       // Check if sensor is in warning period (within warning_days_before but not critical)
-      else if (expirationInfo.daysLeft <= warningDays && expirationInfo.daysLeft > criticalDays) {
+      else if (
+        expirationInfo.daysLeft <= warningDays &&
+        expirationInfo.daysLeft > criticalDays
+      ) {
         // Check if we already have a warning notification for this sensor
         const { data: existingNotification } = await supabase
           .from('notifications')
@@ -260,21 +336,26 @@ async function generateSensorNotifications(supabase: any, userId: string): Promi
           .eq('user_id', userId)
           .eq('sensor_id', sensor.id)
           .eq('type', 'sensor_expiry_warning')
-          .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()) // Within last 24 hours
+          .gte(
+            'created_at',
+            new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+          ) // Within last 24 hours
           .limit(1);
 
         if (!existingNotification || existingNotification.length === 0) {
-          await supabase
-            .from('notifications')
-            .insert({
-              user_id: userId,
-              sensor_id: sensor.id,
-              title: 'Sensor expires soon',
-              message: `Your sensor (SN: ${sensor.serial_number}) will expire in ${expirationInfo.daysLeft} day${expirationInfo.daysLeft !== 1 ? 's' : ''}. Please plan to replace it.`,
-              type: 'sensor_expiry_warning',
-              status: 'pending',
-              delivery_status: 'pending',
-            });
+          await supabase.from('notifications').insert({
+            user_id: userId,
+            sensor_id: sensor.id,
+            title: 'Sensor expires soon',
+            message: `Your sensor (SN: ${
+              sensor.serial_number
+            }) will expire in ${expirationInfo.daysLeft} day${
+              expirationInfo.daysLeft !== 1 ? 's' : ''
+            }. Please plan to replace it.`,
+            type: 'sensor_expiry_warning',
+            status: 'pending',
+            delivery_status: 'pending',
+          });
         }
       }
 
@@ -290,17 +371,15 @@ async function generateSensorNotifications(supabase: any, userId: string): Promi
           .limit(1);
 
         if (!existingNotification || existingNotification.length === 0) {
-          await supabase
-            .from('notifications')
-            .insert({
-              user_id: userId,
-              sensor_id: sensor.id,
-              title: 'Sensor issue detected',
-              message: `Issue with sensor (SN: ${sensor.serial_number}): ${sensor.issue_notes}`,
-              type: 'system',
-              status: 'pending',
-              delivery_status: 'pending',
-            });
+          await supabase.from('notifications').insert({
+            user_id: userId,
+            sensor_id: sensor.id,
+            title: 'Sensor issue detected',
+            message: `Issue with sensor (SN: ${sensor.serial_number}): ${sensor.issue_notes}`,
+            type: 'system',
+            status: 'pending',
+            delivery_status: 'pending',
+          });
         }
       }
     }
@@ -314,7 +393,9 @@ async function generateSensorNotifications(supabase: any, userId: string): Promi
  */
 async function cleanupOldNotifications(supabase: any): Promise<void> {
   try {
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const thirtyDaysAgo = new Date(
+      Date.now() - 30 * 24 * 60 * 60 * 1000
+    ).toISOString();
 
     const { error } = await supabase
       .from('notifications')

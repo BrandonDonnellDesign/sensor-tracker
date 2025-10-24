@@ -229,7 +229,7 @@ export function QuickInsights({ sensors }: QuickInsightsProps) {
 
   if (sensors.length === 0) {
     return (
-      <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-slate-700">
+      <div className="bg-[#1e293b] rounded-lg p-6 border border-slate-700/30">
         <div className="flex items-center space-x-3 mb-6">
           <div className="w-10 h-10 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-full flex items-center justify-center">
             <BarChart3 className="w-5 h-5 text-white" />
@@ -254,7 +254,7 @@ export function QuickInsights({ sensors }: QuickInsightsProps) {
   }
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-slate-700">
+    <div className="bg-[#1e293b] rounded-lg p-6 border border-slate-700/30">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-full flex items-center justify-center">

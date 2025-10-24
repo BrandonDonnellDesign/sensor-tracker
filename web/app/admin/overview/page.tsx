@@ -77,12 +77,12 @@ export default function AdminOverviewPage() {
 
   return (
     <AdminGuard>
-      <div className="space-y-8">
+      <div className="space-y-6">
         {/* Header */}
-        <div className="flex justify-between items-start">
+        <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-slate-100">Admin Dashboard</h1>
-            <p className="text-lg text-gray-600 dark:text-slate-400 mt-2">
+            <h1 className="text-3xl font-bold text-white">Admin Dashboard</h1>
+            <p className="text-sm text-slate-400 mt-1">
               System health and key metrics at a glance
             </p>
           </div>

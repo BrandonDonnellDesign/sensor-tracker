@@ -37,6 +37,7 @@
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
-    "@netlify/functions": "^4.2.7"
+    "@netlify/functions": "^4.2.7",
+    "@supabase/supabase-js": "^2.76.1"
   }
 }

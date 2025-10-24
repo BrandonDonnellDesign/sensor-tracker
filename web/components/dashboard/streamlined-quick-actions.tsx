@@ -25,7 +25,7 @@ export function StreamlinedQuickActions({
   problematicCount = 0 
 }: StreamlinedQuickActionsProps) {
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-slate-700">
+    <div className="bg-[#1e293b] rounded-lg p-6 border border-slate-700/30">
       <div className="flex items-center mb-6">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-full flex items-center justify-center shadow-lg">
@@ -40,19 +40,6 @@ export function StreamlinedQuickActions({
       
       {/* Primary Actions */}
       <div className="space-y-4 mb-6">
-        <Link
-          href="/dashboard/sensors/new"
-          className="group flex items-center justify-between w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium py-4 px-6 rounded-xl transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl"
-        >
-          <div className="flex items-center">
-            <Plus className="w-5 h-5 mr-3 group-hover:rotate-90 transition-transform duration-200" />
-            <span>Add New Sensor</span>
-          </div>
-          <div className="opacity-75 group-hover:opacity-100 transition-opacity">
-            <kbd className="bg-white/20 px-2 py-1 rounded text-xs">Alt+N</kbd>
-          </div>
-        </Link>
-        
         <div className="grid grid-cols-2 gap-4">
           <Link
             href="/dashboard/sensors"

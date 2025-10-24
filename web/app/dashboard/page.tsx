@@ -283,8 +283,8 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
-      <div className="max-w-7xl mx-auto px-4 lg:px-6 py-4 lg:py-6">
+    <div className="min-h-screen">
+      <div>
         {/* Admin Access Error */}
         {adminError && (
           <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-4 text-center mb-6">
@@ -321,9 +321,9 @@ export default function DashboardPage() {
         <EnhancedStatsGrid stats={statsData} />
 
         {/* Main Content Grid */}
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 lg:gap-8 mb-6 lg:mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
           {/* Left Column - Activity & Insights */}
-          <div className="xl:col-span-2 space-y-6 lg:space-y-8">
+          <div className="lg:col-span-2 space-y-4">
             {/* Activity Timeline */}
             <ActivityTimeline 
               sensors={sensors}
@@ -332,12 +332,10 @@ export default function DashboardPage() {
 
             {/* Quick Insights */}
             <QuickInsights sensors={sensors} />
-
-
           </div>
 
           {/* Right Column - Actions & Gamification */}
-          <div className="space-y-6 lg:space-y-8">
+          <div className="space-y-4">
             {/* Compact Gamification */}
             <CompactGamification />
 
@@ -354,31 +352,31 @@ export default function DashboardPage() {
 
         {/* Empty State for New Users */}
         {totalSensors === 0 && (
-          <div className="bg-white dark:bg-slate-800 rounded-3xl p-12 shadow-sm border border-gray-200 dark:border-slate-700 text-center">
+          <div className="bg-[#1e293b] rounded-lg p-12 border border-slate-700/30 text-center">
             <div className="max-w-md mx-auto">
-              <div className="w-20 h-20 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-8">
-                <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                 </svg>
               </div>
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100 mb-4">
+              <h2 className="text-xl font-bold text-white mb-3">
                 Welcome to CGM Tracker!
               </h2>
-              <p className="text-gray-600 dark:text-slate-400 mb-8 leading-relaxed">
+              <p className="text-slate-400 mb-6 text-sm">
                 Start tracking your continuous glucose monitor sensors to unlock powerful insights, 
                 achievements, and optimize your CGM experience.
               </p>
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <Link
                   href="/dashboard/sensors/new"
-                  className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-2xl transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl">
-                  <svg className="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-lg transition-all duration-200 transform hover:scale-105 shadow-lg">
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                   </svg>
                   Add Your First Sensor
                 </Link>
-                <div className="text-sm text-gray-500 dark:text-slate-500">
-                  Or press <kbd className="bg-gray-100 dark:bg-slate-700 px-2 py-1 rounded text-xs">Alt+N</kbd>
+                <div className="text-xs text-slate-500">
+                  Or press <kbd className="bg-slate-700 px-2 py-1 rounded text-xs">Alt+N</kbd>
                 </div>
               </div>
             </div>

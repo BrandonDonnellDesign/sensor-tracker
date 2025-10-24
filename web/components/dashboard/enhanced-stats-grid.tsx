@@ -83,49 +83,23 @@ function StatCard({ title, value, icon, color, trend, subtitle, onClick }: StatC
       }`}
       onClick={onClick}
     >
-      <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg border border-gray-200 dark:border-slate-700 hover:border-gray-300 dark:hover:border-slate-600 transition-all duration-300">
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex-1">
-            <p className="text-sm font-medium text-gray-600 dark:text-slate-400 mb-1">
-              {title}
+      <div className="bg-[#1e293b] rounded-lg p-4 border border-slate-700/30 hover:border-slate-600/50 transition-all duration-300">
+        <div className="flex flex-col">
+          <p className="text-3xl font-bold text-white mb-1">
+            {value}
+          </p>
+          <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">
+            {title}
+          </p>
+          {trend && (
+            <p className="text-xs text-slate-500 mt-1">
+              {trend.label}
             </p>
-            <p className="text-3xl font-bold text-gray-900 dark:text-slate-100 mb-1">
-              {value}
-            </p>
-            {subtitle && (
-              <p className="text-xs text-gray-500 dark:text-slate-500">
-                {subtitle}
-              </p>
-            )}
-          </div>
-          
-          <div className={`p-3 rounded-xl ${colorClass.bg} ${colorClass.text} ${colorClass.shadow} transform group-hover:scale-110 transition-transform duration-300`}>
-            {icon}
-          </div>
+          )}
         </div>
 
-        {trend && (
-          <div className="flex items-center justify-between">
-            <div className={`flex items-center text-sm font-medium ${
-              trend.isPositive 
-                ? 'text-green-600 dark:text-green-400' 
-                : trend.value === 0 
-                  ? 'text-gray-500 dark:text-gray-400'
-                  : 'text-red-600 dark:text-red-400'
-            }`}>
-              {trend.value > 0 && trend.isPositive && <TrendingUp className="w-4 h-4 mr-1" />}
-              {trend.value > 0 && !trend.isPositive && <TrendingDown className="w-4 h-4 mr-1" />}
-              {trend.value === 0 && <Minus className="w-4 h-4 mr-1" />}
-              {trend.value === 0 ? 'No change' : `${Math.abs(trend.value)}%`}
-            </div>
-            <span className="text-xs text-gray-500 dark:text-slate-500">
-              {trend.label}
-            </span>
-          </div>
-        )}
-
         {/* Hover effect overlay */}
-        <div className={`absolute inset-0 rounded-2xl ${colorClass.bg} opacity-0 group-hover:opacity-5 transition-opacity duration-300`}></div>
+        <div className={`absolute inset-0 rounded-lg bg-slate-700/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300`}></div>
       </div>
     </div>
   );
@@ -157,7 +131,7 @@ export function EnhancedStatsGrid({ stats }: EnhancedStatsGridProps) {
   } : undefined;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
       <StatCard
         title="Total Sensors"
         value={totalSensors}

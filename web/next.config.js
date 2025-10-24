@@ -7,20 +7,8 @@ const __dirname = dirname(__filename);
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Output configuration to prevent scanning supabase functions
+  // Output configuration
   outputFileTracingRoot: join(__dirname),
-  outputFileTracingIncludes: {
-    '/**/*': ['../shared/**/*'],
-  },
-  outputFileTracingExcludes: {
-    '/**/*': [
-      '../supabase/functions/**/*',
-      './supabase/functions/**/*',
-      '**/supabase/functions/**/*',
-      '**/_deno/**/*',
-      '**/node_modules/.deno/**/*'
-    ],
-  },
   
   // Image optimization for sensor photos
   images: {
@@ -53,7 +41,7 @@ const nextConfig = {
   
   // Babel configuration override
   experimental: {
-    // SWC is enabled by default in Next.js 15
+    turbopackFileSystemCacheForDev: true,
   },
   
   // TypeScript configuration
@@ -61,11 +49,7 @@ const nextConfig = {
     ignoreBuildErrors: false,
   },
   
-  // ESLint configuration
-  eslint: {
-    dirs: ['src', 'app', 'components', 'lib'],
-    ignoreDuringBuilds: false,
-  },
+
   
   // External packages for server components
   serverExternalPackages: ['@supabase/supabase-js'],

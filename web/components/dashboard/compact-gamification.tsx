@@ -49,7 +49,7 @@ export function CompactGamification({ className = '' }: CompactGamificationProps
 
   if (loading || !userStats) {
     return (
-      <div className={`bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-slate-700 ${className}`}>
+      <div className={`bg-[#1e293b] rounded-lg p-6 border border-slate-700/30 ${className}`}>
         <div className="animate-pulse">
           <div className="h-4 bg-gray-200 dark:bg-slate-700 rounded w-1/3 mb-4"></div>
           <div className="h-8 bg-gray-200 dark:bg-slate-700 rounded w-1/2 mb-2"></div>
@@ -267,7 +267,7 @@ export function CompactGamification({ className = '' }: CompactGamificationProps
   };
 
   return (
-    <div className={`bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-slate-700 ${className}`}>
+    <div className={`bg-[#1e293b] rounded-lg p-6 border border-slate-700/30 ${className}`}>
       {/* Header with Gradient Accent */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center space-x-3">
