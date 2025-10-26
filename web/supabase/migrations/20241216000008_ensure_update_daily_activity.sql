@@ -15,18 +15,24 @@ DECLARE
 BEGIN
     v_today := CURRENT_DATE;
     
-    -- Insert or update daily activity
-    INSERT INTO public.daily_activities (user_id, activity_date, activity_type, count)
+    -- Insert or update daily activity (using correct column name: activity_count)
+    INSERT INTO public.daily_activities (user_id, activity_date, activity_type, activity_count)
     VALUES (p_user_id, v_today, p_activity, 1)
     ON CONFLICT (user_id, activity_date, activity_type)
     DO UPDATE SET 
-        count = public.daily_activities.count + 1,
+        activity_count = public.daily_activities.activity_count + 1,
         updated_at = NOW();
+    
+    -- Log success for debugging
+    RAISE NOTICE 'Successfully updated daily activity: user=%, activity=%, date=%', p_user_id, p_activity, v_today;
         
 EXCEPTION
     WHEN OTHERS THEN
-        -- Log error but don't fail
-        RAISE WARNING 'Error updating daily activity: %', SQLERRM;
+        -- Log detailed error
+        RAISE WARNING 'Error updating daily activity for user % activity %: % (SQLSTATE: %)', 
+            p_user_id, p_activity, SQLERRM, SQLSTATE;
+        -- Re-raise to make error visible in client
+        RAISE;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
