@@ -72,7 +72,9 @@ out
 
 # Gatsby files
 .cache/
-public
+# public folder is needed for Next.js static assets
+# Only ignore Gatsby's public folder if you have a Gatsby project
+# public
 
 # Storybook build outputs
 .out
