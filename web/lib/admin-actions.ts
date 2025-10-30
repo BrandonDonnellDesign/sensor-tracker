@@ -115,7 +115,7 @@ async function getFallbackUsers(): Promise<AdminUserData[]> {
     }
 
     // Get sensor counts
-    const { data: sensorCounts, error: sensorError } = await supabaseAdmin
+    const { data: sensorCounts } = await supabaseAdmin
       .from('sensors')
       .select('user_id')
       .eq('is_deleted', false);

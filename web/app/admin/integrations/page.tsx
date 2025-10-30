@@ -78,7 +78,6 @@ export default function AdminIntegrationsPage() {
 
   const getOverallHealth = () => {
     if (integrations.length === 0) return 'unknown';
-    const healthyCount = integrations.filter(i => i.status === 'healthy').length;
     const degradedCount = integrations.filter(i => i.status === 'degraded').length;
     const downCount = integrations.filter(i => i.status === 'down').length;
     

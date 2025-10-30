@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     const since = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
 
     // Get notification counts by type
-    const { data: notifications, error } = await adminClient
+    const { data: notifications, error } = await (adminClient as any)
       .from('notifications')
       .select('type')
       .gte('created_at', since);
@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Group by type
-    const typeStats = (notifications || []).reduce((acc, n) => {
+    const typeStats = (notifications || []).reduce((acc: Record<string, number>, n: any) => {
       acc[n.type] = (acc[n.type] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);

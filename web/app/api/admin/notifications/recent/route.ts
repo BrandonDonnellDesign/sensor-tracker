@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10');
 
     // Get recent notifications
-    const { data: notifications, error } = await adminClient
+    const { data: notifications, error } = await (adminClient as any)
       .from('notifications')
       .select('id, title, message, type, status, delivery_status, created_at, retry_count')
       .order('created_at', { ascending: false })

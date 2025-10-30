@@ -3,12 +3,12 @@
 import { useEffect, useState, useRef } from 'react';
 import { AdminGuard } from '@/components/admin/admin-guard';
 import { MetricCard } from '@/components/admin/metric-card';
-import { MiniChart } from '@/components/admin/mini-chart';
+
 import { LineChart } from '@/components/admin/charts/line-chart';
 import { BarChart } from '@/components/admin/charts/bar-chart';
 import { DoughnutChart } from '@/components/admin/charts/doughnut-chart';
-import { fetchAnalyticsData, type AnalyticsData } from '@/lib/admin/metrics';
-import { TrendingUp, Users, Zap, Bell, ArrowLeft, Calendar, Download } from 'lucide-react';
+import { type AnalyticsData } from '@/lib/admin/metrics';
+import { Users, Zap, Bell, ArrowLeft, Calendar, Download } from 'lucide-react';
 import { exportAnalyticsToCSV, exportSummaryToCSV } from '@/utils/csv-export';
 
 export default function AdminAnalyticsPage() {

@@ -246,7 +246,7 @@ async function checkSystemLogsHealth(): Promise<IntegrationHealth> {
   }
 }
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     // Check all integrations in parallel
     const [dexcomHealth, supabaseHealth, notificationHealth, systemHealth] =

@@ -4,9 +4,6 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   Loader2,
   ExternalLink,
-  RefreshCw,
-  CheckCircle,
-  XCircle,
   AlertCircle,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase-client';
@@ -39,11 +36,11 @@ export function FreestyleSettings({ user }: FreestyleSettingsProps) {
   const [connection, setConnection] = useState<FreestyleConnection | null>(
     null
   );
-  const [syncSettings, setSyncSettings] = useState<SyncSettings | null>(null);
-  const [syncLogs, setSyncLogs] = useState<SyncLog[]>([]);
+  const [_syncSettings, setSyncSettings] = useState<SyncSettings | null>(null);
+  const [_syncLogs, setSyncLogs] = useState<SyncLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [isConnecting, setIsConnecting] = useState(false);
+  const [_isSyncing, _setIsSyncing] = useState(false);
+  const [_isConnecting, setIsConnecting] = useState(false);
 
   const showToast = (
     title: string,
@@ -133,6 +130,7 @@ export function FreestyleSettings({ user }: FreestyleSettingsProps) {
     }
   };
 
+  /*
   const handleDisconnect = async () => {
     try {
       if (!user) return;
@@ -159,7 +157,9 @@ export function FreestyleSettings({ user }: FreestyleSettingsProps) {
       );
     }
   };
+  */
 
+  /*
   const handleSync = async () => {
     setIsSyncing(true);
     try {
@@ -190,7 +190,9 @@ export function FreestyleSettings({ user }: FreestyleSettingsProps) {
       setIsSyncing(false);
     }
   };
+  */
 
+  /*
   const updateSyncSettings = async (updates: Partial<SyncSettings>) => {
     try {
       if (!user) return;
@@ -212,7 +214,9 @@ export function FreestyleSettings({ user }: FreestyleSettingsProps) {
       showToast('Error', 'Failed to update sync settings.', 'destructive');
     }
   };
+  */
 
+  /*
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'success':
@@ -225,6 +229,7 @@ export function FreestyleSettings({ user }: FreestyleSettingsProps) {
         return null;
     }
   };
+  */
 
   if (isLoading) {
     return (

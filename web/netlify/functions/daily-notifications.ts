@@ -5,7 +5,7 @@ import { Handler } from '@netlify/functions';
 // import fetch from 'node-fetch';
 
 // Use 'any' for event/context to suppress type errors if types are missing
-const handler: Handler = async (event: any, context: any) => {
+const handler: Handler = async (event: any, _context: any) => {
   // Only allow POST requests or scheduled triggers
   if (event.httpMethod && event.httpMethod !== 'POST') {
     return {

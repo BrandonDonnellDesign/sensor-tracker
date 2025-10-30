@@ -27,6 +27,7 @@ import {
   Database,
   Wrench,
   Eye,
+  UtensilsCrossed,
 } from 'lucide-react';
 import { NotificationsButton } from '@/components/dashboard/notifications-button';
 
@@ -42,6 +43,13 @@ const primaryNavigation = [
     href: '/dashboard/sensors',
     icon: Activity,
     description: 'Manage your sensors',
+  },
+  {
+    name: 'Food Log',
+    href: '/dashboard/food',
+    icon: UtensilsCrossed,
+    description: 'Track meals & carbs',
+    badge: 'BETA',
   },
   {
     name: 'Analytics',
@@ -438,10 +446,13 @@ export function Sidebar() {
                 // ...existing code for badges and rendering...
                 const getBadge = () => {
                   if (item.name === 'My Sensors' && sensorCount > 0) {
-                    return { count: sensorCount, color: 'blue' };
+                    return { count: sensorCount, color: 'blue', text: null };
                   }
                   if (item.name === 'My Sensors' && problematicCount > 0) {
-                    return { count: problematicCount, color: 'red' };
+                    return { count: problematicCount, color: 'red', text: null };
+                  }
+                  if (item.badge) {
+                    return { count: null, color: 'green', text: item.badge };
                   }
                   return null;
                 };
@@ -491,11 +502,15 @@ export function Sidebar() {
                             ? isActive
                               ? 'bg-white/20 text-white'
                               : 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+                            : badge.color === 'green'
+                            ? isActive
+                              ? 'bg-white/20 text-white'
+                              : 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
                             : isActive
                             ? 'bg-white/20 text-white'
                             : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
                         )}>
-                        {badge.count}
+                        {badge.text || badge.count}
                       </span>
                     )}
                   </Link>

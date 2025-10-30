@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/components/providers/auth-provider';
 import { Database } from '@/lib/database.types';
 import { getSensorExpirationInfo, formatDaysLeft } from '@/utils/sensor-expiration';
-import { useDateTimeFormatter } from '@/utils/date-formatter';
+
 import { TagDisplay } from '@/components/sensors/tag-display';
 import { ArchivedSensorsView } from '@/components/sensors/archived-sensors-view';
 import { checkAndTagExpiredSensors } from '@/lib/expired-sensors';
@@ -34,7 +34,7 @@ type Sensor = Database['public']['Tables']['sensors']['Row'] & {
 
 export default function SensorsPage() {
   const { user } = useAuth();
-  const dateFormatter = useDateTimeFormatter();
+
   const searchParams = useSearchParams();
   const filter = searchParams.get('filter');
   
@@ -319,7 +319,7 @@ export default function SensorsPage() {
       // Text search
       const matchesSearch = sensor.serial_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (sensor.lot_number && sensor.lot_number.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        sensor.sensor_type.toLowerCase().includes(searchTerm.toLowerCase());
+        (sensor.sensor_type && sensor.sensor_type.toLowerCase().includes(searchTerm.toLowerCase()));
       
       // Tag filter
       const matchesTags = selectedTags.length === 0 || 

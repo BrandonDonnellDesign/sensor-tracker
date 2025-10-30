@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/components/providers/auth-provider';
-import { BarChart3, AlertCircle, CheckCircle, ArrowRight, Mail } from 'lucide-react';
+import { BarChart3, AlertCircle, ArrowRight, Mail } from 'lucide-react';
 
 export default function RegisterPage() {
   const { signUp, user, loading: authLoading } = useAuth();

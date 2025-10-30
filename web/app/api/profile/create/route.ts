@@ -3,7 +3,7 @@ import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { systemLogger } from '@/lib/system-logger';
 
-export async function POST(request: Request) {
+export async function POST(_request: Request) {
   try {
     const supabase = await createClient();
     

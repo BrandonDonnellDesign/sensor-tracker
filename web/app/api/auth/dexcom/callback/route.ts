@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase-server';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { systemLogger } from '@/lib/system-logger';
 
 export async function GET(request: NextRequest) {
@@ -21,7 +21,17 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const supabase = await createClient();
+    // Use service role client to bypass RLS for token storage
+    const supabase = createSupabaseClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
+    );
     
     // Use the state parameter as the user ID (it was set to user.id in the frontend)
     const userId = state;

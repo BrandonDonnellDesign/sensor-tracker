@@ -94,7 +94,7 @@ export default function ImageUpload({ sensorId, userId, skipDatabase = false, on
     } catch (error) {
       console.error('OCR processing error:', error);
       setPreviews(prev => prev.map((p, i) => 
-        i === index ? { ...p, ocrProgress: undefined } : p
+        i === index ? { ...p, ocrProgress: 0 } : p
       ));
     }
   };
@@ -147,7 +147,7 @@ export default function ImageUpload({ sensorId, userId, skipDatabase = false, on
             : `temp/${userId}/${timestamp}-${uniqueId}.${fileExt}`;
 
           // Upload to storage
-          const { data: uploadData, error: uploadError } = await supabase.storage
+          const { error: uploadError } = await supabase.storage
             .from('sensor_photos')
             .upload(filePath, file, {
               cacheControl: '3600',
@@ -165,7 +165,7 @@ export default function ImageUpload({ sensorId, userId, skipDatabase = false, on
 
           // Only create database record if not skipping database
           if (!skipDatabase && sensorId) {
-            const { data: dbData, error: dbError } = await supabase
+            const { error: dbError } = await supabase
               .from('sensor_photos')
               .insert({
                 sensor_id: sensorId,

@@ -87,7 +87,7 @@ export async function fetchAdminStats(): Promise<AdminStats> {
     }
 
     // Fetch gamification statistics
-    const { data: gamificationStats, error: gamificationError } = await supabase
+    const { data: gamificationStats, error: gamificationError } = await (supabase as any)
       .from('user_gamification_stats')
       .select('total_points, achievements_earned')
       .order('updated_at', { ascending: false });
@@ -132,7 +132,7 @@ export async function fetchAdminStats(): Promise<AdminStats> {
     }).length || 0;
 
     // Gamification statistics
-    const totalAchievements = gamificationStats?.reduce((sum, stat) => 
+    const totalAchievements = gamificationStats?.reduce((sum: number, stat: any) => 
       sum + (stat.achievements_earned || 0), 0
     ) || 0;
 
@@ -180,7 +180,7 @@ export async function fetchRecentActivity(): Promise<RecentActivity[]> {
     const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
     // Fetch recent system logs
-    const { data: systemLogs, error: logsError } = await supabase
+    const { data: systemLogs, error: logsError } = await (supabase as any)
       .from('system_logs')
       .select('id, created_at, level, category, message, user_hash')
       .gte('created_at', twentyFourHoursAgo.toISOString())
@@ -193,7 +193,7 @@ export async function fetchRecentActivity(): Promise<RecentActivity[]> {
     }
 
     // Convert system logs to activity format
-    systemLogs?.forEach(log => {
+    systemLogs?.forEach((log: any) => {
       // Map categories to activity types
       let activityType: 'user' | 'sensor' | 'system' | 'roadmap' | 'achievement' | 'dexcom' | 'notifications' | 'photos' | 'ocr' = 'system';
       switch (log.category) {

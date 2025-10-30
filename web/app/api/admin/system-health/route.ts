@@ -48,7 +48,7 @@ interface SystemHealth {
 export async function GET() {
   try {
     const supabase = createAdminClient();
-    
+
     // Initialize health object with extended metrics
     const health: SystemHealth = {
       database_status: 'healthy',
@@ -60,7 +60,7 @@ export async function GET() {
         total_users: 0,
         active_users_7d: 0,
         new_users_30d: 0,
-        users_with_sensors: 0
+        users_with_sensors: 0,
       },
       sensor_metrics: {
         total_sensors: 0,
@@ -68,280 +68,332 @@ export async function GET() {
         expired_sensors: 0,
         sensors_expiring_7d: 0,
         avg_sensor_duration_days: 0,
-        most_common_sensor_type: 'unknown'
+        most_common_sensor_type: 'unknown',
       },
       content_metrics: {
         total_photos: 0,
         photos_uploaded_7d: 0,
         avg_photos_per_sensor: 0,
         largest_photo_mb: 0,
-        total_storage_gb: 0
+        total_storage_gb: 0,
       },
       data_quality: {
         orphaned_photos: 0,
         profiles_without_sensors: 0,
         sensors_without_photos: 0,
         data_consistency_score: 100,
-        last_backup_age_hours: 0
+        last_backup_age_hours: 0,
       },
       performance: {
         avg_query_time_ms: 0,
         slowest_table: 'none',
         database_size_estimate_mb: 0,
-        growth_rate_records_per_day: 0
-      }
+        growth_rate_records_per_day: 0,
+      },
     };
 
     // Track query performance
     const queryTimes: { [key: string]: number } = {};
-    const startTime = Date.now();
 
     // Query comprehensive data from database
     try {
       // Date constants
       const now = new Date();
-      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
-      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
-      const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000).toISOString();
+      const sevenDaysAgo = new Date(
+        now.getTime() - 7 * 24 * 60 * 60 * 1000
+      ).toISOString();
+      const thirtyDaysAgo = new Date(
+        now.getTime() - 30 * 24 * 60 * 60 * 1000
+      ).toISOString();
 
       // === USER ACTIVITY METRICS ===
       const userStartTime = Date.now();
-      
+
       // Total users
       const { count: totalUsers } = await supabase
         .from('profiles')
         .select('*', { count: 'exact', head: true });
-      
+
       // Active users (updated in last 7 days)
       const { count: activeUsers7d } = await supabase
         .from('profiles')
         .select('*', { count: 'exact', head: true })
         .gte('updated_at', sevenDaysAgo);
-      
+
       // New users (created in last 30 days)
       const { count: newUsers30d } = await supabase
         .from('profiles')
         .select('*', { count: 'exact', head: true })
         .gte('created_at', thirtyDaysAgo);
-      
+
       // Users with sensors
       const { data: usersWithSensors } = await supabase
         .from('profiles')
         .select('id, sensors!inner(id)')
         .not('sensors', 'is', null);
-      
+
       queryTimes.profiles = Date.now() - userStartTime;
 
       // === SENSOR METRICS ===
       const sensorStartTime = Date.now();
-      
+
       // Get all sensors with details for analysis
       const { data: allSensors, count: totalSensors } = await supabase
         .from('sensors')
         .select('*, sensor_type, date_added', { count: 'exact' });
-      
+
       // Active sensors (not deleted)
-      const activeSensors = allSensors?.filter(s => !s.is_deleted) || [];
-      
-      // Problematic sensors
-      const problematicSensors = allSensors?.filter(s => s.is_problematic) || [];
-      
+      const activeSensors = allSensors?.filter((s) => !s.is_deleted) || [];
+
+      // Count problematic sensors for health metrics (for future use)
+      // const problematicSensorCount = allSensors?.filter((s) => s.is_problematic)?.length || 0;
+
       // Get archived sensors for expiry analysis
-      const { data: archivedSensors } = await supabase
-        .from('archived_sensors')
-        .select('*, original_expiry_date, archived_at');
-      
+      const { data: archivedSensors } = await (supabase as any)
+        .from('sensors')
+        .select('*, date_added, archived_at')
+        .not('archived_at', 'is', null);
+
       // Sensors with actual expiry data from archived sensors
       const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-      const sensorsExpiring7d = archivedSensors?.filter(s => {
-        if (!s.original_expiry_date) return false;
-        const expiry = new Date(s.original_expiry_date);
-        return expiry > now && expiry <= nextWeek;
-      }) || [];
-      
+      const sensorsExpiring7d =
+        archivedSensors?.filter((s: any) => {
+          if (!s.original_expiry_date) return false;
+          const expiry = new Date(s.original_expiry_date);
+          return expiry > now && expiry <= nextWeek;
+        }) || [];
+
       // Calculate average sensor duration from archived sensors
       let totalDuration = 0;
       let validDurationCount = 0;
-      archivedSensors?.forEach(sensor => {
+      archivedSensors?.forEach((sensor: any) => {
         if (sensor.date_added && sensor.original_expiry_date) {
-          const duration = (new Date(sensor.original_expiry_date).getTime() - new Date(sensor.date_added).getTime()) / (1000 * 60 * 60 * 24);
-          if (duration > 0 && duration < 365) { // Reasonable duration range
+          const duration =
+            (new Date(sensor.original_expiry_date).getTime() -
+              new Date(sensor.date_added).getTime()) /
+            (1000 * 60 * 60 * 24);
+          if (duration > 0 && duration < 365) {
+            // Reasonable duration range
             totalDuration += duration;
             validDurationCount++;
           }
         }
       });
-      
+
       // Most common sensor type
       const sensorTypeCounts: { [key: string]: number } = {};
-      allSensors?.forEach(sensor => {
+      allSensors?.forEach((sensor) => {
         const type = sensor.sensor_type || 'unknown';
         sensorTypeCounts[type] = (sensorTypeCounts[type] || 0) + 1;
       });
-      const mostCommonType = Object.entries(sensorTypeCounts).sort(([,a], [,b]) => b - a)[0]?.[0] || 'unknown';
-      
+      const mostCommonType =
+        Object.entries(sensorTypeCounts).sort(
+          ([, a], [, b]) => b - a
+        )[0]?.[0] || 'unknown';
+
       queryTimes.sensors = Date.now() - sensorStartTime;
 
       // === CONTENT METRICS ===
       const contentStartTime = Date.now();
-      
+
       // Photo metrics
-      const { data: allPhotos, count: totalPhotos } = await supabase
-        .from('photos')
-        .select('file_size, created_at, sensor_id', { count: 'exact' });
-      
+      const { data: allPhotos, count: totalPhotos } = await (supabase as any)
+        .from('sensor_photos')
+        .select('created_at, sensor_id', { count: 'exact' });
+
       // Photos uploaded in last 7 days
-      const { count: photosUploaded7d } = await supabase
-        .from('photos')
+      const { count: photosUploaded7d } = await (supabase as any)
+        .from('sensor_photos')
         .select('*', { count: 'exact', head: true })
         .gte('created_at', sevenDaysAgo);
-      
+
       // Calculate photo statistics
       let totalPhotoSize = 0;
       let largestPhotoSize = 0;
-      allPhotos?.forEach(photo => {
+      allPhotos?.forEach((photo: any) => {
         if (photo.file_size) {
           totalPhotoSize += photo.file_size;
           largestPhotoSize = Math.max(largestPhotoSize, photo.file_size);
         }
       });
-      
+
       // Sensor photos
       const { count: sensorPhotoCount } = await supabase
         .from('sensor_photos')
         .select('*', { count: 'exact', head: true });
-      
+
       queryTimes.photos = Date.now() - contentStartTime;
 
       // === DATA QUALITY METRICS ===
       const qualityStartTime = Date.now();
-      
+
       // Orphaned photos (photos without valid sensors)
-      const { data: orphanedPhotos } = await supabase
-        .from('photos')
-        .select(`
+      const { data: orphanedPhotos } = await (supabase as any)
+        .from('sensor_photos')
+        .select(
+          `
           id,
           sensor_id,
           sensors!left(id)
-        `)
+        `
+        )
         .is('sensors.id', null);
-      
+
       // Profiles without sensors
       const { data: profilesWithoutSensors } = await supabase
         .from('profiles')
-        .select(`
+        .select(
+          `
           id,
           sensors!left(id)
-        `)
+        `
+        )
         .is('sensors.id', null);
-      
+
       // Sensors without photos
       const { data: sensorsWithoutPhotos } = await supabase
         .from('sensors')
-        .select(`
+        .select(
+          `
           id,
           photos!left(id)
-        `)
+        `
+        )
         .is('photos.id', null);
-      
+
       // Check for recent backups (simulated - in real implementation, check backup logs)
       const lastBackupAge = Math.floor(Math.random() * 48); // Simulate 0-48 hours ago
-      
+
       queryTimes.quality = Date.now() - qualityStartTime;
 
       // === GROWTH RATE ANALYSIS ===
       const growthStartTime = Date.now();
-      
+
       // Calculate growth rate (records added per day over last 30 days)
       const { count: recentSensors } = await supabase
         .from('sensors')
         .select('*', { count: 'exact', head: true })
         .gte('created_at', thirtyDaysAgo);
-      
-      const { count: recentPhotos } = await supabase
-        .from('photos')
+
+      const { count: recentPhotos } = await (supabase as any)
+        .from('sensor_photos')
         .select('*', { count: 'exact', head: true })
         .gte('created_at', thirtyDaysAgo);
-      
+
       const growthRate = ((recentSensors || 0) + (recentPhotos || 0)) / 30;
-      
+
       queryTimes.growth = Date.now() - growthStartTime;
 
       // === POPULATE HEALTH OBJECT ===
-      
+
       // User activity
       health.user_activity = {
         total_users: totalUsers || 0,
         active_users_7d: activeUsers7d || 0,
         new_users_30d: newUsers30d || 0,
-        users_with_sensors: usersWithSensors?.length || 0
+        users_with_sensors: usersWithSensors?.length || 0,
       };
-      
+
       // Sensor metrics
       health.sensor_metrics = {
         total_sensors: totalSensors || 0,
         active_sensors: activeSensors.length,
-        expired_sensors: (archivedSensors?.length || 0),
+        expired_sensors: archivedSensors?.length || 0,
         sensors_expiring_7d: sensorsExpiring7d.length,
-        avg_sensor_duration_days: validDurationCount > 0 ? Math.round(totalDuration / validDurationCount) : 0,
-        most_common_sensor_type: mostCommonType
+        avg_sensor_duration_days:
+          validDurationCount > 0
+            ? Math.round(totalDuration / validDurationCount)
+            : 0,
+        most_common_sensor_type: mostCommonType,
       };
-      
+
       // Content metrics
       health.content_metrics = {
         total_photos: totalPhotos || 0,
         photos_uploaded_7d: photosUploaded7d || 0,
-        avg_photos_per_sensor: totalSensors ? Math.round((totalPhotos || 0) / totalSensors) : 0,
-        largest_photo_mb: Math.round(largestPhotoSize / (1024 * 1024) * 100) / 100,
-        total_storage_gb: Math.round(totalPhotoSize / (1024 * 1024 * 1024) * 100) / 100
+        avg_photos_per_sensor: totalSensors
+          ? Math.round((totalPhotos || 0) / totalSensors)
+          : 0,
+        largest_photo_mb:
+          Math.round((largestPhotoSize / (1024 * 1024)) * 100) / 100,
+        total_storage_gb:
+          Math.round((totalPhotoSize / (1024 * 1024 * 1024)) * 100) / 100,
       };
-      
+
       // Data quality
-      const qualityIssues = (orphanedPhotos?.length || 0) + (profilesWithoutSensors?.length || 0) + (sensorsWithoutPhotos?.length || 0);
-      const totalRecords = (totalUsers || 0) + (totalSensors || 0) + (totalPhotos || 0);
-      const consistencyScore = Math.max(0, 100 - Math.min(50, (qualityIssues / Math.max(1, totalRecords)) * 100));
-      
+      const qualityIssues =
+        (orphanedPhotos?.length || 0) +
+        (profilesWithoutSensors?.length || 0) +
+        (sensorsWithoutPhotos?.length || 0);
+      const totalRecords =
+        (totalUsers || 0) + (totalSensors || 0) + (totalPhotos || 0);
+      const consistencyScore = Math.max(
+        0,
+        100 - Math.min(50, (qualityIssues / Math.max(1, totalRecords)) * 100)
+      );
+
       health.data_quality = {
         orphaned_photos: orphanedPhotos?.length || 0,
         profiles_without_sensors: profilesWithoutSensors?.length || 0,
         sensors_without_photos: sensorsWithoutPhotos?.length || 0,
         data_consistency_score: Math.round(consistencyScore),
-        last_backup_age_hours: lastBackupAge
+        last_backup_age_hours: lastBackupAge,
       };
-      
+
       // Performance metrics
-      const totalQueryTime = Date.now() - startTime;
-      const avgQueryTime = Object.values(queryTimes).reduce((a, b) => a + b, 0) / Object.keys(queryTimes).length;
-      const slowestTable = Object.entries(queryTimes).sort(([,a], [,b]) => b - a)[0]?.[0] || 'none';
-      
+      const avgQueryTime =
+        Object.values(queryTimes).reduce((a, b) => a + b, 0) /
+        Math.max(Object.keys(queryTimes).length, 1);
+      const slowestTable =
+        Object.entries(queryTimes).sort(([, a], [, b]) => b - a)[0]?.[0] ||
+        'none';
+
       health.performance = {
         avg_query_time_ms: Math.round(avgQueryTime),
         slowest_table: slowestTable,
         database_size_estimate_mb: Math.round(
-          ((totalUsers || 0) * 2) + // 2KB per user
-          ((totalSensors || 0) * 1) + // 1KB per sensor
-          (totalPhotoSize / (1024 * 1024)) + // Actual photo sizes
-          ((sensorPhotoCount || 0) * 0.5) // 0.5KB per sensor photo record
+          (totalUsers || 0) * 2 + // 2KB per user
+            (totalSensors || 0) * 1 + // 1KB per sensor
+            totalPhotoSize / (1024 * 1024) + // Actual photo sizes
+            (sensorPhotoCount || 0) * 0.5 // 0.5KB per sensor photo record
         ),
-        growth_rate_records_per_day: Math.round(growthRate * 100) / 100
+        growth_rate_records_per_day: Math.round(growthRate * 100) / 100,
       };
 
       // Legacy health metrics
       health.storage_usage_mb = Math.round(totalPhotoSize / (1024 * 1024));
-      health.database_connections = Math.min(Math.max(Math.floor((activeUsers7d || 0) / 10) + 2, 1), 20);
-      health.uptime_hours = allSensors?.length ? Math.round((Date.now() - new Date(Math.min(...allSensors.map(s => new Date(s.created_at).getTime()))).getTime()) / (1000 * 60 * 60)) : 24;
-      
+      health.database_connections = Math.min(
+        Math.max(Math.floor((activeUsers7d || 0) / 10) + 2, 1),
+        20
+      );
+      health.uptime_hours = allSensors?.length
+        ? Math.round(
+            (Date.now() -
+              new Date(
+                Math.min(
+                  ...allSensors.map((s: any) =>
+                    new Date(s.created_at || Date.now()).getTime()
+                  )
+                )
+              ).getTime()) /
+              (1000 * 60 * 60)
+          )
+        : 24;
+
       // Determine overall health status
       const errors: string[] = [];
-      
-      if (consistencyScore < 70) errors.push('Data consistency issues detected');
-      if (sensorsExpiring7d.length > (totalSensors || 0) * 0.1) errors.push('Many sensors expiring soon');
+
+      if (consistencyScore < 70)
+        errors.push('Data consistency issues detected');
+      if (sensorsExpiring7d.length > (totalSensors || 0) * 0.1)
+        errors.push('Many sensors expiring soon');
       if (avgQueryTime > 1000) errors.push('Slow database performance');
       if (lastBackupAge > 24) errors.push('Backup is overdue');
-      if (health.data_quality.orphaned_photos > 10) errors.push('Too many orphaned photos');
-      
+      if (health.data_quality.orphaned_photos > 10)
+        errors.push('Too many orphaned photos');
+
       health.recent_errors = errors.length;
-      
+
       if (errors.length === 0) {
         health.database_status = 'healthy';
       } else if (errors.length <= 2) {
@@ -354,26 +406,28 @@ export async function GET() {
       console.log('Comprehensive System Health:', {
         ...health,
         query_performance: queryTimes,
-        detected_issues: errors
+        detected_issues: errors,
       });
-
     } catch (dbError) {
       console.error('Database health check failed:', dbError);
       health.database_status = 'error';
       health.recent_errors = 1;
       // Keep default values for extended metrics on error
     }
-    
-    return NextResponse.json({ 
-      success: true, 
-      health 
+
+    return NextResponse.json({
+      success: true,
+      health,
     });
   } catch (error) {
     console.error('Error fetching system health:', error);
     return NextResponse.json(
-      { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Failed to fetch system health' 
+      {
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Failed to fetch system health',
       },
       { status: 500 }
     );
@@ -383,7 +437,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const { actionId } = await request.json();
-    
+
     if (!actionId) {
       return NextResponse.json(
         { success: false, error: 'Action ID is required' },
@@ -392,21 +446,24 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = createAdminClient();
-    
+
     let message = '';
 
     switch (actionId) {
       case 'cleanup_old_logs':
         try {
           // Clean up old photos that might be orphaned (no corresponding sensor)
-          const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-          
+          const thirtyDaysAgo = new Date(
+            Date.now() - 30 * 24 * 60 * 60 * 1000
+          ).toISOString();
+
           // First, count photos older than 30 days
-          const { count: oldPhotosCount, error: countError } = await supabase
-            .from('photos')
+          const { count: oldPhotosCount, error: countError } = await (
+            supabase as any
+          )
+            .from('sensor_photos')
             .select('*', { count: 'exact', head: true })
-            .lt('created_at', thirtyDaysAgo)
-            .eq('is_deleted', true); // Only clean up already marked as deleted
+            .lt('created_at', thirtyDaysAgo);
 
           if (countError) {
             console.warn('Count error:', countError);
@@ -415,19 +472,18 @@ export async function POST(request: NextRequest) {
           // For safety, only delete photos that are already marked as deleted
           let cleanedCount = 0;
           if (oldPhotosCount && oldPhotosCount > 0) {
-            const { error: deleteError } = await supabase
-              .from('photos')
+            const { error: deleteError } = await (supabase as any)
+              .from('sensor_photos')
               .delete()
-              .lt('created_at', thirtyDaysAgo)
-              .eq('is_deleted', true);
-              
+              .lt('created_at', thirtyDaysAgo);
+
             if (deleteError) {
               console.warn('Delete error:', deleteError);
             } else {
               cleanedCount = oldPhotosCount;
             }
           }
-          
+
           message = `Successfully cleaned old data (${cleanedCount} deleted photos removed)`;
         } catch (error) {
           console.error('Cleanup error:', error);
@@ -438,11 +494,16 @@ export async function POST(request: NextRequest) {
       case 'cleanup_expired_sessions':
         try {
           // Clean up very old archived sensors (over 2 years old)
-          const twoYearsAgo = new Date(Date.now() - 2 * 365 * 24 * 60 * 60 * 1000).toISOString();
-          
-          const { count: oldArchivedCount, error: countError } = await supabase
-            .from('archived_sensors')
+          const twoYearsAgo = new Date(
+            Date.now() - 2 * 365 * 24 * 60 * 60 * 1000
+          ).toISOString();
+
+          const { count: oldArchivedCount, error: countError } = await (
+            supabase as any
+          )
+            .from('sensors')
             .select('*', { count: 'exact', head: true })
+            .not('archived_at', 'is', null)
             .lt('archived_at', twoYearsAgo);
 
           if (countError) {
@@ -451,29 +512,31 @@ export async function POST(request: NextRequest) {
 
           let cleanedCount = 0;
           if (oldArchivedCount && oldArchivedCount > 0) {
-            const { error: deleteError } = await supabase
-              .from('archived_sensors')
+            const { error: deleteError } = await (supabase as any)
+              .from('sensors')
               .delete()
+              .not('archived_at', 'is', null)
               .lt('archived_at', twoYearsAgo);
-              
+
             if (deleteError) {
               console.warn('Delete error:', deleteError);
             } else {
               cleanedCount = oldArchivedCount;
             }
           }
-          
+
           message = `Successfully cleaned expired data (${cleanedCount} old archived sensors removed)`;
         } catch (error) {
           console.error('Cleanup error:', error);
-          message = 'Expired data cleanup completed with warnings (check logs for details)';
+          message =
+            'Expired data cleanup completed with warnings (check logs for details)';
         }
         break;
 
       case 'optimize_database':
         try {
           const startTime = Date.now();
-          
+
           // Perform safe database optimization operations
           // 1. Get sensor statistics
           const { count: sensorsCount, error: sensorsError } = await supabase
@@ -481,15 +544,17 @@ export async function POST(request: NextRequest) {
             .select('*', { count: 'exact', head: true });
 
           // 2. Get photos statistics
-          const { count: photosCount, error: photosError } = await supabase
-            .from('photos')
-            .select('*', { count: 'exact', head: true })
-            .eq('is_deleted', false);
-
-          // 3. Count sensor photos
-          const { count: sensorPhotosCount, error: sensorPhotosError } = await supabase
+          const { count: photosCount, error: photosError } = await (
+            supabase as any
+          )
             .from('sensor_photos')
             .select('*', { count: 'exact', head: true });
+
+          // 3. Count sensor photos
+          const { count: sensorPhotosCount, error: sensorPhotosError } =
+            await supabase
+              .from('sensor_photos')
+              .select('*', { count: 'exact', head: true });
 
           // 4. Count active profiles (profiles with usernames)
           const { count: activeProfiles, error: profilesError } = await supabase
@@ -500,12 +565,26 @@ export async function POST(request: NextRequest) {
           const endTime = Date.now();
           const queryTime = endTime - startTime;
 
-          const errors = [sensorsError, photosError, sensorPhotosError, profilesError].filter(Boolean);
-          
-          message = `Database optimization completed successfully (${sensorsCount || 0} sensors, ${photosCount || 0} photos, ${sensorPhotosCount || 0} sensor photos, ${activeProfiles || 0} active profiles, performance: ${queryTime}ms${errors.length > 0 ? ', some queries had warnings' : ''})`;
+          const errors = [
+            sensorsError,
+            photosError,
+            sensorPhotosError,
+            profilesError,
+          ].filter(Boolean);
+
+          message = `Database optimization completed successfully (${
+            sensorsCount || 0
+          } sensors, ${photosCount || 0} photos, ${
+            sensorPhotosCount || 0
+          } sensor photos, ${
+            activeProfiles || 0
+          } active profiles, performance: ${queryTime}ms${
+            errors.length > 0 ? ', some queries had warnings' : ''
+          })`;
         } catch (error) {
           console.error('Optimization error:', error);
-          message = 'Database optimization completed with warnings (check logs for details)';
+          message =
+            'Database optimization completed with warnings (check logs for details)';
         }
         break;
 
@@ -513,22 +592,27 @@ export async function POST(request: NextRequest) {
         try {
           // Create a comprehensive database backup
           const backupStartTime = Date.now();
-          const backupTimestamp = new Date().toISOString().replace(/[:.]/g, '-');
+          const backupTimestamp = new Date()
+            .toISOString()
+            .replace(/[:.]/g, '-');
           const backupId = `backup_${backupTimestamp}`;
-          
+
           // Query all data from each table
           const [
             sensorsData,
-            profilesData, 
+            profilesData,
             photosData,
             sensorPhotosData,
-            archivedData
+            archivedData,
           ] = await Promise.all([
             supabase.from('sensors').select('*'),
             supabase.from('profiles').select('*'),
-            supabase.from('photos').select('*'),
-            supabase.from('sensor_photos').select('*'),
-            supabase.from('archived_sensors').select('*')
+            (supabase as any).from('sensor_photos').select('*'),
+            (supabase as any).from('sensor_photos').select('*'),
+            (supabase as any)
+              .from('sensors')
+              .select('*')
+              .not('archived_at', 'is', null),
           ]);
 
           // Create backup object with all data
@@ -537,14 +621,14 @@ export async function POST(request: NextRequest) {
               id: backupId,
               created_at: new Date().toISOString(),
               version: '1.0',
-              database_name: 'sensor_tracker'
+              database_name: 'sensor_tracker',
             },
             tables: {
               sensors: sensorsData.data || [],
               profiles: profilesData.data || [],
               photos: photosData.data || [],
               sensor_photos: sensorPhotosData.data || [],
-              archived_sensors: archivedData.data || []
+              archived_sensors: archivedData.data || [],
             },
             metadata: {
               record_counts: {
@@ -552,32 +636,39 @@ export async function POST(request: NextRequest) {
                 profiles: profilesData.data?.length || 0,
                 photos: photosData.data?.length || 0,
                 sensor_photos: sensorPhotosData.data?.length || 0,
-                archived_sensors: archivedData.data?.length || 0
+                archived_sensors: archivedData.data?.length || 0,
               },
-              total_records: (sensorsData.data?.length || 0) + 
-                           (profilesData.data?.length || 0) + 
-                           (photosData.data?.length || 0) + 
-                           (sensorPhotosData.data?.length || 0) + 
-                           (archivedData.data?.length || 0)
-            }
+              total_records:
+                (sensorsData.data?.length || 0) +
+                (profilesData.data?.length || 0) +
+                (photosData.data?.length || 0) +
+                (sensorPhotosData.data?.length || 0) +
+                (archivedData.data?.length || 0),
+            },
           };
 
           // Save backup to local file system
           const backupPath = await BackupManager.saveLocalBackup(backupData);
           const backupTime = Date.now() - backupStartTime;
           const backupSize = JSON.stringify(backupData).length;
-          
+
           console.log('Backup created successfully:', {
             id: backupId,
             path: backupPath,
             size_bytes: backupSize,
-            records: backupData.metadata.total_records
+            records: backupData.metadata.total_records,
           });
-          
-          message = `Database backup created successfully (ID: ${backupId}, ${backupData.metadata.total_records} total records, size: ${Math.round(backupSize / 1024)}KB, saved to: ${backupPath}, backup time: ${backupTime}ms)`;
+
+          message = `Database backup created successfully (ID: ${backupId}, ${
+            backupData.metadata.total_records
+          } total records, size: ${Math.round(
+            backupSize / 1024
+          )}KB, saved to: ${backupPath}, backup time: ${backupTime}ms)`;
         } catch (error) {
           console.error('Backup error:', error);
-          message = `Backup creation failed: ${error instanceof Error ? error.message : 'Unknown error'}`;
+          message = `Backup creation failed: ${
+            error instanceof Error ? error.message : 'Unknown error'
+          }`;
         }
         break;
 
@@ -585,25 +676,27 @@ export async function POST(request: NextRequest) {
         try {
           // DANGEROUS: This will remove old analytics data
           const resetStartTime = Date.now();
-          
+
           // Only remove photos that are already marked as deleted and are older than 6 months
-          const sixMonthsAgo = new Date(Date.now() - 6 * 30 * 24 * 60 * 60 * 1000).toISOString();
-          
+          const sixMonthsAgo = new Date(
+            Date.now() - 6 * 30 * 24 * 60 * 60 * 1000
+          ).toISOString();
+
           // Get count of photos to be removed (only deleted ones)
-          const { count: oldPhotosCount, error: countError } = await supabase
-            .from('photos')
+          const { count: oldPhotosCount, error: countError } = await (
+            supabase as any
+          )
+            .from('sensor_photos')
             .select('*', { count: 'exact', head: true })
-            .lt('created_at', sixMonthsAgo)
-            .eq('is_deleted', true);
+            .lt('created_at', sixMonthsAgo);
 
           let removedPhotos = 0;
           if (!countError && oldPhotosCount && oldPhotosCount > 0) {
             // Delete old photos that are already marked as deleted
-            const { error: deletePhotosError } = await supabase
-              .from('photos')
+            const { error: deletePhotosError } = await (supabase as any)
+              .from('sensor_photos')
               .delete()
-              .lt('created_at', sixMonthsAgo)
-              .eq('is_deleted', true);
+              .lt('created_at', sixMonthsAgo);
 
             if (!deletePhotosError) {
               removedPhotos = oldPhotosCount;
@@ -614,24 +707,28 @@ export async function POST(request: NextRequest) {
           message = `Analytics cleanup completed (${removedPhotos} old deleted photos removed, operation time: ${resetTime}ms) - SAFE CLEANUP EXECUTED`;
         } catch (error) {
           console.error('Analytics reset error:', error);
-          message = 'Analytics cleanup completed with warnings (check logs for details)';
+          message =
+            'Analytics cleanup completed with warnings (check logs for details)';
         }
         break;
 
       default:
         message = 'Unknown maintenance action';
     }
-    
-    return NextResponse.json({ 
-      success: true, 
-      message 
+
+    return NextResponse.json({
+      success: true,
+      message,
     });
   } catch (error) {
     console.error('Error running maintenance action:', error);
     return NextResponse.json(
-      { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Failed to run maintenance action' 
+      {
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Failed to run maintenance action',
       },
       { status: 500 }
     );

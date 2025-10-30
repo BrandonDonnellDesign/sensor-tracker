@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
 
         // Always perform the update to dismiss the notification
         const now = new Date().toISOString();
-        const { data: updateResult, error: dismissError } = await (
+        const { error: dismissError } = await (
           supabase as any
         )
           .from('notifications')

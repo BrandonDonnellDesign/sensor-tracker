@@ -312,10 +312,12 @@ export default function DashboardPage() {
         )}
 
         {/* Hero Section */}
-        <HeroSection 
-          currentSensor={currentSensor}
-          totalSensors={totalSensors}
-        />
+        {currentSensor && (
+          <HeroSection 
+            currentSensor={currentSensor}
+            totalSensors={totalSensors}
+          />
+        )}
 
         {/* Enhanced Stats Grid */}
         <EnhancedStatsGrid stats={statsData} />

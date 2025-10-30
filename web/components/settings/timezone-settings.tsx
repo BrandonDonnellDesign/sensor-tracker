@@ -33,8 +33,8 @@ export function TimezoneSettings({ profile, onUpdate }: TimezoneSettingsProps) {
         date_format: profile.date_format || 'MM/DD/YYYY',
         time_format: profile.time_format || '12',
         glucose_unit: profile.glucose_unit || 'mg/dL',
-        preferred_achievement_tracking: profile.preferred_achievement_tracking || 'next_achievement',
-        preferred_achievement_id: profile.preferred_achievement_id || ''
+        preferred_achievement_tracking: (profile as any).preferred_achievement_tracking || 'next_achievement',
+        preferred_achievement_id: (profile as any).preferred_achievement_id || ''
       });
     }
   }, [profile]);
@@ -90,8 +90,8 @@ export function TimezoneSettings({ profile, onUpdate }: TimezoneSettingsProps) {
           date_format: profile.date_format || 'MM/DD/YYYY',
           time_format: profile.time_format || '12',
           glucose_unit: profile.glucose_unit || 'mg/dL',
-          preferred_achievement_tracking: profile.preferred_achievement_tracking || 'next_achievement',
-          preferred_achievement_id: profile.preferred_achievement_id || ''
+          preferred_achievement_tracking: (profile as any).preferred_achievement_tracking || 'next_achievement',
+          preferred_achievement_id: (profile as any).preferred_achievement_id || ''
         });
       }
     }
@@ -297,7 +297,7 @@ export function TimezoneSettings({ profile, onUpdate }: TimezoneSettingsProps) {
                     name="achievementTracking"
                     value={option.value}
                     checked={localSettings.preferred_achievement_tracking === option.value}
-                    onChange={(e) => handleUpdate('preferred_achievement_tracking', e.target.value)}
+                    onChange={(e) => handleUpdate('preferred_achievement_tracking' as any, e.target.value)}
                     disabled={saving}
                     className="mr-3 mt-0.5 text-blue-600"
                   />
@@ -329,7 +329,7 @@ export function TimezoneSettings({ profile, onUpdate }: TimezoneSettingsProps) {
                         <div className="relative">
                           <select
                             value={localSettings.preferred_achievement_id}
-                            onChange={(e) => handleUpdate('preferred_achievement_id', e.target.value)}
+                            onChange={(e) => handleUpdate('preferred_achievement_id' as any, e.target.value)}
                             disabled={saving}
                             className="w-full p-3 border border-blue-300 dark:border-blue-600 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
                           >
@@ -355,7 +355,7 @@ export function TimezoneSettings({ profile, onUpdate }: TimezoneSettingsProps) {
                                   ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
                                   : 'border-gray-200 dark:border-slate-600 hover:border-blue-300 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/10'
                               }`}
-                              onClick={() => handleUpdate('preferred_achievement_id', achievement.id)}
+                              onClick={() => handleUpdate('preferred_achievement_id' as any, achievement.id)}
                             >
                               <div className="flex items-center space-x-3">
                                 <span className="text-xl">{achievement.icon}</span>

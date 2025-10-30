@@ -4,6 +4,7 @@ import './globals.css';
 import { AuthProvider } from '@/components/providers/auth-provider';
 import { ThemeProvider } from '@/components/providers/theme-provider';
 import { GamificationProvider } from '@/components/providers/gamification-provider';
+import { ErrorBoundary } from '@/components/ui/error-boundary';
 
 // Import logout utils for debugging
 import '@/lib/logout-utils';
@@ -35,13 +36,15 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <ThemeProvider>
-          <AuthProvider>
-            <GamificationProvider>
-              {children}
-            </GamificationProvider>
-          </AuthProvider>
-        </ThemeProvider>
+        <ErrorBoundary>
+          <ThemeProvider>
+            <AuthProvider>
+              <GamificationProvider>
+                {children}
+              </GamificationProvider>
+            </AuthProvider>
+          </ThemeProvider>
+        </ErrorBoundary>
       </body>
     </html>
   );

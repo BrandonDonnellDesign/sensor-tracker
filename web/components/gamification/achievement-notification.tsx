@@ -37,6 +37,8 @@ export function AchievementNotification({
       
       return () => clearTimeout(timer);
     }
+    
+    return undefined;
   }, [achievement, onClose, showAll]);
 
   const handleClose = () => {

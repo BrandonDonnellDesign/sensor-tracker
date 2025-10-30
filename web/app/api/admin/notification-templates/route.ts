@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get('type');
     const active = searchParams.get('active');
 
-    let query = adminClient
+    let query = (adminClient as any)
       .from('notification_templates')
       .select('*')
       .order('created_at', { ascending: false });
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     const adminClient = createAdminClient();
     const body = await request.json();
 
-    const { data: template, error } = await adminClient
+    const { data: template, error } = await (adminClient as any)
       .from('notification_templates')
       .insert({
         name: body.name,

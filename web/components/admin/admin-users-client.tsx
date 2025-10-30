@@ -11,7 +11,6 @@ import {
   Mail,
   Search,
   Filter,
-  MoreHorizontal,
   Edit,
   Trash2,
   Crown,

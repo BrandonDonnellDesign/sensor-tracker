@@ -82,7 +82,7 @@ export interface RoadmapStats {
 export async function fetchRoadmapItems(): Promise<DatabaseRoadmapItem[]> {
   try {
     // Fetch roadmap items with features and tags, ordered by status priority and sort_order
-    const { data: items, error } = await supabase
+    const { data: items, error } = await (supabase as any)
       .from('roadmap_items')
       .select(`
         *,
@@ -108,8 +108,8 @@ export async function fetchRoadmapItems(): Promise<DatabaseRoadmapItem[]> {
 
     // Fetch dependencies separately (due to Supabase join limitations)
     const itemsWithDependencies = await Promise.all(
-      items.map(async (item) => {
-        const { data: deps } = await supabase
+      items.map(async (item: any) => {
+        const { data: deps } = await (supabase as any)
           .from('roadmap_dependencies')
           .select(`
             depends_on:roadmap_items!roadmap_dependencies_depends_on_id_fkey(
@@ -166,7 +166,7 @@ export async function fetchRoadmapItems(): Promise<DatabaseRoadmapItem[]> {
  */
 export async function fetchRoadmapStats(): Promise<RoadmapStats> {
   try {
-    const { data: items, error } = await supabase
+    const { data: items, error } = await (supabase as any)
       .from('roadmap_items')
       .select(`
         status,
@@ -194,12 +194,12 @@ export async function fetchRoadmapStats(): Promise<RoadmapStats> {
     threeMonthsFromNow.setMonth(now.getMonth() + 3);
 
     const stats = items.reduce(
-      (acc, item) => {
+      (acc: any, item: any) => {
         acc[item.status as keyof RoadmapStats] = (acc[item.status as keyof RoadmapStats] as number) + 1;
         
         const features = item.features || [];
         acc.totalFeatures += features.length;
-        acc.completedFeatures += features.filter(f => f.is_completed).length;
+        acc.completedFeatures += features.filter((f: any) => f.is_completed).length;
         
         return acc;
       },
@@ -216,7 +216,7 @@ export async function fetchRoadmapStats(): Promise<RoadmapStats> {
     );
 
     // Calculate upcoming deadlines (items with target_date within next 3 months)
-    const { data: upcomingItems } = await supabase
+    const { data: upcomingItems } = await (supabase as any)
       .from('roadmap_items')
       .select('target_date')
       .not('target_date', 'is', null)
@@ -251,7 +251,7 @@ export async function updateRoadmapProgress(
   progress: number
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from('roadmap_items')
       .update({ 
         progress,
@@ -279,7 +279,7 @@ export async function updateRoadmapStatus(
   status: DatabaseRoadmapItem['status']
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from('roadmap_items')
       .update({ 
         status,
@@ -294,14 +294,14 @@ export async function updateRoadmapStatus(
 
     // Update all features to completed if item is completed
     if (status === 'completed') {
-      const { data: item } = await supabase
+      const { data: item } = await (supabase as any)
         .from('roadmap_items')
         .select('id')
         .eq('item_id', itemId)
         .single();
 
       if (item) {
-        await supabase
+        await (supabase as any)
           .from('roadmap_features')
           .update({ is_completed: true })
           .eq('roadmap_item_id', item.id);
@@ -327,7 +327,7 @@ export async function updateRoadmapItem(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     // Get the current item
-    const { data: currentItem, error: fetchError } = await supabase
+    const { data: currentItem, error: fetchError } = await (supabase as any)
       .from('roadmap_items')
       .select('id')
       .eq('item_id', itemId)
@@ -351,7 +351,7 @@ export async function updateRoadmapItem(
     itemUpdates.updated_at = new Date().toISOString();
 
     if (Object.keys(itemUpdates).length > 1) { // More than just updated_at
-      const { error: updateError } = await supabase
+      const { error: updateError } = await (supabase as any)
         .from('roadmap_items')
         .update(itemUpdates)
         .eq('id', currentItem.id);
@@ -365,7 +365,7 @@ export async function updateRoadmapItem(
     // Update features if provided
     if (updates.features !== undefined) {
       // Delete existing features
-      await supabase
+      await (supabase as any)
         .from('roadmap_features')
         .delete()
         .eq('roadmap_item_id', currentItem.id);
@@ -380,7 +380,7 @@ export async function updateRoadmapItem(
             sort_order: index + 1
           }));
 
-        const { error: featuresError } = await supabase
+        const { error: featuresError } = await (supabase as any)
           .from('roadmap_features')
           .insert(features);
 
@@ -393,7 +393,7 @@ export async function updateRoadmapItem(
     // Update tags if provided
     if (updates.tags !== undefined) {
       // Delete existing tags
-      await supabase
+      await (supabase as any)
         .from('roadmap_tags')
         .delete()
         .eq('roadmap_item_id', currentItem.id);
@@ -407,7 +407,7 @@ export async function updateRoadmapItem(
             tag_name: tag
           }));
 
-        const { error: tagsError } = await supabase
+        const { error: tagsError } = await (supabase as any)
           .from('roadmap_tags')
           .insert(tags);
 
@@ -429,7 +429,7 @@ export async function updateRoadmapItem(
  */
 export async function deleteRoadmapItem(itemId: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from('roadmap_items')
       .delete()
       .eq('item_id', itemId);
@@ -457,7 +457,7 @@ export async function addRoadmapItem(
 ): Promise<{ success: boolean; error?: string; id?: string }> {
   try {
     // Insert roadmap item
-    const { data: newItem, error: itemError } = await supabase
+    const { data: newItem, error: itemError } = await (supabase as any)
       .from('roadmap_items')
       .insert([{
         item_id: item.item_id,
@@ -486,7 +486,7 @@ export async function addRoadmapItem(
         sort_order: index + 1
       }));
 
-      const { error: featuresError } = await supabase
+      const { error: featuresError } = await (supabase as any)
         .from('roadmap_features')
         .insert(features);
 
@@ -502,7 +502,7 @@ export async function addRoadmapItem(
         tag_name: tag
       }));
 
-      const { error: tagsError } = await supabase
+      const { error: tagsError } = await (supabase as any)
         .from('roadmap_tags')
         .insert(tags);
 
@@ -563,7 +563,7 @@ export async function isRoadmapAdmin(): Promise<boolean> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return false;
 
-    const { data: profile } = await supabase
+    const { data: profile } = await (supabase as any)
       .from('profiles')
       .select('role')
       .eq('id', user.id)

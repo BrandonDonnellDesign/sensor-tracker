@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useGamification } from '@/components/providers/gamification-provider';
 import { useAuth } from '@/components/providers/auth-provider';
 import { AchievementNotification } from '@/components/gamification/achievement-notification';
-import { Award, Flame, Star, Trophy, Target, Zap, Settings } from 'lucide-react';
+import { Award, Flame, Star, Trophy, Target, Zap } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Profile } from '@/types/profile';
 
@@ -37,7 +37,7 @@ export function CompactGamification({ className = '' }: CompactGamificationProps
           .single();
 
         if (!error && data) {
-          setUserProfile(data as Profile);
+          setUserProfile(data as any);
         }
       } catch (error) {
         console.error('Error loading user profile for achievement tracking:', error);
@@ -82,7 +82,7 @@ export function CompactGamification({ className = '' }: CompactGamificationProps
   const recentAchievements = userAchievements.slice(0, 3);
 
   // Get user's preferred tracking mode
-  const trackingPreference = userProfile?.preferred_achievement_tracking || 'next_achievement';
+  const trackingPreference = (userProfile as any)?.preferred_achievement_tracking || 'next_achievement';
 
   // Render the appropriate tracking widget based on user preference
   const renderTrackingWidget = () => {
@@ -153,7 +153,7 @@ export function CompactGamification({ className = '' }: CompactGamificationProps
         );
 
       case 'specific_achievement':
-        const specificAchievement = allAchievements.find(ach => ach.id === userProfile?.preferred_achievement_id);
+        const specificAchievement = allAchievements.find(ach => ach.id === (userProfile as any)?.preferred_achievement_id);
         if (!specificAchievement || userAchievements.some(ua => ua.achievement_id === specificAchievement.id)) {
           // Achievement not found or already earned, fall back to next achievement
           return nextAchievement ? (

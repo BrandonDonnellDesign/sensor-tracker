@@ -70,15 +70,15 @@ class SystemLogger {
 
   // Convenience methods for different log levels
   async info(category: LogCategory, message: string, userId?: string, metadata?: Record<string, any>): Promise<void> {
-    await this.log({ level: 'info', category, message, userId, metadata });
+    await this.log({ level: 'info', category, message, ...(userId && { userId }), ...(metadata && { metadata }) });
   }
 
   async warn(category: LogCategory, message: string, userId?: string, metadata?: Record<string, any>): Promise<void> {
-    await this.log({ level: 'warn', category, message, userId, metadata });
+    await this.log({ level: 'warn', category, message, ...(userId && { userId }), ...(metadata && { metadata }) });
   }
 
   async error(category: LogCategory, message: string, userId?: string, metadata?: Record<string, any>): Promise<void> {
-    await this.log({ level: 'error', category, message, userId, metadata });
+    await this.log({ level: 'error', category, message, ...(userId && { userId }), ...(metadata && { metadata }) });
   }
 
   // Specific logging methods for common scenarios
@@ -100,7 +100,7 @@ class SystemLogger {
       category: 'dexcom',
       message: `Dexcom sync ${status}`,
       userId,
-      metadata: details
+      ...(details && { metadata: details })
     });
   }
 
@@ -111,7 +111,7 @@ class SystemLogger {
       category: 'photos',
       message: `Photo upload ${status}${filename ? `: ${filename}` : ''}`,
       userId,
-      metadata: details
+      ...(details && { metadata: details })
     });
   }
 
@@ -122,7 +122,7 @@ class SystemLogger {
       category: 'ocr',
       message: `OCR processing ${status}`,
       userId,
-      metadata: details
+      ...(details && { metadata: details })
     });
   }
 
@@ -133,7 +133,7 @@ class SystemLogger {
       category: 'notifications',
       message: `Notification ${status}: ${type}`,
       userId,
-      metadata: details
+      ...(details && { metadata: details })
     });
   }
 
@@ -142,7 +142,7 @@ class SystemLogger {
       level,
       category: 'system',
       message: event,
-      metadata: details
+      ...(details && { metadata: details })
     });
   }
 
@@ -151,8 +151,8 @@ class SystemLogger {
       level,
       category: 'database',
       message: event,
-      userId,
-      metadata: details
+      ...(userId && { userId }),
+      ...(details && { metadata: details })
     });
   }
 
@@ -163,7 +163,7 @@ class SystemLogger {
       category: 'quality',
       message: `Quality check ${result}: ${checkType}`,
       userId,
-      metadata: details
+      ...(details && { metadata: details })
     });
   }
 
@@ -172,8 +172,8 @@ class SystemLogger {
       level,
       category: 'storage',
       message: event,
-      userId,
-      metadata: details
+      ...(userId && { userId }),
+      ...(details && { metadata: details })
     });
   }
 
@@ -182,8 +182,8 @@ class SystemLogger {
       level,
       category: 'auth',
       message: event,
-      userId,
-      metadata: details
+      ...(userId && { userId }),
+      ...(details && { metadata: details })
     });
   }
 
@@ -192,8 +192,8 @@ class SystemLogger {
       level,
       category: 'api',
       message: event,
-      userId,
-      metadata: details
+      ...(userId && { userId }),
+      ...(details && { metadata: details })
     });
   }
 }

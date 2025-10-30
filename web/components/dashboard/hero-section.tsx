@@ -8,13 +8,12 @@ import {
   getSensorExpirationInfo,
   formatDaysLeft,
 } from '@/utils/sensor-expiration';
-import { useDateTimeFormatter } from '@/utils/date-formatter';
+
 import {
   Plus,
   Clock,
   AlertTriangle,
-  CheckCircle,
-  Calendar,
+  CheckCircle
 } from 'lucide-react';
 
 type Sensor = Database['public']['Tables']['sensors']['Row'] & {
@@ -32,8 +31,8 @@ interface HeroSectionProps {
 
 export function HeroSection({ currentSensor, totalSensors }: HeroSectionProps) {
   const { user } = useAuth();
-  const dateFormatter = useDateTimeFormatter();
-  const [isHovered, setIsHovered] = useState(false);
+
+  const [_isHovered, _setIsHovered] = useState(false);
 
   const getGreeting = () => {
     const hour = new Date().getHours();

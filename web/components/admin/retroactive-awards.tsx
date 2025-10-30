@@ -90,19 +90,19 @@ export function RetroactiveAwards() {
   const testDatabaseConnection = async () => {
     try {
       // Test basic database connection
-      const { data: testData, error: testError } = await (supabase as any)
+      await (supabase as any)
         .from('achievements')
         .select('count', { count: 'exact', head: true });
       
       // Check if function exists by querying pg_proc
-      const { data: functionExists, error: functionCheckError } = await (supabase as any)
+      await (supabase as any)
         .from('pg_proc')
         .select('proname')
         .eq('proname', 'retroactively_award_achievements')
         .limit(1);
       
       // Also check what functions are available
-      const { data: allFunctions, error: allFunctionsError } = await (supabase as any)
+      await (supabase as any)
         .from('pg_proc')
         .select('proname')
         .like('proname', '%award%')

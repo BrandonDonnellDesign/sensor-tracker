@@ -33,28 +33,21 @@ export default function SettingsPage() {
 
   useEffect(() => {
     const loadProfile = async () => {
-      console.log('loadProfile called, user:', user?.id);
       if (!user?.id) {
-        console.log('No user ID, skipping profile load');
         setLoading(false);
         return;
       }
       
       try {
-        console.log('Attempting to fetch profile for user:', user.id);
-        
         // First try to get existing profile
         const { data, error } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', user.id)
           .single();
-        
-        console.log('Database query result:', { data, error });
 
         if (error && error.code === 'PGRST116') {
           // Profile doesn't exist, create a basic one with default values
-          console.log('Profile not found, creating default profile for user:', user.id);
           
           const defaultProfile: Profile = {
             id: user.id,
@@ -71,25 +64,21 @@ export default function SettingsPage() {
             critical_days_before: 1,
             date_format: 'MM/dd/yyyy',
             time_format: '12h',
-            preferred_achievement_tracking: 'all',
-            preferred_achievement_id: null,
+
             role: 'user',
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
             last_sync_at: null
           };
           
-          console.log('Using default profile:', defaultProfile);
           setProfile(defaultProfile);
         } else if (error) {
-          console.error('Error fetching profile:', error);
           return;
         } else {
-          console.log('Profile loaded successfully:', data);
           setProfile(data as Profile);
         }
       } catch (error) {
-        console.error('Error in loadProfile:', error);
+        // Error loading profile
       } finally {
         setLoading(false);
       }
@@ -102,9 +91,8 @@ export default function SettingsPage() {
     if (!user?.id) return { success: false, error: 'User not found' };
     
     try {
-      
       // First try to update
-      const { data: updateData, error } = await supabase
+      const { error } = await supabase
         .from('profiles')
         .update(updates)
         .eq('id', user.id)
@@ -112,8 +100,6 @@ export default function SettingsPage() {
 
       if (error && error.code === 'PGRST116') {
         // Profile doesn't exist, create it first
-        console.log('Profile not found during update, creating it first');
-        
         const newProfile = {
           id: user.id,
           username: user.user_metadata?.username || user.email?.split('@')[0] || null,
@@ -144,7 +130,6 @@ export default function SettingsPage() {
           .select();
 
         if (createError) {
-          console.error('Error creating profile during update:', createError);
           throw createError;
         }
 
@@ -154,7 +139,6 @@ export default function SettingsPage() {
         dateTimeFormatter.setProfile(createdProfile);
         return { success: true };
       } else if (error) {
-        console.error('Supabase update error:', error);
         throw error;
       }
       
@@ -166,7 +150,6 @@ export default function SettingsPage() {
         .single();
 
       if (fetchError) {
-        console.error('Error reloading profile:', fetchError);
         // Still update local state even if reload fails
         const updatedProfile = profile ? { ...profile, ...updates } : null;
         setProfile(updatedProfile);
@@ -181,7 +164,6 @@ export default function SettingsPage() {
       
       return { success: true };
     } catch (error) {
-      console.error('Error updating profile:', error);
       return { success: false, error: error instanceof Error ? error.message : 'Update failed' };
     }
   };
@@ -255,9 +237,9 @@ export default function SettingsPage() {
         {activeTab === 'integrations' && (
           <CgmIntegrations />
         )}
-        {activeTab === 'export' && (
+        {activeTab === 'export' && user?.id && (
           <ExportSettings 
-            userId={user?.id} 
+            userId={user.id} 
           />
         )}
       </div>

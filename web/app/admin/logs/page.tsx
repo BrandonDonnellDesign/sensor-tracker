@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { AdminGuard } from '@/components/admin/admin-guard';
-import { supabase } from '@/lib/supabase';
+
 import { useAuth } from '@/components/providers/auth-provider';
 
 interface SystemLogEvent {
@@ -22,7 +22,7 @@ interface LogSummary {
 }
 
 export default function AdminLogsPage() {
-  const { user } = useAuth();
+  useAuth(); // Ensure user is authenticated
   const router = useRouter();
 
   const [loading, setLoading] = useState(true);

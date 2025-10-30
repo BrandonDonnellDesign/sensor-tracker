@@ -18,8 +18,6 @@ import {
 import {
   fetchRoadmapItems,
   fetchRoadmapStats,
-  updateRoadmapProgress,
-  updateRoadmapStatus,
   isRoadmapAdmin,
   subscribeToRoadmapChanges,
   type DatabaseRoadmapItem,

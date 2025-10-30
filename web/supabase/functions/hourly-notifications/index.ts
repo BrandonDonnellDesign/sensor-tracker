@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
         user_id, 
         serial_number, 
         date_added,
-        sensor_models!inner(duration_days)
+        sensor_models!sensor_model_id(duration_days)
       `
       )
       .eq('is_deleted', false)

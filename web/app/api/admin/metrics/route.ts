@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   let errorDetails: Record<string, any> = {};
   try {
     const adminClient = createAdminClient();
@@ -18,8 +18,8 @@ export async function GET(request: NextRequest) {
       [usersResult, sensorsResult, photosResult, archivedSensorsResult] = await Promise.all([
         adminClient.from('profiles').select('id', { count: 'exact', head: true }),
         adminClient.from('sensors').select('id', { count: 'exact', head: true }).eq('is_deleted', false),
-        adminClient.from('photos').select('id', { count: 'exact', head: true }).eq('is_deleted', false),
-        adminClient.from('archived_sensors').select('id', { count: 'exact', head: true })
+        (adminClient as any).from('sensor_photos').select('id', { count: 'exact', head: true }),
+        (adminClient as any).from('sensors').select('id', { count: 'exact', head: true }).not('archived_at', 'is', null)
       ]);
     } catch (err) {
       errorDetails["basicCounts"] = err;
@@ -27,11 +27,10 @@ export async function GET(request: NextRequest) {
     }
 
     // User activity metrics - based on comprehensive user activity tracking
-    let dailyActiveUsers, weeklyActiveUsers, monthlyActiveUsers, newSignups;
+    let dailyActiveUsers, weeklyActiveUsers, newSignups;
     try {
       const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
       const sevenDaysAgoDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-      const thirtyDaysAgoDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
       // Get users who have been active across different activities and time periods
       const [
@@ -41,9 +40,7 @@ export async function GET(request: NextRequest) {
         weeklyActivityUsers,
         weeklySensorActivity,
         weeklyPhotoActivity,
-        monthlyActivityUsers,
-        monthlySensorActivity,
-        monthlyPhotoActivity,
+
         newUsers
       ] = await Promise.all([
         // Daily activity from gamification system (login, app usage, etc.)
@@ -78,22 +75,7 @@ export async function GET(request: NextRequest) {
           .from('sensor_photos')
           .select('user_id')
           .gte('created_at', sevenDaysAgo),
-        // Monthly activity from gamification system
-        (adminClient as any)
-          .from('daily_activities')
-          .select('user_id')
-          .gte('activity_date', thirtyDaysAgoDate),
-        // Monthly sensor activity
-        adminClient
-          .from('sensors')
-          .select('user_id')
-          .gte('updated_at', thirtyDaysAgo)
-          .eq('is_deleted', false),
-        // Monthly photo activity
-        adminClient
-          .from('sensor_photos')
-          .select('user_id')
-          .gte('created_at', thirtyDaysAgo),
+
         // New signups in the last 7 days
         adminClient
           .from('profiles')
@@ -114,20 +96,15 @@ export async function GET(request: NextRequest) {
         ...(weeklyPhotoActivity.data?.map((p: any) => p.user_id) || [])
       ]);
       
-      const monthlyActiveUserIds = new Set([
-        ...(monthlyActivityUsers.data?.map((a: any) => a.user_id) || []),
-        ...(monthlySensorActivity.data?.map((s: any) => s.user_id) || []),
-        ...(monthlyPhotoActivity.data?.map((p: any) => p.user_id) || [])
-      ]);
+
       
       dailyActiveUsers = dailyActiveUserIds.size;
       weeklyActiveUsers = weeklyActiveUserIds.size;
-      monthlyActiveUsers = monthlyActiveUserIds.size;
       newSignups = newUsers.count || 0;
       
     } catch (err) {
       errorDetails["userActivity"] = err;
-      dailyActiveUsers = weeklyActiveUsers = monthlyActiveUsers = newSignups = 0;
+      dailyActiveUsers = weeklyActiveUsers = newSignups = 0;
     }
 
     // Sensor statistics
@@ -156,13 +133,18 @@ export async function GET(request: NextRequest) {
       problematicSensors = problematic.count || 0;
 
       // Calculate average wear duration from archived sensors
-      const { data: archivedWithDuration } = await adminClient
-        .from('archived_sensors')
-        .select('days_worn')
-        .not('days_worn', 'is', null);
+      const { data: archivedWithDuration } = await (adminClient as any)
+        .from('sensors')
+        .select('date_added, archived_at')
+        .not('archived_at', 'is', null);
       
       if (archivedWithDuration && archivedWithDuration.length > 0) {
-        const totalDays = archivedWithDuration.reduce((sum, sensor) => sum + (sensor.days_worn || 0), 0);
+        const totalDays = archivedWithDuration.reduce((sum: number, sensor: any) => {
+          const daysWorn = sensor.archived_at && sensor.date_added 
+            ? Math.floor((new Date(sensor.archived_at).getTime() - new Date(sensor.date_added).getTime()) / (1000 * 60 * 60 * 24))
+            : 0;
+          return sum + daysWorn;
+        }, 0);
         averageWearDuration = Math.round(totalDays / archivedWithDuration.length);
       } else {
         averageWearDuration = 14; // Default assumption
@@ -177,12 +159,12 @@ export async function GET(request: NextRequest) {
     let dexcomSyncRate, dexcomSyncCount, dexcomFailCount;
     try {
       const [syncSuccess, syncFailed] = await Promise.all([
-        adminClient
+        (adminClient as any)
           .from('dexcom_sync_log')
           .select('id', { count: 'exact', head: true })
           .eq('status', 'success')
           .gte('created_at', sevenDaysAgo),
-        adminClient
+        (adminClient as any)
           .from('dexcom_sync_log')
           .select('id', { count: 'exact', head: true })
           .eq('status', 'error')
@@ -240,7 +222,7 @@ export async function GET(request: NextRequest) {
         const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
         
         try {
-          const { count } = await adminClient
+          const { count } = await (adminClient as any)
             .from('notifications')
             .select('id', { count: 'exact', head: true })
             .eq('delivery_status', 'failed')
@@ -263,7 +245,7 @@ export async function GET(request: NextRequest) {
         const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
         
         try {
-          const { count } = await adminClient
+          const { count } = await (adminClient as any)
             .from('notifications')
             .select('id', { count: 'exact', head: true })
             .eq('delivery_status', 'delivered')
@@ -315,7 +297,7 @@ export async function GET(request: NextRequest) {
     };
 
     // Get trend data
-    const [signupTrend, sensorTrend, photoTrend, notificationDeliveryTrend, notificationFailureTrend] = await Promise.all([
+    const [signupTrend, sensorTrend, , notificationDeliveryTrend, notificationFailureTrend] = await Promise.all([
       generateRealTrend('profiles', 7),
       generateRealTrend('sensors', 7),
       generateRealTrend('photos', 7),
@@ -391,16 +373,16 @@ export async function GET(request: NextRequest) {
     let notificationsSent, notificationsDelivered, notificationsFailed;
     try {
       const [totalNotifications, deliveredNotifications, failedNotifications] = await Promise.all([
-        adminClient
+        (adminClient as any)
           .from('notifications')
           .select('id', { count: 'exact', head: true })
           .gte('created_at', sevenDaysAgo),
-        adminClient
+        (adminClient as any)
           .from('notifications')
           .select('id', { count: 'exact', head: true })
           .eq('delivery_status', 'delivered')
           .gte('created_at', sevenDaysAgo),
-        adminClient
+        (adminClient as any)
           .from('notifications')
           .select('id', { count: 'exact', head: true })
           .eq('delivery_status', 'failed')

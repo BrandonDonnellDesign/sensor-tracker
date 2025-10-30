@@ -57,7 +57,7 @@ interface AnalyticsData {
 
 export default function AnalyticsPage() {
   const { user } = useAuth();
-  const [sensors, setSensors] = useState<Sensor[]>([]);
+  const [_sensors, setSensors] = useState<Sensor[]>([]);
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -69,7 +69,7 @@ export default function AnalyticsPage() {
       setError(null);
       
       // Fetch sensors and sensor models in parallel for better performance
-      const [sensorsResult, tagsResult] = await Promise.all([
+      const [sensorsResult] = await Promise.all([
         (supabase as any)
           .from('sensors')
           .select(`

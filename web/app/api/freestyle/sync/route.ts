@@ -16,7 +16,7 @@ interface FreestyleGlucoseData {
   quality: string;
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
   try {
     const supabase = await createClient();
     
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
 
             if (!existingSensor) {
               // Create new sensor record
-              const { data: newSensor, error: sensorError } = await supabase
+              const { data: newSensor, error: sensorError } = await (supabase as any)
                 .from('sensors')
                 .insert({
                   user_id: user.id,
@@ -96,6 +96,7 @@ export async function POST(request: NextRequest) {
                   sensor_type: 'freestyle',
                   date_added: new Date(device.lastUpload).toISOString(),
                   notes: `Auto-imported from Freestyle Libre - ${device.deviceType}`,
+                  sensor_model_id: null
                 })
                 .select()
                 .single();

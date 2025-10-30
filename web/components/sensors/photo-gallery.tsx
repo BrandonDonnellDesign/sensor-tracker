@@ -15,7 +15,7 @@ interface PhotoGalleryProps {
   onPhotoAdded?: (photo: SensorPhoto) => void;
 }
 
-export default function PhotoGallery({ photos, sensorId, userId, onPhotoDeleted, onPhotoAdded }: PhotoGalleryProps) {
+export default function PhotoGallery({ photos, sensorId: _sensorId, userId, onPhotoDeleted, onPhotoAdded: _onPhotoAdded }: PhotoGalleryProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);

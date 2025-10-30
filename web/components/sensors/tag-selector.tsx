@@ -42,7 +42,10 @@ export function TagSelector({ selectedTagIds, onTagsChange, className = '' }: Ta
         return;
       }
 
-      const fetchedTags: Tag[] = tags || [];
+      const fetchedTags: Tag[] = (tags || []).map((tag: any) => ({
+        ...tag,
+        color: tag.color || '#6B7280'
+      }));
       setTags(fetchedTags);
       
       // Group tags by category

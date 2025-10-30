@@ -122,7 +122,7 @@ function normalizeDate(dateStr: string): string {
  * Helper: choose best numeric candidate by proximity to a token index
  */
 function chooseNearestNumericCandidate(
-  text: string,
+  _text: string,
   tokenIndex: number,
   candidates: Array<{ value: string; index: number }>
 ): string | null {
@@ -240,7 +240,7 @@ function extractDexcomG7Serial(rawOriginalText: string, cleanedText: string, deb
     const candidates = findNumericCandidates(rawOriginalText);
 
     if (candidates.length > 0) {
-      const tokenIndex = allTokens[0].index;
+      // const tokenIndex = allTokens[0].index;
       const tokenInRawRegex = new RegExp(allTokens[0].token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
       const rawTokenMatch = rawOriginalText.match(tokenInRawRegex);
       const rawTokenIndex = rawTokenMatch ? rawTokenMatch.index || 0 : 0;
@@ -323,7 +323,10 @@ function extractDates(cleanedText: string, debug: boolean = false): { manufactur
   if (!expirationDate && dateMatches.length >= 2) expirationDate = normalizeDate(dateMatches[1]);
 
   if (debug) console.debug('Extracted dates:', { manufactureDate, expirationDate });
-  return { manufactureDate, expirationDate };
+  return { 
+    ...(manufactureDate && { manufactureDate }), 
+    ...(expirationDate && { expirationDate }) 
+  };
 }
 
 /**
@@ -359,7 +362,7 @@ function calculateConfidence(data: Partial<ExtractedSensorData>, cleanedText: st
  * Example:
  *   const result = extractSensorData(ocrText, { debug: true });
  */
-export function extractSensorData(ocrText: string, options: ExtractOptions = {}): ExtractedSensorData {
+export function extractSensorData(ocrText: string, _options: ExtractOptions = {}): ExtractedSensorData {
   const raw = typeof ocrText === 'string' ? ocrText : String(ocrText);
   const cleaned = cleanExtractedText(raw);
 
@@ -386,12 +389,12 @@ export function extractSensorData(ocrText: string, options: ExtractOptions = {})
   const expirationDate = dates.expirationDate;
 
   const extractedData: Partial<ExtractedSensorData> = {
-    manufacturer: manufacturer || undefined,
-    modelName: modelName || undefined,
-    serialNumber: serialNumber || undefined,
-    lotNumber: lotNumber || undefined,
-    manufactureDate,
-    expirationDate,
+    ...(manufacturer && { manufacturer }),
+    ...(modelName && { modelName }),
+    ...(serialNumber && { serialNumber }),
+    ...(lotNumber && { lotNumber }),
+    ...(manufactureDate && { manufactureDate }),
+    ...(expirationDate && { expirationDate }),
   };
 
   const confidence = calculateConfidence(extractedData, cleaned);

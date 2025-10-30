@@ -184,7 +184,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
     const redirectUrl = getRedirectUrl();
 
-    const { data, error } = await supabase.auth.signInWithOAuth({
+    const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
         redirectTo: `${redirectUrl}/dashboard`

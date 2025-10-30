@@ -2,14 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
 
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const adminClient = createAdminClient();
     const { id } = await params;
     
-    const { data: template, error } = await adminClient
+    const { data: template, error } = await (adminClient as any)
       .from('notification_templates')
       .select('*')
       .eq('id', id)
@@ -44,7 +44,7 @@ export async function PUT(
     const body = await request.json();
     const { id } = await params;
 
-    const { data: template, error } = await adminClient
+    const { data: template, error } = await (adminClient as any)
       .from('notification_templates')
       .update({
         name: body.name,
@@ -82,14 +82,14 @@ export async function PUT(
 }
 
 export async function DELETE(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const adminClient = createAdminClient();
     const { id } = await params;
 
-    const { error } = await adminClient
+    const { error } = await (adminClient as any)
       .from('notification_templates')
       .delete()
       .eq('id', id);

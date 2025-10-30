@@ -3,13 +3,10 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
-  Settings, 
   Database, 
   Shield, 
   Bell,
-  Mail,
   Globe,
-  Palette,
   Save,
   RefreshCw,
   AlertTriangle,

@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useGamification } from '@/components/providers/gamification-provider';
+import { useState } from 'react';
+// import { useGamification } from '@/components/providers/gamification-provider';
 
 interface Achievement {
   id: string;
@@ -14,7 +14,7 @@ interface Achievement {
 
 export function useAchievementNotifications() {
   const [notifications, setNotifications] = useState<Achievement[]>([]);
-  const { userStats } = useGamification();
+  // const { userStats } = useGamification();
 
   const showAchievement = (achievement: Achievement) => {
     setNotifications(prev => [...prev, achievement]);

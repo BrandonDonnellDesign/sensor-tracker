@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Archive, Clock, Calendar, Tag } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/components/providers/auth-provider';
-import { Database } from '@/lib/database.types';
+// import { Database } from '@/lib/database.types';
 
-type ArchivedSensor = Database['public']['Tables']['archived_sensors']['Row'];
+type ArchivedSensor = any;
 
 interface ArchivedSensorsViewProps {
   isOpen: boolean;
@@ -24,10 +24,11 @@ export function ArchivedSensorsView({ isOpen, onClose }: ArchivedSensorsViewProp
     setError(null);
     
     try {
-      const { data, error } = await supabase
-        .from('archived_sensors')
+      const { data, error } = await (supabase as any)
+        .from('sensors')
         .select('*')
         .eq('user_id', user.id)
+        .not('archived_at', 'is', null)
         .order('archived_at', { ascending: false });
 
       if (error) throw error;

@@ -150,7 +150,7 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
         }
       } else {
         // Check if user has sensors
-        const { data: sensors, error: sensorsError } = await supabase
+        const { data: sensors } = await supabase
           .from('sensors')
           .select('id, is_problematic')
           .eq('user_id', user.id)
@@ -245,7 +245,7 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
     if (!user?.id) return;
 
     try {
-      const { data, error } = await (supabase as any).rpc('update_daily_activity', {
+      const { error } = await (supabase as any).rpc('update_daily_activity', {
         p_user_id: user.id,
         p_activity: activity
       });

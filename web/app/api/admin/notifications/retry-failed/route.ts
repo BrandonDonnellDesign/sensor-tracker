@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { notificationService } from '@/lib/notifications/notification-service';
 
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
   try {
     const retriedCount = await notificationService.retryFailedNotifications();
     

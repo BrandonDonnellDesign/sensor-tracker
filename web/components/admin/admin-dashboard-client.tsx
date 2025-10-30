@@ -19,8 +19,7 @@ import {
   RefreshCw,
   Shield,
   Database,
-  Bell,
-  Home
+  Bell
 } from 'lucide-react';
 import { 
   fetchAdminStats, 

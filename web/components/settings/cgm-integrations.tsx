@@ -1,7 +1,7 @@
 'use client';
 
-'use client';
-
+import { useAuth } from '@/components/providers/auth-provider';
+import { DexcomSettings } from '@/components/dexcom-settings';
 import { Settings, Zap, Activity } from 'lucide-react';
 
 interface IntegrationCardProps {
@@ -10,7 +10,6 @@ interface IntegrationCardProps {
   icon: React.ReactNode;
   features: string[];
 }
-
 
 function IntegrationCard({
   title,
@@ -60,6 +59,9 @@ function IntegrationCard({
 }
 
 export function CgmIntegrations() {
+  const { user } = useAuth();
+  const isDevelopment = process.env.NODE_ENV === 'development';
+
   return (
     <div className='space-y-8'>
       {/* Main Header */}
@@ -83,17 +85,24 @@ export function CgmIntegrations() {
       </div>
       {/* Integration Cards */}
       <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
-        <IntegrationCard
-          title='Dexcom Integration'
-          description='Connect your Dexcom account for automatic glucose data synchronization and real-time monitoring.'
-          icon={<Activity className='w-6 h-6 text-blue-500' />}
-          features={[
-            'Automatic sensor detection',
-            'Real-time sync with Dexcom',
-            'Device status monitoring',
-            'Historical data import',
-          ]}
-        />
+        {/* Dexcom Integration - Active in Dev, Coming Soon in Prod */}
+        {isDevelopment ? (
+          <DexcomSettings user={user} />
+        ) : (
+          <IntegrationCard
+            title='Dexcom Integration'
+            description='Connect your Dexcom account for automatic glucose data synchronization and real-time monitoring.'
+            icon={<Activity className='w-6 h-6 text-blue-500' />}
+            features={[
+              'Automatic sensor detection',
+              'Real-time sync with Dexcom',
+              'Device status monitoring',
+              'Historical data import',
+            ]}
+          />
+        )}
+        
+        {/* Freestyle Libre - Coming Soon */}
         <IntegrationCard
           title='Freestyle Libre Integration'
           description='Sync your Freestyle Libre data automatically for seamless glucose monitoring and tracking.'
@@ -109,7 +118,7 @@ export function CgmIntegrations() {
       {/* Footer */}
       <div className='text-center bg-gray-50 dark:bg-slate-700/50 rounded-lg p-6'>
         <h3 className='text-lg font-semibold text-gray-900 dark:text-slate-100 mb-2'>
-          Coming Soon
+          More Integrations Coming Soon
         </h3>
         <p className='text-sm text-gray-500 dark:text-slate-500'>
           Stay tuned for updates in future releases. These integrations will

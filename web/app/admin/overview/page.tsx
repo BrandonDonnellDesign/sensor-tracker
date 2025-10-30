@@ -7,7 +7,7 @@ import { StatusIndicator } from '@/components/admin/status-indicator';
 import { MiniChart } from '@/components/admin/mini-chart';
 import { LineChart } from '@/components/admin/charts/line-chart';
 import { fetchOverviewMetrics, fetchIntegrationHealth, type OverviewMetrics, type IntegrationHealth } from '@/lib/admin/metrics';
-import { Users, Activity, Zap, Camera, Bell, TrendingUp, AlertTriangle, CheckCircle, Award, MessageSquare } from 'lucide-react';
+import { Users, Activity, Zap, Bell, TrendingUp, AlertTriangle, CheckCircle, Award, MessageSquare } from 'lucide-react';
 
 
 export default function AdminOverviewPage() {
@@ -106,44 +106,52 @@ export default function AdminOverviewPage() {
               value={metrics.userActivity.dailyActive}
               icon={<Users className="h-6 w-6" />}
               color="blue"
-              change={metrics.userActivity.dailyActive > 0 && metrics.userActivity.weeklyActive > 0 ? {
-                value: Math.round(((metrics.userActivity.dailyActive / metrics.userActivity.weeklyActive) * 100)),
-                type: 'neutral',
-                period: '% of weekly active'
-              } : undefined}
+              {...(metrics.userActivity.dailyActive > 0 && metrics.userActivity.weeklyActive > 0 && {
+                change: {
+                  value: Math.round(((metrics.userActivity.dailyActive / metrics.userActivity.weeklyActive) * 100)),
+                  type: 'neutral' as const,
+                  period: '% of weekly active'
+                }
+              })}
             />
             <MetricCard
               title="Active Sensors"
               value={metrics.sensorStats.activeSensors}
               icon={<Zap className="h-6 w-6" />}
               color="green"
-              change={metrics.sensorStats.activeSensors > 0 && metrics.totalSensors > 0 ? {
-                value: Math.round((metrics.sensorStats.activeSensors / metrics.totalSensors) * 100),
-                type: 'neutral',
-                period: '% of total sensors'
-              } : undefined}
+              {...(metrics.sensorStats.activeSensors > 0 && metrics.totalSensors > 0 && {
+                change: {
+                  value: Math.round((metrics.sensorStats.activeSensors / metrics.totalSensors) * 100),
+                  type: 'neutral' as const,
+                  period: '% of total sensors'
+                }
+              })}
             />
             <MetricCard
               title="New Signups"
               value={metrics.userActivity.newSignups}
               icon={<TrendingUp className="h-6 w-6" />}
               color="purple"
-              change={metrics.userActivity.newSignups > 0 && metrics.totalUsers > 0 ? {
-                value: Math.round((metrics.userActivity.newSignups / metrics.totalUsers) * 100),
-                type: 'neutral',
-                period: '% growth rate'
-              } : undefined}
+              {...(metrics.userActivity.newSignups > 0 && metrics.totalUsers > 0 && {
+                change: {
+                  value: Math.round((metrics.userActivity.newSignups / metrics.totalUsers) * 100),
+                  type: 'neutral' as const,
+                  period: '% growth rate'
+                }
+              })}
             />
             <MetricCard
               title="Weekly Retention"
               value={`${metrics.retention.weeklyRetention.toFixed(1)}%`}
               icon={<Activity className="h-6 w-6" />}
               color="yellow"
-              change={metrics.retention.weeklyRetention > 0 ? {
-                value: Math.round(metrics.retention.weeklyRetention),
-                type: metrics.retention.weeklyRetention >= 70 ? 'increase' : metrics.retention.weeklyRetention >= 50 ? 'neutral' : 'decrease',
-                period: '% user retention'
-              } : undefined}
+              {...(metrics.retention.weeklyRetention > 0 && {
+                change: {
+                  value: Math.round(metrics.retention.weeklyRetention),
+                  type: metrics.retention.weeklyRetention >= 70 ? 'increase' as const : metrics.retention.weeklyRetention >= 50 ? 'neutral' as const : 'decrease' as const,
+                  period: '% user retention'
+                }
+              })}
             />
           </div>
         </div>

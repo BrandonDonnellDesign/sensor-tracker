@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     const adminClient = createAdminClient();
 
     // Update notification delivery status
-    const { error: updateError } = await adminClient
+    const { error: updateError } = await (adminClient as any)
       .from('notifications')
       .update({
         delivery_status: payload.status === 'clicked' || payload.status === 'dismissed' ? 'delivered' : payload.status,
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
     };
 
     // Log the delivery event
-    const { error: logError } = await adminClient
+    const { error: logError } = await (adminClient as any)
       .from('notification_delivery_log')
       .insert({
         notification_id: payload.notificationId,
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-function verifyWebhookSignature(signature: string | null, body: string): boolean {
+function verifyWebhookSignature(signature: string | null, _body: string): boolean {
   // Implement signature verification based on your push notification service
   // For example, for Firebase Cloud Messaging or other services
   

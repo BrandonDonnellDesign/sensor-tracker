@@ -169,7 +169,7 @@ export default function NewSensorPage() {
               
               
               // Copy file to new location
-              const { data: copyData, error: copyError } = await supabase
+              const { error: copyError } = await supabase
                 .storage
                 .from('sensor_photos')
                 .copy(filePath, newPath);

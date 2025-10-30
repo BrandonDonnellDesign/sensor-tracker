@@ -69,12 +69,12 @@ export async function GET(request: NextRequest) {
     let dexcomSyncSuccess = 0, dexcomSyncFailed = 0;
     try {
       const [successResult, failedResult] = await Promise.all([
-        adminClient
+        (adminClient as any)
           .from('dexcom_sync_log')
           .select('id', { count: 'exact', head: true })
           .eq('status', 'success')
           .gte('created_at', startDate.toISOString()),
-        adminClient
+        (adminClient as any)
           .from('dexcom_sync_log')
           .select('id', { count: 'exact', head: true })
           .eq('status', 'error')
@@ -91,12 +91,12 @@ export async function GET(request: NextRequest) {
     let ocrSuccess = 0, ocrFailed = 0;
     try {
       const [totalPhotos, deletedPhotos] = await Promise.all([
-        adminClient
-          .from('photos')
+        (adminClient as any)
+          .from('sensor_photos')
           .select('id', { count: 'exact', head: true })
           .gte('created_at', startDate.toISOString()),
-        adminClient
-          .from('photos')
+        (adminClient as any)
+          .from('sensor_photos')
           .select('id', { count: 'exact', head: true })
           .eq('is_deleted', true)
           .gte('created_at', startDate.toISOString())
@@ -112,16 +112,16 @@ export async function GET(request: NextRequest) {
     let notificationStats;
     try {
       const [totalNotifications, readNotifications, notificationsByType] = await Promise.all([
-        adminClient
+        (adminClient as any)
           .from('notifications')
           .select('id', { count: 'exact', head: true })
           .gte('created_at', startDate.toISOString()),
-        adminClient
+        (adminClient as any)
           .from('notifications')
           .select('id', { count: 'exact', head: true })
           .eq('read', true)
           .gte('created_at', startDate.toISOString()),
-        adminClient
+        (adminClient as any)
           .from('notifications')
           .select('type')
           .gte('created_at', startDate.toISOString())
@@ -132,7 +132,7 @@ export async function GET(request: NextRequest) {
       const failed = sent - delivered;
 
       // Group notifications by type
-      const typeBreakdown = notificationsByType.data?.reduce((acc, notification) => {
+      const typeBreakdown = notificationsByType.data?.reduce((acc: Record<string, number>, notification: any) => {
         acc[notification.type] = (acc[notification.type] || 0) + 1;
         return acc;
       }, {} as Record<string, number>) || {};
@@ -169,12 +169,12 @@ export async function GET(request: NextRequest) {
         
         try {
           const [totalNotifications, readNotifications] = await Promise.all([
-            adminClient
+            (adminClient as any)
               .from('notifications')
               .select('id', { count: 'exact', head: true })
               .gte('created_at', dayStart.toISOString())
               .lt('created_at', dayEnd.toISOString()),
-            adminClient
+            (adminClient as any)
               .from('notifications')
               .select('id', { count: 'exact', head: true })
               .eq('read', true)
@@ -209,7 +209,7 @@ export async function GET(request: NextRequest) {
       // First check if we have any sync log data at all
       let hasSyncData = false;
       try {
-        const { count } = await adminClient
+        const { count } = await (adminClient as any)
           .from('dexcom_sync_log')
           .select('id', { count: 'exact', head: true })
           .limit(1);
@@ -235,13 +235,13 @@ export async function GET(request: NextRequest) {
         
         try {
           const [successSyncs, failedSyncs] = await Promise.all([
-            adminClient
+            (adminClient as any)
               .from('dexcom_sync_log')
               .select('id', { count: 'exact', head: true })
               .eq('status', 'success')
               .gte('created_at', dayStart.toISOString())
               .lt('created_at', dayEnd.toISOString()),
-            adminClient
+            (adminClient as any)
               .from('dexcom_sync_log')
               .select('id', { count: 'exact', head: true })
               .eq('status', 'error')

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { AdminGuard } from '@/components/admin/admin-guard';
-import { fetchAnalyticsData, type AnalyticsData } from '@/lib/admin/metrics';
+import { type AnalyticsData } from '@/lib/admin/metrics';
 import { ArrowLeft, Calendar, Download, Filter } from 'lucide-react';
 import { exportAnalyticsToCSV, exportSummaryToCSV } from '@/utils/csv-export';
 

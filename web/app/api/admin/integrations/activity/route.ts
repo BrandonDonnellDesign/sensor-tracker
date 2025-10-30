@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
           status: log.status === 'success' ? 'success' : 'failed',
           duration: `${Math.floor(Math.random() * 2000 + 200)}ms`, // Simulated duration
           time: timeAgo,
-          details: log.sensors_created ? `Created ${log.sensors_created} sensors` : undefined
+          details: log.sensors_created ? `Created ${log.sensors_created} sensors` : 'No additional details'
         });
       });
     }

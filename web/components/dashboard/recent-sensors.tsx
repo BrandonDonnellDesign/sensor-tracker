@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { Database } from '@/lib/database.types';
-import { getSensorExpirationInfo, formatDaysLeft } from '@/utils/sensor-expiration';
+import { getSensorExpirationInfo } from '@/utils/sensor-expiration';
 import { useDateTimeFormatter } from '@/utils/date-formatter';
 
 type Sensor = Database['public']['Tables']['sensors']['Row'] & {

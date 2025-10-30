@@ -38,7 +38,7 @@ export async function logEvent({
   if (userId) {
     user_hash = createHash('sha256').update(userId).digest('hex').substring(0, 12);
   }
-  await supabase.from('system_logs').insert([
+  await (supabase as any).from('system_logs').insert([
     {
       level,
       category,

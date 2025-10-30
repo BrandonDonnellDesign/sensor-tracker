@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useGamification } from '@/components/providers/gamification-provider';
 import { useAuth } from '@/components/providers/auth-provider';
-import { supabase } from '@/lib/supabase';
+
 import { AchievementNotification } from './achievement-notification';
 import { Award, Flame } from 'lucide-react';
 
@@ -12,8 +12,8 @@ interface GamificationWidgetProps {
 }
 
 export function GamificationWidget({ compact = false }: GamificationWidgetProps) {
-  const { user } = useAuth();
-  const { userStats, userAchievements, allAchievements, loading, getProgressToNextLevel, getPointsForNextLevel } = useGamification();
+  const { user: _user } = useAuth();
+  const { userStats, userAchievements, allAchievements, loading, getProgressToNextLevel: _getProgressToNextLevel, getPointsForNextLevel: _getPointsForNextLevel } = useGamification();
   const [showAchievements, setShowAchievements] = useState(false);
 
   // Filter out hidden achievements that haven't been earned yet
@@ -44,10 +44,10 @@ export function GamificationWidget({ compact = false }: GamificationWidgetProps)
   const currentLevelStart = userStats.level === 1 ? 0 : (userStats.level === 2 ? 100 : Math.pow(2, userStats.level - 2) * 100);
   const nextLevelStart = userStats.level === 1 ? 100 : (userStats.level === 2 ? 200 : Math.pow(2, userStats.level - 1) * 100);
   const progressToNext = ((userStats.total_points - currentLevelStart) / (nextLevelStart - currentLevelStart)) * 100;
-  const pointsForNext = getPointsForNextLevel(userStats.level);
-  const currentLevelStartPoints = userStats.level === 1 ? 0 : getPointsForNextLevel(userStats.level - 1);
-  const pointsInCurrentLevel = userStats.total_points - currentLevelStartPoints;
-  const pointsNeededForNext = pointsForNext - currentLevelStartPoints;
+  // const pointsForNext = getPointsForNextLevel(userStats.level);
+  // const currentLevelStartPoints = userStats.level === 1 ? 0 : getPointsForNextLevel(userStats.level - 1);
+  // const pointsInCurrentLevel = userStats.total_points - currentLevelStartPoints;
+  // const pointsNeededForNext = pointsForNext - currentLevelStartPoints;
 
   const recentAchievements = userAchievements.slice(0, 3);
 

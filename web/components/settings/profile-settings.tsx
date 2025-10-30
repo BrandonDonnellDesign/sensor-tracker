@@ -181,7 +181,7 @@ export function ProfileSettings({ profile, onUpdate }: ProfileSettingsProps) {
                   className='object-cover'
                   priority
                   onError={() => {
-                    console.log('Image failed to load:', avatarPreview);
+                    //console.log('Image failed to load:', avatarPreview);
                     setAvatarPreview(null);
                   }}
                 />

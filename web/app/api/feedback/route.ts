@@ -5,7 +5,7 @@ const logger = {
   warn: (message: string, context?: any) => console.warn(message, context),
   error: (message: string, error?: any, context?: any) => console.error(message, error, context),
   info: (message: string, context?: any) => console.info(message, context),
-  setUser: (user: any) => {},
+  setUser: (_user: any) => {},
 };
 
 // Create admin client

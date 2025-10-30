@@ -338,7 +338,7 @@ export async function removeAchievement(userId: string, achievementId: string): 
     console.log('Server: Removing achievement', achievementId, 'from user', userId);
 
     // Check if user has this achievement
-    const { data: existing, error: checkError } = await supabaseAdmin
+    const { error: checkError } = await supabaseAdmin
       .from('user_achievements')
       .select('id')
       .eq('user_id', userId)

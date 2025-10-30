@@ -109,7 +109,7 @@ export function TagBadge({
       tags={[tag]} 
       size={size} 
       removable={removable} 
-      onRemove={onRemove ? () => onRemove() : undefined}
+      {...(onRemove && { onRemove: (_tagId: string) => onRemove() })}
       className={className}
     />
   );

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/components/providers/auth-provider';
 import { GoogleLoginButton } from '@/components/auth/google-login-button';
@@ -9,7 +8,6 @@ import { BarChart3, AlertCircle, CheckCircle, ArrowRight } from 'lucide-react';
 
 export default function LoginPage() {
   const { signIn, user, loading: authLoading } = useAuth();
-  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);

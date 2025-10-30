@@ -8,6 +8,8 @@ import { useAuth } from '@/components/providers/auth-provider';
 import { Database } from '@/lib/database.types';
 import ImageUpload from '@/components/sensors/image-upload';
 import PhotoGallery from '@/components/sensors/photo-gallery';
+import { TagSelector } from '@/components/sensors/tag-selector';
+import { TagDisplay } from '@/components/sensors/tag-display';
 
 type Sensor = Database['public']['Tables']['sensors']['Row'];
 type SensorPhoto = Database['public']['Tables']['sensor_photos']['Row'];
@@ -45,6 +47,10 @@ export default function SensorDetailPage() {
   const [sensorModels, setSensorModels] = useState<SensorModel[]>([]);
   const [editingSensorModel, setEditingSensorModel] = useState(false);
   const [newSensorModelId, setNewSensorModelId] = useState('');
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const [savingTags, setSavingTags] = useState(false);
+  const [editingTags, setEditingTags] = useState(false);
+  const [tags, setTags] = useState<any[]>([]);
 
   const fetchSensor = useCallback(async () => {
     if (!user?.id || !sensorId) return;
@@ -93,10 +99,80 @@ export default function SensorDetailPage() {
     }
   }, [user?.id, sensorId]);
 
+  const fetchTags = useCallback(async () => {
+    if (!user?.id || !sensorId) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('sensor_tags')
+        .select(`
+          tag_id,
+          tags (
+            id,
+            name,
+            color,
+            category,
+            description
+          )
+        `)
+        .eq('sensor_id', sensorId);
+
+      if (error) throw error;
+      setSelectedTagIds(data?.map(st => st.tag_id) || []);
+      setTags(data?.map(st => st.tags).filter(Boolean) || []);
+    } catch (error) {
+      console.error('Error fetching tags:', error);
+    }
+  }, [user?.id, sensorId]);
+
+  const saveTags = async () => {
+    if (!user?.id || !sensorId) return;
+
+    setSavingTags(true);
+    try {
+      // Delete existing tags
+      const { error: deleteError } = await supabase
+        .from('sensor_tags')
+        .delete()
+        .eq('sensor_id', sensorId);
+
+      if (deleteError) throw deleteError;
+
+      // Insert new tags
+      if (selectedTagIds.length > 0) {
+        const { error: insertError } = await supabase
+          .from('sensor_tags')
+          .insert(
+            selectedTagIds.map(tagId => ({
+              sensor_id: sensorId,
+              tag_id: tagId
+            }))
+          );
+
+        if (insertError) throw insertError;
+      }
+
+      // Refresh tags to get the full tag data
+      await fetchTags();
+      setEditingTags(false);
+    } catch (error) {
+      console.error('Error saving tags:', error);
+      setError(error instanceof Error ? error.message : 'Failed to save tags');
+    } finally {
+      setSavingTags(false);
+    }
+  };
+
+  const cancelTagsEdit = () => {
+    fetchTags(); // Reset to original tags
+    setEditingTags(false);
+  };
+
   useEffect(() => {
     fetchSensor();
     fetchPhotos();
-  }, [fetchSensor, fetchPhotos]);
+    fetchTags();
+  }, [fetchSensor, fetchPhotos, fetchTags]);
 
   // Fetch available sensor models
   useEffect(() => {
@@ -748,8 +824,8 @@ export default function SensorDetailPage() {
             </dl>
 
             {sensor.issue_notes && (
-              <div className='mt-6 pt-6 border-t border-gray-200'>
-                <dt className='text-sm font-medium text-gray-500 mb-2'>
+              <div className='mt-6 pt-6 border-t border-gray-200 dark:border-slate-700'>
+                <dt className='text-sm font-medium text-gray-500 dark:text-slate-400 mb-2'>
                   Issue Notes
                 </dt>
                 <dd>
@@ -804,6 +880,68 @@ export default function SensorDetailPage() {
                 </dd>
               </div>
             )}
+
+            {/* Tags Section */}
+            <div className='mt-6 pt-6 border-t border-gray-200 dark:border-slate-700'>
+              <div className='flex items-center justify-between mb-4'>
+                <h3 className='text-sm font-medium text-gray-700 dark:text-slate-300'>
+                  Tags
+                </h3>
+                {!editingTags && (
+                  <button
+                    onClick={() => setEditingTags(true)}
+                    className='text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300'
+                    title='Edit tags'>
+                    <svg
+                      className='w-3 h-3'
+                      fill='none'
+                      stroke='currentColor'
+                      viewBox='0 0 24 24'>
+                      <path
+                        strokeLinecap='round'
+                        strokeLinejoin='round'
+                        strokeWidth={2}
+                        d='M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z'
+                      />
+                    </svg>
+                  </button>
+                )}
+              </div>
+
+              {editingTags ? (
+                <div>
+                  <TagSelector
+                    selectedTagIds={selectedTagIds}
+                    onTagsChange={setSelectedTagIds}
+                    className="mb-4"
+                  />
+                  <div className='flex items-center space-x-2'>
+                    <button
+                      onClick={saveTags}
+                      disabled={savingTags}
+                      className='text-xs bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed'>
+                      {savingTags ? 'Saving...' : 'Save'}
+                    </button>
+                    <button
+                      onClick={cancelTagsEdit}
+                      disabled={savingTags}
+                      className='text-xs bg-gray-300 dark:bg-slate-600 text-gray-700 dark:text-slate-300 px-3 py-1.5 rounded hover:bg-gray-400 dark:hover:bg-slate-500 disabled:opacity-50 disabled:cursor-not-allowed'>
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  {tags.length > 0 ? (
+                    <TagDisplay tags={tags} size="md" />
+                  ) : (
+                    <p className='text-sm text-gray-500 dark:text-slate-400 italic'>
+                      No tags added yet
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Photos section */}

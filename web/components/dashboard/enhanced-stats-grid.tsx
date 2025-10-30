@@ -1,6 +1,6 @@
 'use client';
 
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+
 
 interface StatCardProps {
   title: string;
@@ -28,6 +28,7 @@ interface EnhancedStatsGridProps {
   };
 }
 
+/*
 const colorClasses = {
   blue: {
     bg: 'bg-gradient-to-br from-blue-500 to-blue-600',
@@ -72,9 +73,9 @@ const colorClasses = {
     ring: 'ring-indigo-500/20'
   }
 };
+*/
 
-function StatCard({ title, value, icon, color, trend, subtitle, onClick }: StatCardProps) {
-  const colorClass = colorClasses[color];
+function StatCard({ title, value, icon: _icon, color: _color, trend, subtitle: _subtitle, onClick }: StatCardProps) {
   
   return (
     <div 
@@ -112,8 +113,8 @@ export function EnhancedStatsGrid({ stats }: EnhancedStatsGridProps) {
     successRate,
     problematicSensors,
     sensorTrend,
-    lastMonthSensors,
-    thisMonthSensors
+    lastMonthSensors: _lastMonthSensors,
+    thisMonthSensors: _thisMonthSensors
   } = stats;
 
   // Calculate trend for success rate
@@ -142,8 +143,8 @@ export function EnhancedStatsGrid({ stats }: EnhancedStatsGridProps) {
         }
         color="blue"
         subtitle="All time"
-        trend={monthlyTrend}
-        onClick={() => window.location.href = '/dashboard/sensors'}
+        {...(monthlyTrend && { trend: monthlyTrend })}
+        onClick={() => { window.location.href = '/dashboard/sensors'; }}
       />
 
       <StatCard
@@ -156,11 +157,13 @@ export function EnhancedStatsGrid({ stats }: EnhancedStatsGridProps) {
         }
         color="green"
         subtitle="Currently working"
-        trend={activeSensors > 0 ? {
-          value: 100,
-          isPositive: true,
-          label: 'Active now'
-        } : undefined}
+        {...(activeSensors > 0 && { 
+          trend: {
+            value: 100,
+            isPositive: true,
+            label: 'Active now'
+          }
+        })}
         onClick={() => window.location.href = '/dashboard/sensors?filter=active'}
       />
 
@@ -174,7 +177,7 @@ export function EnhancedStatsGrid({ stats }: EnhancedStatsGridProps) {
         }
         color="purple"
         subtitle="Performance"
-        trend={successRateTrend}
+        {...(successRateTrend && { trend: successRateTrend })}
         onClick={() => window.location.href = '/dashboard/analytics'}
       />
 
@@ -194,11 +197,13 @@ export function EnhancedStatsGrid({ stats }: EnhancedStatsGridProps) {
         }
         color={problematicSensors > 0 ? "red" : "green"}
         subtitle={problematicSensors > 0 ? "Need attention" : "No issues"}
-        trend={problematicSensors === 0 ? {
-          value: 0,
-          isPositive: true,
-          label: 'Perfect!'
-        } : undefined}
+        {...(problematicSensors === 0 && { 
+          trend: {
+            value: 0,
+            isPositive: true,
+            label: 'Perfect!'
+          }
+        })}
         onClick={() => window.location.href = problematicSensors > 0 ? '/dashboard/sensors?filter=problematic' : '/dashboard/sensors'}
       />
     </div>

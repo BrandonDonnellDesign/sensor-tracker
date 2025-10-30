@@ -129,7 +129,7 @@ export class PushNotificationService {
         body: data.body,
         icon: data.icon || '/icon-192x192.png',
         badge: data.badge || '/icon-192x192.png',
-        tag: data.tag,
+        ...(data.tag && { tag: data.tag }),
         data: data.data,
       });
     }
