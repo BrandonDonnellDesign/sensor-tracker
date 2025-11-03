@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-client';
 import { useDateTimeFormatter } from '@/utils/date-formatter';
 
 interface ExportSettingsProps {
@@ -23,6 +23,7 @@ export function ExportSettings({ userId }: ExportSettingsProps) {
     setMessage(null);
 
     try {
+      const supabase = createClient();
       // Fetch sensor data
       const { data: sensors, error } = await supabase
         .from('sensors')

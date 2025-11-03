@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-client';
 import { getProductByBarcode } from '@/lib/openfoodfacts';
 
 export async function GET(request: NextRequest) {
@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
     }
 
     // First, check local cache
+    const supabase = createClient();
     const { data: cachedProduct } = await supabase
       .from('food_items')
       .select('*')
@@ -28,15 +29,15 @@ export async function GET(request: NextRequest) {
         name: cachedProduct.product_name,
         brand: cachedProduct.brand,
         barcode: cachedProduct.barcode,
-        calories: cachedProduct.energy_kcal || 0,
-        protein: cachedProduct.proteins_g || 0,
-        carbs: cachedProduct.carbohydrates_g || 0,
-        fat: cachedProduct.fat_g || 0,
-        fiber: cachedProduct.fiber_g,
-        sugar: cachedProduct.sugars_g,
-        sodium: cachedProduct.sodium_mg,
-        servingSize: cachedProduct.serving_size,
-        servingUnit: cachedProduct.serving_unit,
+        calories: Number(cachedProduct.energy_kcal) || 0,
+        protein: Number(cachedProduct.proteins_g) || 0,
+        carbs: Number(cachedProduct.carbohydrates_g) || 0,
+        fat: Number(cachedProduct.fat_g) || 0,
+        fiber: Number(cachedProduct.fiber_g) || undefined,
+        sugar: Number(cachedProduct.sugars_g) || undefined,
+        sodium: Number(cachedProduct.sodium_mg) || undefined,
+        servingSize: Number(cachedProduct.serving_size) || 100,
+        servingUnit: cachedProduct.serving_unit || 'g',
         imageUrl: cachedProduct.image_url,
       };
 
@@ -77,6 +78,7 @@ export async function GET(request: NextRequest) {
 // Cache product to database
 async function cacheProduct(product: any) {
   try {
+    const supabase = createClient();
     await supabase
       .from('food_items')
       .insert({

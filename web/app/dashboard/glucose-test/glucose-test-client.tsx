@@ -42,6 +42,17 @@ export default function GlucoseTestClient() {
     try {
       const response = await fetch(`/api/glucose/readings?userId=${user.id}`);
       
+      console.log('Response status:', response.status);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+      
+      // Check if response is actually JSON
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const textResponse = await response.text();
+        console.error('Non-JSON response:', textResponse.substring(0, 500));
+        throw new Error(`API returned HTML instead of JSON. Status: ${response.status}`);
+      }
+      
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to fetch readings');
@@ -100,18 +111,38 @@ export default function GlucoseTestClient() {
     setSyncing(true);
     setError(null);
     try {
+      console.log('🔄 Starting Dexcom sync for user:', user.id);
+      
       // Now sync
       const response = await fetch('/api/dexcom/sync', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ userId: user.id })
+        body: JSON.stringify({ userId: user.id }),
+        credentials: 'include' // Ensure cookies are sent
       });
 
+      console.log('🔄 Sync response status:', response.status);
+      console.log('🔄 Sync response headers:', Object.fromEntries(response.headers.entries()));
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Sync failed');
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const errorData = await response.json();
+          console.error('🔄 Sync error data:', errorData);
+          
+          // Handle empty error objects
+          if (Object.keys(errorData).length === 0) {
+            throw new Error(`Sync failed with status ${response.status}. Server returned empty response.`);
+          }
+          
+          throw new Error(errorData.error || errorData.message || 'Sync failed');
+        } else {
+          const textResponse = await response.text();
+          console.error('🔄 Non-JSON sync response:', textResponse.substring(0, 500));
+          throw new Error(`Sync API returned HTML instead of JSON. Status: ${response.status}`);
+        }
       }
 
       const result = await response.json();

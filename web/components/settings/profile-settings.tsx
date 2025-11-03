@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-client';
 import Image from 'next/image';
 import { Profile } from '@/types/profile';
 
@@ -89,6 +89,7 @@ export function ProfileSettings({ profile, onUpdate }: ProfileSettingsProps) {
     setMessage(null);
 
     try {
+      const supabase = createClient();
       let avatar_url = profile.avatar_url;
 
       // Upload new avatar if selected

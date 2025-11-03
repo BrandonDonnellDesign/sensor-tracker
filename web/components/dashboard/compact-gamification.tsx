@@ -5,7 +5,7 @@ import { useGamification } from '@/components/providers/gamification-provider';
 import { useAuth } from '@/components/providers/auth-provider';
 import { AchievementNotification } from '@/components/gamification/achievement-notification';
 import { Award, Flame, Star, Trophy, Target, Zap } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-client';
 import { Profile } from '@/types/profile';
 
 interface CompactGamificationProps {
@@ -30,6 +30,7 @@ export function CompactGamification({ className = '' }: CompactGamificationProps
       if (!user?.id) return;
       
       try {
+        const supabase = createClient();
         const { data, error } = await supabase
           .from('profiles')
           .select('preferred_achievement_tracking, preferred_achievement_id')

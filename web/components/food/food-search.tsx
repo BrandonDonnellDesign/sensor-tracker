@@ -1,10 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { Search, Barcode, Loader2, ShoppingCart } from 'lucide-react';
+import { Search, Barcode, Loader2, ShoppingCart, Plus, Heart } from 'lucide-react';
 import { BarcodeScanner } from './barcode-scanner';
 import { FoodLogForm } from './food-log-form';
 import { MultiFoodLogForm } from './multi-food-log-form';
+import { CustomFoodForm } from './custom-food-form';
+import { FavoritesList } from './favorites-list';
+import { FavoriteButton } from './favorite-button';
+
+type SearchMode = 'search' | 'barcode' | 'custom' | 'favorites';
 
 interface FoodSearchProps {
   onFoodLogged: () => void;
@@ -19,7 +24,7 @@ export function FoodSearch({ onFoodLogged }: FoodSearchProps) {
   const [showMealReview, setShowMealReview] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
-  const [searchMode, setSearchMode] = useState<'search' | 'barcode'>('search');
+  const [searchMode, setSearchMode] = useState<SearchMode>('search');
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
@@ -99,6 +104,39 @@ export function FoodSearch({ onFoodLogged }: FoodSearchProps) {
     );
   }
 
+  if (searchMode === 'custom') {
+    return (
+      <CustomFoodForm
+        onCancel={() => setSearchMode('search')}
+        onSuccess={(food) => {
+          setSelectedFood(food);
+          setSearchMode('search');
+        }}
+      />
+    );
+  }
+
+  if (searchMode === 'favorites') {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => setSearchMode('search')}
+            className="text-blue-600 hover:text-blue-700 text-sm"
+          >
+            ← Back to Search
+          </button>
+        </div>
+        <FavoritesList 
+          onSelectFood={(food) => {
+            setSelectedFood(food);
+            setSearchMode('search');
+          }}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       {/* Meal Cart Badge */}
@@ -122,28 +160,50 @@ export function FoodSearch({ onFoodLogged }: FoodSearchProps) {
       )}
 
       {/* Mode Toggle */}
-      <div className="flex gap-2">
+      <div className="grid grid-cols-4 gap-2">
         <button
           onClick={() => setSearchMode('search')}
-          className={`flex-1 py-2 px-4 rounded-lg transition-colors ${
+          className={`py-2 px-2 rounded-lg transition-colors text-sm ${
             searchMode === 'search'
               ? 'bg-blue-600 text-white'
               : 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300'
           }`}
         >
-          <Search className="w-4 h-4 inline mr-2" />
+          <Search className="w-4 h-4 inline mr-1" />
           Search
         </button>
         <button
+          onClick={() => setSearchMode('favorites')}
+          className={`py-2 px-2 rounded-lg transition-colors text-sm ${
+            (searchMode as string) === 'favorites'
+              ? 'bg-blue-600 text-white'
+              : 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300'
+          }`}
+        >
+          <Heart className="w-4 h-4 inline mr-1" />
+          Favorites
+        </button>
+        <button
           onClick={() => setSearchMode('barcode')}
-          className={`flex-1 py-2 px-4 rounded-lg transition-colors ${
+          className={`py-2 px-2 rounded-lg transition-colors text-sm ${
             searchMode === 'barcode'
               ? 'bg-blue-600 text-white'
               : 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300'
           }`}
         >
-          <Barcode className="w-4 h-4 inline mr-2" />
-          Scan Barcode
+          <Barcode className="w-4 h-4 inline mr-1" />
+          Scan
+        </button>
+        <button
+          onClick={() => setSearchMode('custom')}
+          className={`py-2 px-2 rounded-lg transition-colors text-sm ${
+            (searchMode as string) === 'custom'
+              ? 'bg-blue-600 text-white'
+              : 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300'
+          }`}
+        >
+          <Plus className="w-4 h-4 inline mr-1" />
+          Custom
         </button>
       </div>
 
@@ -169,39 +229,78 @@ export function FoodSearch({ onFoodLogged }: FoodSearchProps) {
           </div>
 
           {/* Search Results */}
-          {searchResults.length > 0 && (
+          {searchResults.length > 0 ? (
             <div className="space-y-2 max-h-96 overflow-y-auto">
               {searchResults.map((food, index) => (
-                <button
+                <div
                   key={index}
-                  onClick={() => setSelectedFood(food)}
-                  className="w-full p-4 bg-gray-50 dark:bg-slate-700 hover:bg-gray-100 dark:hover:bg-slate-600 rounded-lg text-left transition-colors"
+                  className="bg-gray-50 dark:bg-slate-700 hover:bg-gray-100 dark:hover:bg-slate-600 rounded-lg transition-colors"
                 >
-                  <div className="flex items-center gap-4">
-                    {food.imageUrl && (
-                      <img
-                        src={food.imageUrl}
-                        alt={food.name}
-                        className="w-16 h-16 object-cover rounded"
-                      />
-                    )}
-                    <div className="flex-1">
-                      <h3 className="font-medium text-gray-900 dark:text-slate-100">
-                        {food.name}
-                      </h3>
-                      {food.brand && (
-                        <p className="text-sm text-gray-600 dark:text-slate-400">{food.brand}</p>
-                      )}
-                      <div className="flex gap-4 mt-1 text-xs text-gray-500 dark:text-slate-500">
-                        {food.calories && <span>{food.calories} kcal</span>}
-                        {food.carbs && <span>{food.carbs}g carbs</span>}
+                  <div className="flex items-center">
+                    <button
+                      onClick={() => setSelectedFood(food)}
+                      className="flex-1 p-4 text-left"
+                    >
+                      <div className="flex items-center gap-4">
+                        {food.imageUrl && (
+                          <img
+                            src={food.imageUrl}
+                            alt={food.name}
+                            className="w-16 h-16 object-cover rounded"
+                          />
+                        )}
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-medium text-gray-900 dark:text-slate-100">
+                              {food.name}
+                            </h3>
+                            {food.isOwnCustom && (
+                              <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 text-xs rounded-full">
+                                My Custom
+                              </span>
+                            )}
+                            {food.isCustom && !food.isOwnCustom && (
+                              <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 text-xs rounded-full">
+                                Custom
+                              </span>
+                            )}
+                          </div>
+                          {food.brand && (
+                            <p className="text-sm text-gray-600 dark:text-slate-400">{food.brand}</p>
+                          )}
+                          <div className="flex gap-4 mt-1 text-xs text-gray-500 dark:text-slate-500">
+                            {food.calories && <span>{food.calories} kcal</span>}
+                            {food.carbs && <span>{food.carbs}g carbs</span>}
+                          </div>
+                        </div>
                       </div>
+                    </button>
+                    <div className="pr-2">
+                      <FavoriteButton
+                        foodId={food.id}
+                        foodName={food.name}
+                        defaultServingSize={food.servingSize}
+                        defaultServingUnit={food.servingUnit}
+                      />
                     </div>
                   </div>
-                </button>
+                </div>
               ))}
             </div>
-          )}
+          ) : searchQuery && !isSearching ? (
+            <div className="text-center py-8 bg-gray-50 dark:bg-slate-700 rounded-lg">
+              <p className="text-gray-600 dark:text-slate-400 mb-4">
+                No results found for "{searchQuery}"
+              </p>
+              <button
+                onClick={() => setSearchMode('custom')}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
+              >
+                <Plus className="w-4 h-4 inline mr-2" />
+                Create Custom Food
+              </button>
+            </div>
+          ) : null}
         </>
       )}
 

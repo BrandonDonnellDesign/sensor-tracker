@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, memo, useMemo, useCallback } from 'react';
 import { useGamification } from '@/components/providers/gamification-provider';
 import { useAuth } from '@/components/providers/auth-provider';
 
@@ -11,19 +11,22 @@ interface GamificationWidgetProps {
   compact?: boolean;
 }
 
-export function GamificationWidget({ compact = false }: GamificationWidgetProps) {
+export const GamificationWidget = memo(function GamificationWidget({ compact = false }: GamificationWidgetProps) {
   const { user: _user } = useAuth();
   const { userStats, userAchievements, allAchievements, loading, getProgressToNextLevel: _getProgressToNextLevel, getPointsForNextLevel: _getPointsForNextLevel } = useGamification();
   const [showAchievements, setShowAchievements] = useState(false);
 
-  // Filter out hidden achievements that haven't been earned yet
-  const visibleAchievements = allAchievements.filter(achievement => {
-    // Show all non-hidden achievements
-    if (achievement.requirement_type !== 'hidden_trigger') return true;
-    
-    // For hidden achievements, only show if earned
-    return userAchievements.some(ua => ua.achievement_id === achievement.id);
-  });
+  // Memoize filtered achievements
+  const visibleAchievements = useMemo(() => 
+    allAchievements.filter(achievement => {
+      // Show all non-hidden achievements
+      if (achievement.requirement_type !== 'hidden_trigger') return true;
+      
+      // For hidden achievements, only show if earned
+      return userAchievements.some(ua => ua.achievement_id === achievement.id);
+    }),
+    [allAchievements, userAchievements]
+  );
 
 
 
@@ -40,16 +43,30 @@ export function GamificationWidget({ compact = false }: GamificationWidgetProps)
     );
   }
 
-  // Manual calculation for debugging
-  const currentLevelStart = userStats.level === 1 ? 0 : (userStats.level === 2 ? 100 : Math.pow(2, userStats.level - 2) * 100);
-  const nextLevelStart = userStats.level === 1 ? 100 : (userStats.level === 2 ? 200 : Math.pow(2, userStats.level - 1) * 100);
-  const progressToNext = ((userStats.total_points - currentLevelStart) / (nextLevelStart - currentLevelStart)) * 100;
-  // const pointsForNext = getPointsForNextLevel(userStats.level);
-  // const currentLevelStartPoints = userStats.level === 1 ? 0 : getPointsForNextLevel(userStats.level - 1);
-  // const pointsInCurrentLevel = userStats.total_points - currentLevelStartPoints;
-  // const pointsNeededForNext = pointsForNext - currentLevelStartPoints;
+  // Memoize level calculations
+  const levelProgress = useMemo(() => {
+    if (!userStats) return { currentLevelStart: 0, nextLevelStart: 100, progressToNext: 0 };
+    
+    const currentLevelStart = userStats.level === 1 ? 0 : (userStats.level === 2 ? 100 : Math.pow(2, userStats.level - 2) * 100);
+    const nextLevelStart = userStats.level === 1 ? 100 : (userStats.level === 2 ? 200 : Math.pow(2, userStats.level - 1) * 100);
+    const progressToNext = ((userStats.total_points - currentLevelStart) / (nextLevelStart - currentLevelStart)) * 100;
+    
+    return { currentLevelStart, nextLevelStart, progressToNext };
+  }, [userStats?.level, userStats?.total_points]);
 
-  const recentAchievements = userAchievements.slice(0, 3);
+  const recentAchievements = useMemo(() => 
+    userAchievements.slice(0, 3),
+    [userAchievements]
+  );
+
+  // Memoize handlers
+  const toggleAchievements = useCallback(() => {
+    setShowAchievements(prev => !prev);
+  }, []);
+
+  const closeAchievements = useCallback(() => {
+    setShowAchievements(false);
+  }, []);
 
   if (compact) {
     return (
@@ -77,12 +94,12 @@ export function GamificationWidget({ compact = false }: GamificationWidgetProps)
         <div className="mt-3">
           <div className="flex justify-between text-xs opacity-90 mb-1">
             <span>Level {userStats.level}</span>
-            <span>Next: {nextLevelStart - userStats.total_points} pts</span>
+            <span>Next: {levelProgress.nextLevelStart - userStats.total_points} pts</span>
           </div>
           <div className="w-full bg-white/20 rounded-full h-2">
             <div 
               className="bg-white rounded-full h-2 transition-all duration-500"
-              style={{ width: `${Math.max(0, Math.min(100, progressToNext))}%` }}
+              style={{ width: `${Math.max(0, Math.min(100, levelProgress.progressToNext))}%` }}
             ></div>
           </div>
         </div>
@@ -145,7 +162,7 @@ export function GamificationWidget({ compact = false }: GamificationWidgetProps)
             </div>
           </div>
           <button
-            onClick={() => setShowAchievements(!showAchievements)}
+            onClick={toggleAchievements}
             className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium"
           >
             {showAchievements ? 'Hide' : 'View All'}
@@ -160,17 +177,17 @@ export function GamificationWidget({ compact = false }: GamificationWidgetProps)
             Level {userStats.level}
           </span>
           <span className="text-sm text-gray-500 dark:text-slate-400">
-            {userStats.total_points - currentLevelStart} / {nextLevelStart - currentLevelStart} pts
+            {userStats.total_points - levelProgress.currentLevelStart} / {levelProgress.nextLevelStart - levelProgress.currentLevelStart} pts
           </span>
         </div>
         <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-3">
           <div 
             className="bg-gradient-to-r from-teal-500 to-cyan-600 rounded-full h-3 transition-all duration-500"
-            style={{ width: `${Math.max(0, Math.min(100, progressToNext))}%` }}
+            style={{ width: `${Math.max(0, Math.min(100, levelProgress.progressToNext))}%` }}
           ></div>
         </div>
         <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
-          {nextLevelStart - userStats.total_points} points to level {userStats.level + 1}
+          {levelProgress.nextLevelStart - userStats.total_points} points to level {userStats.level + 1}
         </p>
       </div>
 
@@ -316,10 +333,10 @@ export function GamificationWidget({ compact = false }: GamificationWidgetProps)
       {/* All Achievements Modal */}
       {showAchievements && (
         <AchievementNotification 
-          onClose={() => setShowAchievements(false)}
+          onClose={closeAchievements}
           showAll={true}
         />
       )}
     </div>
   );
-}
+});

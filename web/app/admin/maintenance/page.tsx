@@ -49,13 +49,7 @@ const MAINTENANCE_ACTIONS: MaintenanceAction[] = [
     category: 'backup',
     dangerous: false
   },
-  {
-    id: 'reset_analytics',
-    name: 'Reset Analytics',
-    description: 'Clear all analytics data (DANGEROUS)',
-    category: 'cleanup',
-    dangerous: true
-  }
+
 ];
 
 export default function AdminMaintenancePage() {

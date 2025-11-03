@@ -3,14 +3,16 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-client';
 import { useAuth } from '@/components/providers/auth-provider';
+import { useGamification } from '@/components/providers/gamification-provider';
 import { Database } from '@/lib/database.types';
 import { getSensorExpirationInfo, formatDaysLeft } from '@/utils/sensor-expiration';
 
 import { TagDisplay } from '@/components/sensors/tag-display';
 import { ArchivedSensorsView } from '@/components/sensors/archived-sensors-view';
 import { checkAndTagExpiredSensors } from '@/lib/expired-sensors';
+import { ExportDialog } from '@/components/export/export-dialog';
 
 type Sensor = Database['public']['Tables']['sensors']['Row'] & {
   sensorModel?: {
@@ -34,6 +36,7 @@ type Sensor = Database['public']['Tables']['sensors']['Row'] & {
 
 export default function SensorsPage() {
   const { user } = useAuth();
+  useGamification();
 
   const searchParams = useSearchParams();
   const filter = searchParams.get('filter');
@@ -50,6 +53,8 @@ export default function SensorsPage() {
   const [availableTags, setAvailableTags] = useState<any[]>([]);
   const [userTimezone, setUserTimezone] = useState<string>('UTC'); // Default to UTC
   const [showArchivedView, setShowArchivedView] = useState(false);
+
+  const [showExportDialog, setShowExportDialog] = useState(false);
 
   const fetchSensors = useCallback(async () => {
     if (!user?.id) return;
@@ -68,6 +73,7 @@ export default function SensorsPage() {
         // Don't fail the whole operation if auto-tagging fails
       }
       
+      const supabase = createClient();
       let query = (supabase as any)
         .from('sensors')
         .select(`
@@ -114,6 +120,7 @@ export default function SensorsPage() {
 
   const fetchAvailableTags = useCallback(async () => {
     try {
+      const supabase = createClient();
       const { data: tags, error } = await (supabase as any)
         .from('tags')
         .select('*')
@@ -135,6 +142,7 @@ export default function SensorsPage() {
     if (!user?.id) return;
     
     try {
+      const supabase = createClient();
       const { data: profile, error } = await supabase
         .from('profiles')
         .select('timezone')
@@ -241,6 +249,7 @@ export default function SensorsPage() {
     if (!user?.id) return;
     setDeletingSensorId(sensorId);
     try {
+      const supabase = createClient();
       // Delete related notifications first
       await (supabase as any)
         .from('notifications')
@@ -268,6 +277,7 @@ export default function SensorsPage() {
   const restoreSensor = async (sensorId: string) => {
     if (!user?.id) return;
     try {
+      const supabase = createClient();
       const { error } = await supabase
         .from('sensors')
         .update({ is_deleted: false })
@@ -286,6 +296,7 @@ export default function SensorsPage() {
     if (!window.confirm('This will permanently delete the sensor and all related data. This cannot be undone. Proceed?')) return;
     setDeletingSensorId(sensorId);
     try {
+      const supabase = createClient();
       // Delete notifications
       await (supabase as any)
         .from('notifications')
@@ -313,6 +324,8 @@ export default function SensorsPage() {
       setDeletingSensorId(null);
     }
   };
+
+
 
   const filteredSensors = sensors
     .filter(sensor => {
@@ -364,6 +377,16 @@ export default function SensorsPage() {
           </p>
         </div>
         <div className="flex items-center space-x-3">
+          <button
+            onClick={() => setShowExportDialog(true)}
+            className="btn-secondary flex items-center space-x-2"
+            title="Export sensor data"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <span>Export Data</span>
+          </button>
           <button
             onClick={() => setShowArchivedView(true)}
             className="btn-secondary flex items-center space-x-2"
@@ -723,6 +746,13 @@ export default function SensorsPage() {
           })}
         </div>
       )}
+
+      {/* Export Dialog */}
+      <ExportDialog
+        isOpen={showExportDialog}
+        onClose={() => setShowExportDialog(false)}
+        sensors={sensors}
+      />
 
       {/* Archived Sensors Modal */}
       <ArchivedSensorsView

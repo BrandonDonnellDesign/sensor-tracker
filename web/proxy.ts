@@ -54,7 +54,7 @@ export async function proxy(request: NextRequest) {
     }
   );
 
-  // Refresh auth session
+  // Refresh auth session for all routes including API routes
   await supabase.auth.getUser();
 
   return response;
@@ -63,7 +63,8 @@ export async function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Match all routes except static files
+     * Match all routes including API routes to ensure auth session is refreshed
+     * Exclude only static files and images
      */
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],

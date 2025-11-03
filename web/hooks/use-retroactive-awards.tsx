@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-client';
 import { useAuth } from '@/components/providers/auth-provider';
 
 interface RetroactiveResult {
@@ -34,6 +34,7 @@ export function useRetroactiveAwards() {
     }
 
     try {
+      const supabase = createClient();
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('role')
@@ -74,6 +75,7 @@ export function useRetroactiveAwards() {
       console.log('Calling retroactively_award_achievements for user:', user?.id);
 
       // Call the database function directly
+      const supabase = createClient();
       const { data, error } = await (supabase as any).rpc('retroactively_award_achievements');
       
       if (error) {
@@ -126,6 +128,7 @@ export function useRetroactiveAwards() {
       console.log('Calling award_achievements_for_user for:', userId);
 
       // Call the database function directly
+      const supabase = createClient();
       const { data, error } = await (supabase as any).rpc('award_achievements_for_user', {
         p_user_id: userId
       });
@@ -174,6 +177,7 @@ export function useRetroactiveAwards() {
       }
 
       // Get gamification overview stats
+      const supabase = createClient();
       const { data: stats, error: statsError } = await (supabase as any)
         .from('user_gamification_stats')
         .select(`

@@ -127,6 +127,62 @@ serve(async (req) => {
     // Decrypt access token (simple base64 for demo - use proper decryption in production)
     const accessToken = atob(tokenData.access_token_encrypted);
 
+    console.log(`Starting sync for user ${targetUserId}`);
+    console.log(`Token expires at: ${tokenData.token_expires_at}`);
+    console.log(`Token scope: ${tokenData.scope}`);
+    console.log(`Access token length: ${accessToken.length}`);
+    
+    // Test token validity with a simple API call first
+    const apiBaseUrl = Deno.env.get('DEXCOM_API_BASE_URL') || 'https://api.dexcom.com/v2';
+    console.log(`Using Dexcom API base URL: ${apiBaseUrl}`);
+
+    // Test token validity first
+    try {
+      console.log('Testing token validity...');
+      const testResponse = await fetch(`${apiBaseUrl}/users/self`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      console.log(`Token test response status: ${testResponse.status}`);
+      
+      if (!testResponse.ok) {
+        const errorText = await testResponse.text();
+        console.error(`Token validation failed: ${testResponse.status} - ${errorText}`);
+        
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: `Invalid or expired Dexcom token: ${testResponse.status}`,
+            details: errorText.substring(0, 200)
+          }),
+          {
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        );
+      }
+      
+      const userInfo = await testResponse.json();
+      console.log('Token validation successful, user info:', JSON.stringify(userInfo).substring(0, 200));
+      
+    } catch (tokenTestError) {
+      console.error('Token test error:', tokenTestError);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Failed to validate Dexcom token',
+          details: tokenTestError.message
+        }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
     // Get sync settings
     const { data: syncSettings } = await supabaseClient
       .from('dexcom_sync_settings')
@@ -179,10 +235,16 @@ serve(async (req) => {
       const endDate = new Date();
 
       // Fetch glucose readings from Dexcom API
+      const apiBaseUrl = Deno.env.get('DEXCOM_API_BASE_URL') || 'https://api.dexcom.com/v2';
+      
+      // Format dates properly for Dexcom API (they expect YYYY-MM-DDTHH:mm:ss format)
+      const startDateStr = startDate.toISOString().split('.')[0]; // Remove milliseconds
+      const endDateStr = endDate.toISOString().split('.')[0]; // Remove milliseconds
+      
+      console.log(`Fetching glucose readings from ${startDateStr} to ${endDateStr}`);
+      
       const egvsResponse = await fetch(
-        `${Deno.env.get(
-          'DEXCOM_API_BASE_URL'
-        )}/users/self/egvs?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`,
+        `${apiBaseUrl}/users/self/egvs?startDate=${startDateStr}&endDate=${endDateStr}`,
         {
           headers: {
             Authorization: `Bearer ${accessToken}`,
@@ -191,45 +253,66 @@ serve(async (req) => {
         }
       );
 
+      console.log(`Glucose API response status: ${egvsResponse.status}`);
+      
       if (egvsResponse.ok) {
         const egvsData = await egvsResponse.json();
+        console.log(`Glucose API response:`, JSON.stringify(egvsData).substring(0, 500));
 
-        if (egvsData.egvs && Array.isArray(egvsData.egvs)) {
-          for (const egv of egvsData.egvs) {
-            try {
-              // Insert glucose reading (ON CONFLICT DO NOTHING handled by unique constraint on record_id)
-              await supabaseClient.from('glucose_readings').insert({
-                user_id: targetUserId,
-                record_id: egv.recordId,
-                transmitter_id: egv.transmitterId || 'unknown',
-                transmitter_generation: egv.transmitterGeneration,
-                value: egv.value?.['mg/dL'] || egv.value,
-                unit: 'mg/dL',
-                trend: egv.trend,
-                trend_rate: egv.trendRate,
-                rate_unit: egv.rateUnit || 'mg/dL/min',
-                system_time: egv.systemTime,
-                display_time: egv.displayTime,
-                display_device: egv.displayDevice,
-                display_app: egv.displayApp,
-                transmitter_ticks: egv.transmitterTicks,
-                source: 'dexcom_api',
-              });
+        // Handle both array and object responses
+        let egvs = [];
+        if (Array.isArray(egvsData)) {
+          egvs = egvsData;
+        } else if (egvsData.egvs && Array.isArray(egvsData.egvs)) {
+          egvs = egvsData.egvs;
+        } else if (egvsData.records && Array.isArray(egvsData.records)) {
+          egvs = egvsData.records;
+        }
 
-              syncResults.glucoseReadings++;
-            } catch (error) {
-              // Likely a duplicate (record_id conflict), skip
-              if (!error.message?.includes('duplicate')) {
-                syncResults.errors.push(
-                  `Error inserting glucose reading: ${error.message}`
-                );
-              }
+        console.log(`Processing ${egvs.length} glucose readings`);
+
+        for (const egv of egvs) {
+          try {
+            // Handle different possible value formats
+            let glucoseValue = egv.value;
+            if (typeof egv.value === 'object' && egv.value !== null) {
+              glucoseValue = egv.value['mg/dL'] || egv.value.mgdl || egv.value.value;
+            }
+
+            // Insert glucose reading (ON CONFLICT DO NOTHING handled by unique constraint on record_id)
+            await supabaseClient.from('glucose_readings').insert({
+              user_id: targetUserId,
+              record_id: egv.recordId || egv.record_id || egv.id,
+              transmitter_id: egv.transmitterId || egv.transmitter_id || 'unknown',
+              transmitter_generation: egv.transmitterGeneration || egv.transmitter_generation,
+              value: glucoseValue,
+              unit: 'mg/dL',
+              trend: egv.trend,
+              trend_rate: egv.trendRate || egv.trend_rate,
+              rate_unit: egv.rateUnit || egv.rate_unit || 'mg/dL/min',
+              system_time: egv.systemTime || egv.system_time,
+              display_time: egv.displayTime || egv.display_time,
+              display_device: egv.displayDevice || egv.display_device,
+              display_app: egv.displayApp || egv.display_app,
+              transmitter_ticks: egv.transmitterTicks || egv.transmitter_ticks,
+              source: 'dexcom_api',
+            });
+
+            syncResults.glucoseReadings++;
+          } catch (error) {
+            // Likely a duplicate (record_id conflict), skip
+            if (!error.message?.includes('duplicate')) {
+              syncResults.errors.push(
+                `Error inserting glucose reading: ${error.message}`
+              );
             }
           }
         }
       } else {
+        const errorText = await egvsResponse.text();
+        console.error(`Glucose API error: ${egvsResponse.status} - ${errorText}`);
         syncResults.errors.push(
-          `Failed to fetch glucose readings: ${egvsResponse.status}`
+          `Failed to fetch glucose readings: ${egvsResponse.status} - ${errorText.substring(0, 200)}`
         );
       }
     } catch (error) {
@@ -242,7 +325,7 @@ serve(async (req) => {
     if (syncSettings.sync_device_status) {
       try {
         const devicesResponse = await fetch(
-          `${Deno.env.get('DEXCOM_API_BASE_URL')}/users/self/devices`,
+          `${apiBaseUrl}/users/self/devices`,
           {
             headers: {
               Authorization: `Bearer ${accessToken}`,
@@ -251,50 +334,89 @@ serve(async (req) => {
           }
         );
 
+        console.log(`Devices API response status: ${devicesResponse.status}`);
+
         if (devicesResponse.ok) {
-          const devices = await devicesResponse.json();
+          const devicesData = await devicesResponse.json();
+          console.log(`Devices API response:`, JSON.stringify(devicesData).substring(0, 500));
+
+          // Handle different possible response formats
+          let devices = [];
+          if (Array.isArray(devicesData)) {
+            devices = devicesData;
+          } else if (devicesData.devices && Array.isArray(devicesData.devices)) {
+            devices = devicesData.devices;
+          } else if (devicesData.records && Array.isArray(devicesData.records)) {
+            devices = devicesData.records;
+          } else {
+            console.log('Unexpected devices response format:', typeof devicesData);
+            syncResults.errors.push(`Unexpected devices response format: ${typeof devicesData}`);
+          }
+
+          console.log(`Processing ${devices.length} devices`);
           syncResults.devicesProcessed = devices.length;
 
           // Process each device
           for (const device of devices) {
-            // Get sensor sessions for this device
-            const sessionsResponse = await fetch(
-              `${Deno.env.get(
-                'DEXCOM_API_BASE_URL'
-              )}/users/self/dataRange?startDate=${getDateDaysAgo(
-                30
-              )}&endDate=${getCurrentDate()}`,
-              {
-                headers: {
-                  Authorization: `Bearer ${accessToken}`,
-                  'Content-Type': 'application/json',
-                },
-              }
-            );
-
-            if (sessionsResponse.ok) {
-              const sessionData = await sessionsResponse.json();
-
-              // Process sensor sessions if available
-              if (sessionData.sessions) {
-                for (const session of sessionData.sessions) {
-                  await processSensorSession(
-                    session,
-                    device,
-                    targetUserId,
-                    supabaseClient,
-                    syncResults
-                  );
+            try {
+              // Get sensor sessions for this device
+              const startDateStr = getDateDaysAgo(30);
+              const endDateStr = getCurrentDate();
+              
+              const sessionsResponse = await fetch(
+                `${apiBaseUrl}/users/self/dataRange?startDate=${startDateStr}&endDate=${endDateStr}`,
+                {
+                  headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json',
+                  },
                 }
+              );
+
+              if (sessionsResponse.ok) {
+                const sessionData = await sessionsResponse.json();
+                console.log(`Sessions API response:`, JSON.stringify(sessionData).substring(0, 300));
+
+                // Process sensor sessions if available
+                if (sessionData.sessions && Array.isArray(sessionData.sessions)) {
+                  for (const session of sessionData.sessions) {
+                    await processSensorSession(
+                      session,
+                      device,
+                      targetUserId,
+                      supabaseClient,
+                      syncResults
+                    );
+                  }
+                } else if (sessionData.records && Array.isArray(sessionData.records)) {
+                  for (const session of sessionData.records) {
+                    await processSensorSession(
+                      session,
+                      device,
+                      targetUserId,
+                      supabaseClient,
+                      syncResults
+                    );
+                  }
+                }
+              } else {
+                const sessionErrorText = await sessionsResponse.text();
+                console.error(`Sessions API error: ${sessionsResponse.status} - ${sessionErrorText}`);
               }
+            } catch (deviceError) {
+              console.error(`Error processing device:`, deviceError);
+              syncResults.errors.push(`Error processing device: ${deviceError.message}`);
             }
           }
         } else {
+          const errorText = await devicesResponse.text();
+          console.error(`Devices API error: ${devicesResponse.status} - ${errorText}`);
           syncResults.errors.push(
-            `Failed to fetch devices: ${devicesResponse.status}`
+            `Failed to fetch devices: ${devicesResponse.status} - ${errorText.substring(0, 200)}`
           );
         }
       } catch (error) {
+        console.error(`Device sync error:`, error);
         syncResults.errors.push(`Device sync error: ${error.message}`);
       }
     }

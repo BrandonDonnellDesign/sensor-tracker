@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import { useAuth } from '@/components/providers/auth-provider';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-client';
 import { Loader2, Plus } from 'lucide-react';
+import { FavoriteButton } from './favorite-button';
 
 interface FoodLogFormProps {
   food: any;
@@ -14,11 +15,50 @@ interface FoodLogFormProps {
 
 export function FoodLogForm({ food, onCancel, onSuccess, onAddToMeal }: FoodLogFormProps) {
   const { user } = useAuth();
-  const [servingSize, setServingSize] = useState(100);
-  const [servingUnit, setServingUnit] = useState('g');
+  
+  // Smart defaults based on food type
+  const getSmartDefaults = () => {
+    const foodName = (food.name || food.product_name || '').toLowerCase();
+    const brand = (food.brand || '').toLowerCase();
+    
+    // Energy drinks and similar beverages default to servings
+    const energyDrinkKeywords = ['energy drink', 'energy', 'monster', 'red bull', 'rockstar', 'bang', 'reign', 'celsius', 'ghost', 'prime energy', 'gfuel', 'g fuel'];
+    const isEnergyDrink = energyDrinkKeywords.some(keyword => foodName.includes(keyword) || brand.includes(keyword));
+    
+    // Fast food chains and restaurant items default to servings
+    const fastFoodBrands = ['mcdonald', 'burger king', 'kfc', 'taco bell', 'subway', 'pizza hut', 'domino', 'wendy', 'chick-fil-a', 'chipotle', 'starbucks'];
+    const isFastFood = fastFoodBrands.some(brand_name => brand.includes(brand_name) || foodName.includes(brand_name));
+    
+    // Items that are typically measured in servings
+    const servingKeywords = ['large', 'medium', 'small', 'cup', 'bottle', 'can', 'piece', 'slice', 'sandwich', 'burger', 'fries'];
+    const isServingItem = servingKeywords.some(keyword => foodName.includes(keyword));
+    
+    if (isEnergyDrink || isFastFood || isServingItem) {
+      return { size: 1, unit: 'serving' };
+    }
+    
+    return { size: 100, unit: 'g' };
+  };
+  
+  // Use favorite defaults if available, otherwise use smart defaults
+  const getInitialServingValues = () => {
+    if (food.isFavorite && food.defaultServingSize && food.defaultServingUnit) {
+      return { size: food.defaultServingSize, unit: food.defaultServingUnit };
+    }
+    return getSmartDefaults();
+  };
+  
+  const initialValues = getInitialServingValues();
+  const [servingSize, setServingSize] = useState(initialValues.size);
+  const [servingUnit, setServingUnit] = useState(initialValues.unit);
   const [mealType, setMealType] = useState<string>('snack');
   const [notes, setNotes] = useState('');
   const [loggedTime, setLoggedTime] = useState(new Date().toTimeString().slice(0, 5));
+  // Helper function to get local date string
+  const getLocalDateString = (date = new Date()) => {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  };
+  const [loggedDate, setLoggedDate] = useState(getLocalDateString());
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Convert serving to grams for calculation
@@ -54,10 +94,12 @@ export function FoodLogForm({ food, onCancel, onSuccess, onAddToMeal }: FoodLogF
     }
   };
 
-  const calculateNutrition = (value: number | null | undefined) => {
+  const calculateNutrition = (value: number | string | null | undefined) => {
     if (!value) return null;
+    const numValue = typeof value === 'string' ? parseFloat(value) : value;
+    if (isNaN(numValue) || numValue === 0) return null;
     const gramsServing = getServingInGrams();
-    return ((value * gramsServing) / 100).toFixed(1);
+    return ((numValue * gramsServing) / 100).toFixed(1);
   };
 
 
@@ -68,6 +110,7 @@ export function FoodLogForm({ food, onCancel, onSuccess, onAddToMeal }: FoodLogF
 
     setIsSubmitting(true);
     try {
+      const supabase = createClient();
       // First, check if food item exists in database by barcode
       let foodItemId = null;
       
@@ -128,9 +171,10 @@ export function FoodLogForm({ food, onCancel, onSuccess, onAddToMeal }: FoodLogF
       const totalFat = calculateNutrition(food.fat || food.fat_g);
 
       // Create timestamp with timezone offset
-      const now = new Date();
       const [hours, minutes] = loggedTime.split(':');
-      const loggedAt = new Date(now.getFullYear(), now.getMonth(), now.getDate(), parseInt(hours), parseInt(minutes));
+      // Parse date components manually to avoid UTC interpretation
+      const [yearNum, monthNum, dayNum] = loggedDate.split('-').map(Number);
+      const loggedAt = new Date(yearNum, monthNum - 1, dayNum, parseInt(hours), parseInt(minutes)); // month is 0-indexed
       
       // Format with timezone offset (e.g., 2025-01-27T14:30:00-08:00)
       const year = loggedAt.getFullYear();
@@ -185,12 +229,27 @@ export function FoodLogForm({ food, onCancel, onSuccess, onAddToMeal }: FoodLogF
           />
         )}
         <div className="flex-1">
-          <h3 className="text-xl font-semibold text-gray-900 dark:text-slate-100">
-            {food.name || food.product_name}
-          </h3>
-          {food.brand && (
-            <p className="text-gray-600 dark:text-slate-400">{food.brand}</p>
-          )}
+          <div className="flex items-start justify-between">
+            <div>
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-slate-100">
+                {food.name || food.product_name}
+                {food.nickname && (
+                  <span className="text-sm text-blue-600 dark:text-blue-400 ml-2">
+                    ({food.nickname})
+                  </span>
+                )}
+              </h3>
+              {food.brand && (
+                <p className="text-gray-600 dark:text-slate-400">{food.brand}</p>
+              )}
+            </div>
+            <FavoriteButton
+              foodId={food.id}
+              foodName={food.name || food.product_name}
+              defaultServingSize={servingSize}
+              defaultServingUnit={servingUnit}
+            />
+          </div>
         </div>
       </div>
 
@@ -213,18 +272,55 @@ export function FoodLogForm({ food, onCancel, onSuccess, onAddToMeal }: FoodLogF
             onChange={(e) => setServingUnit(e.target.value)}
             className="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700"
           >
-            <option value="g">grams (g)</option>
-            <option value="oz">ounces (oz)</option>
-            <option value="lb">pounds (lb)</option>
-            <option value="cup">cups</option>
-            <option value="tbsp">tablespoons</option>
-            <option value="tsp">teaspoons</option>
-            <option value="serving">servings</option>
+            {(() => {
+              const foodName = (food.name || food.product_name || '').toLowerCase();
+              const brand = (food.brand || '').toLowerCase();
+              
+              // Energy drinks and similar beverages default to servings
+              const energyDrinkKeywords = ['energy drink', 'energy', 'monster', 'red bull', 'rockstar', 'bang', 'reign', 'celsius', 'ghost', 'prime energy', 'gfuel', 'g fuel'];
+              const isEnergyDrink = energyDrinkKeywords.some(keyword => foodName.includes(keyword) || brand.includes(keyword));
+              
+              const fastFoodBrands = ['mcdonald', 'burger king', 'kfc', 'taco bell', 'subway', 'pizza hut', 'domino', 'wendy', 'chick-fil-a', 'chipotle', 'starbucks'];
+              const isFastFood = fastFoodBrands.some(brand_name => brand.includes(brand_name) || foodName.includes(brand_name));
+              
+              if (isEnergyDrink || isFastFood) {
+                return (
+                  <>
+                    <option value="serving">servings</option>
+                    <option value="g">grams (g)</option>
+                    <option value="oz">ounces (oz)</option>
+                    <option value="lb">pounds (lb)</option>
+                    <option value="cup">cups</option>
+                    <option value="tbsp">tablespoons</option>
+                    <option value="tsp">teaspoons</option>
+                  </>
+                );
+              } else {
+                return (
+                  <>
+                    <option value="g">grams (g)</option>
+                    <option value="oz">ounces (oz)</option>
+                    <option value="lb">pounds (lb)</option>
+                    <option value="cup">cups</option>
+                    <option value="tbsp">tablespoons</option>
+                    <option value="tsp">teaspoons</option>
+                    <option value="serving">servings</option>
+                  </>
+                );
+              }
+            })()}
           </select>
         </div>
         {servingUnit !== 'g' && (
           <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
             ≈ {getServingInGrams().toFixed(1)}g
+            {servingUnit === 'serving' && food.name && (
+              <span className="ml-2 text-blue-600 dark:text-blue-400">
+                (1 serving = {food.name.toLowerCase().includes('large') ? 'Large' : 
+                            food.name.toLowerCase().includes('medium') ? 'Medium' :
+                            food.name.toLowerCase().includes('small') ? 'Small' : 'Standard'} size)
+              </span>
+            )}
           </p>
         )}
       </div>
@@ -234,31 +330,50 @@ export function FoodLogForm({ food, onCancel, onSuccess, onAddToMeal }: FoodLogF
         <div>
           <p className="text-xs text-gray-600 dark:text-slate-400">Calories</p>
           <p className="text-lg font-semibold text-gray-900 dark:text-slate-100">
-            {calculateNutrition(food.calories || food.energy_kcal) || '-'}
+            {(() => {
+              const value = calculateNutrition(food.calories || food.energy_kcal);
+              return value === '0.0' ? '0' : (value || '-');
+            })()}
           </p>
         </div>
         <div>
           <p className="text-xs text-gray-600 dark:text-slate-400">Carbs</p>
           <p className="text-lg font-semibold text-gray-900 dark:text-slate-100">
-            {calculateNutrition(food.carbs || food.carbohydrates_g) || '-'}g
+            {(() => {
+              const value = calculateNutrition(food.carbs || food.carbohydrates_g);
+              return value === '0.0' ? '0g' : (value ? `${value}g` : '-');
+            })()}
           </p>
         </div>
         <div>
           <p className="text-xs text-gray-600 dark:text-slate-400">Protein</p>
           <p className="text-lg font-semibold text-gray-900 dark:text-slate-100">
-            {calculateNutrition(food.protein || food.proteins_g) || '-'}g
+            {(() => {
+              const value = calculateNutrition(food.protein || food.proteins_g);
+              return value === '0.0' ? '0g' : (value ? `${value}g` : '-');
+            })()}
           </p>
         </div>
         <div>
           <p className="text-xs text-gray-600 dark:text-slate-400">Fat</p>
           <p className="text-lg font-semibold text-gray-900 dark:text-slate-100">
-            {calculateNutrition(food.fat || food.fat_g) || '-'}g
+            {(() => {
+              const value = calculateNutrition(food.fat || food.fat_g);
+              return value === '0.0' ? '0g' : (value ? `${value}g` : '-');
+            })()}
           </p>
         </div>
       </div>
 
-      {/* Meal Type and Time */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Debug info for zero-nutrition items */}
+      {(food.calories === 0 || food.energy_kcal === 0) && (
+        <div className="text-xs text-gray-500 dark:text-slate-400 bg-blue-50 dark:bg-blue-900/20 p-2 rounded">
+          ℹ️ This item appears to be zero-calorie (diet/sugar-free version)
+        </div>
+      )}
+
+      {/* Meal Type, Date and Time */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
             Meal Type
@@ -274,6 +389,17 @@ export function FoodLogForm({ food, onCancel, onSuccess, onAddToMeal }: FoodLogF
             <option value="snack">Snack</option>
             <option value="other">Other</option>
           </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+            Date
+          </label>
+          <input
+            type="date"
+            value={loggedDate}
+            onChange={(e) => setLoggedDate(e.target.value)}
+            className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700"
+          />
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">

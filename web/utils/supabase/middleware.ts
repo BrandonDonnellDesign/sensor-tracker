@@ -99,18 +99,20 @@ export async function updateSession(request: NextRequest) {
     }
   }
 
-  // For non-admin routes with no user, redirect to login
+  // For protected routes with no user, redirect to login
+  // Only redirect for dashboard routes, not API routes or public routes
   if (
     !user &&
+    request.nextUrl.pathname.startsWith('/dashboard') &&
     !request.nextUrl.pathname.startsWith('/auth') &&
     !request.nextUrl.pathname.startsWith('/login') &&
     !request.nextUrl.pathname.startsWith('/error') &&
-    !request.nextUrl.pathname.startsWith('/promote-admin') &&
-    request.nextUrl.pathname !== '/'
+    !request.nextUrl.pathname.startsWith('/promote-admin')
   ) {
-    // no user, potentially respond by redirecting the user to the login page
+    console.log('🔒 Protected route without user, redirecting to login:', request.nextUrl.pathname);
     const url = request.nextUrl.clone()
     url.pathname = '/auth/login'
+    url.searchParams.set('redirectTo', request.nextUrl.pathname)
     return NextResponse.redirect(url)
   }
 

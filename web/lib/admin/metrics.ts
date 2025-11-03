@@ -110,7 +110,7 @@ export interface AnalyticsData {
 }
 
 export async function fetchAnalyticsData(): Promise<AnalyticsData> {
-  const response = await fetch('/api/admin/analytics');
+  const response = await fetch('/api/admin/performance-stats');
   
   if (!response.ok) {
     throw new Error('Failed to fetch analytics data');

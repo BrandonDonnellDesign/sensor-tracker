@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useAuth } from '@/components/providers/auth-provider';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-client';
 import { Loader2, Trash2, Plus } from 'lucide-react';
 
 interface MultiFoodLogFormProps {
@@ -66,6 +66,7 @@ export function MultiFoodLogForm({ items, onCancel, onSuccess, onAddMore }: Mult
 
     setIsSubmitting(true);
     try {
+      const supabase = createClient();
       // Log each item
       for (const item of mealItems) {
         let foodItemId = null;
@@ -143,7 +144,20 @@ export function MultiFoodLogForm({ items, onCancel, onSuccess, onAddMore }: Mult
             total_fat_g: totalFat ? parseFloat(totalFat) : null,
             meal_type: mealType,
             notes: notes || null,
-            logged_at: new Date().toISOString(),
+            logged_at: (() => {
+              // Create timestamp with timezone offset like single food log form
+              const now = new Date();
+              const year = now.getFullYear();
+              const month = String(now.getMonth() + 1).padStart(2, '0');
+              const day = String(now.getDate()).padStart(2, '0');
+              const hour = String(now.getHours()).padStart(2, '0');
+              const minute = String(now.getMinutes()).padStart(2, '0');
+              const tzOffset = -now.getTimezoneOffset();
+              const tzHours = String(Math.floor(Math.abs(tzOffset) / 60)).padStart(2, '0');
+              const tzMinutes = String(Math.abs(tzOffset) % 60).padStart(2, '0');
+              const tzSign = tzOffset >= 0 ? '+' : '-';
+              return `${year}-${month}-${day}T${hour}:${minute}:00${tzSign}${tzHours}:${tzMinutes}`;
+            })(),
           }]);
 
         if (logError) throw logError;

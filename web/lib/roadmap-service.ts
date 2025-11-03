@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-client';
 import { 
   Target, 
   Sparkles, 
@@ -81,6 +81,7 @@ export interface RoadmapStats {
  */
 export async function fetchRoadmapItems(): Promise<DatabaseRoadmapItem[]> {
   try {
+    const supabase = createClient();
     // Fetch roadmap items with features and tags, ordered by status priority and sort_order
     const { data: items, error } = await (supabase as any)
       .from('roadmap_items')
@@ -166,6 +167,7 @@ export async function fetchRoadmapItems(): Promise<DatabaseRoadmapItem[]> {
  */
 export async function fetchRoadmapStats(): Promise<RoadmapStats> {
   try {
+    const supabase = createClient();
     const { data: items, error } = await (supabase as any)
       .from('roadmap_items')
       .select(`
@@ -251,6 +253,7 @@ export async function updateRoadmapProgress(
   progress: number
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    const supabase = createClient();
     const { error } = await (supabase as any)
       .from('roadmap_items')
       .update({ 
@@ -279,6 +282,7 @@ export async function updateRoadmapStatus(
   status: DatabaseRoadmapItem['status']
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    const supabase = createClient();
     const { error } = await (supabase as any)
       .from('roadmap_items')
       .update({ 
@@ -326,6 +330,7 @@ export async function updateRoadmapItem(
   }
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    const supabase = createClient();
     // Get the current item
     const { data: currentItem, error: fetchError } = await (supabase as any)
       .from('roadmap_items')
@@ -429,6 +434,7 @@ export async function updateRoadmapItem(
  */
 export async function deleteRoadmapItem(itemId: string): Promise<{ success: boolean; error?: string }> {
   try {
+    const supabase = createClient();
     const { error } = await (supabase as any)
       .from('roadmap_items')
       .delete()
@@ -456,6 +462,7 @@ export async function addRoadmapItem(
   }
 ): Promise<{ success: boolean; error?: string; id?: string }> {
   try {
+    const supabase = createClient();
     // Insert roadmap item
     const { data: newItem, error: itemError } = await (supabase as any)
       .from('roadmap_items')
@@ -537,6 +544,7 @@ function transformDatabaseItem(item: any): DatabaseRoadmapItem {
 export function subscribeToRoadmapChanges(
   callback: (payload: any) => void
 ) {
+  const supabase = createClient();
   const subscription = supabase
     .channel('roadmap-changes')
     .on(
@@ -560,6 +568,7 @@ export function subscribeToRoadmapChanges(
  */
 export async function isRoadmapAdmin(): Promise<boolean> {
   try {
+    const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return false;
 

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/components/providers/auth-provider';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-client';
 import { Database } from '@/lib/database.types';
 import { useDateTimeFormatter } from '@/utils/date-formatter';
 import {
@@ -70,6 +70,7 @@ export function ActivityTimeline({
         const weekAgo = new Date();
         weekAgo.setDate(weekAgo.getDate() - 7);
 
+        const supabase = createClient();
         const { data: foodLogs } = await supabase
           .from('food_logs')
           .select(

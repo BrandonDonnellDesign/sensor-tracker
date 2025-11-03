@@ -126,14 +126,15 @@ serve(async (req) => {
     const newRefreshToken = btoa(tokens.refresh_token);
     const expiresAt = new Date(Date.now() + tokens.expires_in * 1000);
 
-    // Update the token in the database
+    // Update the token in the database and reactivate it
     const { error: updateError } = await supabaseClient
       .from('dexcom_tokens')
       .update({
         access_token_encrypted: newAccessToken,
         refresh_token_encrypted: newRefreshToken,
         token_expires_at: expiresAt.toISOString(),
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        is_active: true  // Reactivate the token
       })
       .eq('id', tokenData.id);
 

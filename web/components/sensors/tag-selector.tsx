@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-client';
 
 interface Tag {
   id: string;
@@ -31,6 +31,7 @@ export function TagSelector({ selectedTagIds, onTagsChange, className = '' }: Ta
 
   const fetchTags = useCallback(async () => {
     try {
+      const supabase = createClient();
       const { data: tags, error } = await supabase
         .from('tags')
         .select('*')

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-client';
 import { Database } from '@/lib/database.types';
 
 type SensorPhoto = Database['public']['Tables']['sensor_photos']['Row'];
@@ -23,6 +23,7 @@ export default function PhotoGallery({ photos, sensorId: _sensorId, userId, onPh
 
   // Load signed URLs for all photos
   const loadPhotoUrls = useCallback(async () => {
+    const supabase = createClient();
     const urls: Record<string, string> = {};
     for (const photo of photos) {
       try {
@@ -56,6 +57,7 @@ export default function PhotoGallery({ photos, sensorId: _sensorId, userId, onPh
       }
 
       // Delete from storage first
+      const supabase = createClient();
       const { error: storageError } = await supabase.storage
         .from('sensor_photos')
         .remove([photo.file_path]);

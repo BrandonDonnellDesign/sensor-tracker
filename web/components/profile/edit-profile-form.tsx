@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-client';
 import Image from 'next/image';
 import { Profile } from '@/types/profile';
 import { timezones } from '@/constants/timezones';
@@ -50,6 +50,7 @@ export default function EditProfileForm({ profile, onClose, onUpdate }: EditProf
     setError(null);
 
     try {
+      const supabase = createClient();
       let avatar_url = profile.avatar_url;
 
       // Upload new avatar if selected

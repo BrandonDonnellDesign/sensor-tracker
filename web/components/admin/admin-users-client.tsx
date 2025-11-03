@@ -19,7 +19,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { isAdmin } from '@/lib/admin-service';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-client';
 
 interface AdminUserData {
   id: string;
@@ -60,6 +60,7 @@ export function AdminUsersClient() {
       if (!adminStatus) return;
 
       // Get the current session token
+      const supabase = createClient();
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) {
         console.error('No session token available');
@@ -103,6 +104,7 @@ export function AdminUsersClient() {
       setSaving(true);
       
       // Get the current session token
+      const supabase = createClient();
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) {
         alert('No session token available');
@@ -140,6 +142,7 @@ export function AdminUsersClient() {
       setSaving(true);
       
       // Get the current session token
+      const supabase = createClient();
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) {
         alert('No session token available');

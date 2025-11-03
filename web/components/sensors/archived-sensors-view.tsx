@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Archive, Clock, Calendar, Tag } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-client';
 import { useAuth } from '@/components/providers/auth-provider';
 // import { Database } from '@/lib/database.types';
 
@@ -24,6 +24,7 @@ export function ArchivedSensorsView({ isOpen, onClose }: ArchivedSensorsViewProp
     setError(null);
     
     try {
+      const supabase = createClient();
       const { data, error } = await (supabase as any)
         .from('sensors')
         .select('*')

@@ -6,7 +6,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { UserIcon, ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '@/components/providers/auth-provider';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-client';
 import { Profile } from '@/types/profile';
 
 export function UserProfileMenu() {
@@ -18,6 +18,7 @@ export function UserProfileMenu() {
   useEffect(() => {
     if (user) {
       const fetchProfile = async () => {
+        const supabase = createClient();
         const { data, error } = await supabase
           .from('profiles')
           .select('*')

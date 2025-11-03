@@ -1,8 +1,9 @@
-import { supabase } from './supabase';
+import { createClient } from './supabase-client';
 
 // Utility function to force logout from browser console
 export const forceLogout = async () => {
   try {
+    const supabase = createClient();
     await supabase.auth.signOut();
     
     // Clear any local storage items

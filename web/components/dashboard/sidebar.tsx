@@ -8,7 +8,7 @@ import { useAuth } from '@/components/providers/auth-provider';
 import { useGamification } from '@/components/providers/gamification-provider';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { clsx } from 'clsx';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-client';
 import {
   Home,
   Activity,
@@ -26,8 +26,8 @@ import {
   Link2,
   Database,
   Wrench,
-  Eye,
   UtensilsCrossed,
+  MessageSquare,
 } from 'lucide-react';
 import { NotificationsButton } from '@/components/dashboard/notifications-button';
 
@@ -96,6 +96,7 @@ export function Sidebar() {
       if (!user?.id) return;
 
       try {
+        const supabase = createClient();
         const { data: profile } = await supabase
           .from('profiles')
           .select('role')
@@ -120,22 +121,28 @@ export function Sidebar() {
           description: 'Admin dashboard',
         },
         {
-          name: 'Overview',
-          href: '/admin/overview',
-          icon: Eye,
-          description: 'System overview',
-        },
-        {
           name: 'Users',
           href: '/admin/users',
           icon: Users,
           description: 'User management',
         },
         {
-          name: 'Analytics',
-          href: '/admin/analytics',
+          name: 'Community',
+          href: '/admin/community',
+          icon: MessageSquare,
+          description: 'Community moderation',
+        },
+        {
+          name: 'Performance',
+          href: '/admin/performance',
           icon: BarChart3,
-          description: 'System analytics',
+          description: 'System monitoring',
+        },
+        {
+          name: 'Security',
+          href: '/admin/security',
+          icon: Shield,
+          description: 'Security monitoring',
         },
         {
           name: 'Notifications',
@@ -193,6 +200,7 @@ export function Sidebar() {
       if (!user?.id) return;
 
       try {
+        const supabase = createClient();
         const { data: sensors } = await supabase
           .from('sensors')
           .select(
@@ -237,6 +245,7 @@ export function Sidebar() {
       if (!user?.id) return;
 
       try {
+        const supabase = createClient();
         const { data: profile } = await supabase
           .from('profiles')
           .select('avatar_url')

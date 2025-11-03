@@ -79,24 +79,47 @@ export function QuickInsights({ sensors }: QuickInsightsProps) {
       });
     }
 
-    // Average Duration Analysis
-    const completedSensors = sensors.filter(sensor => {
-      const sensorModel = sensor.sensor_models || { duration_days: 10 };
-      const expirationDate = new Date(sensor.date_added);
-      expirationDate.setDate(expirationDate.getDate() + sensorModel.duration_days);
-      return expirationDate < now || sensor.is_problematic;
+    // Average Duration Analysis - calculate actual wear time
+    const sortedSensors = [...sensors].sort((a, b) => 
+      new Date(a.date_added).getTime() - new Date(b.date_added).getTime()
+    );
+    
+    const actualDurations: number[] = [];
+    
+    // Calculate actual durations between consecutive sensors
+    for (let i = 0; i < sortedSensors.length - 1; i++) {
+      const currentSensor = sortedSensors[i];
+      const nextSensor = sortedSensors[i + 1];
+      
+      const startDate = new Date(currentSensor.date_added);
+      const endDate = new Date(nextSensor.date_added);
+      const duration = Math.floor((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+      
+      // Only include reasonable durations (1-30 days)
+      if (duration >= 1 && duration <= 30) {
+        actualDurations.push(duration);
+      }
+    }
+    
+    // Add problematic sensor durations
+    sensors.forEach(sensor => {
+      if (sensor.is_problematic) {
+        const daysSinceAdded = Math.floor(
+          (now.getTime() - new Date(sensor.date_added).getTime()) / (1000 * 60 * 60 * 24)
+        );
+        if (daysSinceAdded <= 14) {
+          actualDurations.push(daysSinceAdded);
+        }
+      }
     });
 
-    if (completedSensors.length > 0) {
-      const avgDuration = completedSensors.reduce((acc, sensor) => {
-        const sensorModel = sensor.sensor_models || { duration_days: 10 };
-        return acc + sensorModel.duration_days;
-      }, 0) / completedSensors.length;
+    if (actualDurations.length > 0) {
+      const avgDuration = actualDurations.reduce((acc, duration) => acc + duration, 0) / actualDurations.length;
 
       insights.push({
         title: 'Avg Duration',
-        value: `${Math.round(avgDuration)} days`,
-        description: `Based on ${completedSensors.length} completed sensors`,
+        value: `${avgDuration.toFixed(1)} days`,
+        description: `Based on ${actualDurations.length} completed sensors`,
         icon: <Calendar className="w-5 h-5" />,
         color: 'bg-gradient-to-r from-green-500 to-green-600',
         trend: {

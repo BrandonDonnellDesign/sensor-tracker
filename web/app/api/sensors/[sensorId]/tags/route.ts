@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-client';
 
 export async function GET(
   _request: NextRequest,
@@ -7,6 +7,7 @@ export async function GET(
 ) {
   const { sensorId } = await params;
   try {
+    const supabase = createClient();
     const { data: tags, error } = await supabase
       .from('sensor_tags')
       .select(`
@@ -43,6 +44,7 @@ export async function POST(
   try {
     const { tagId } = await request.json();
 
+    const supabase = createClient();
     const { error } = await supabase
       .from('sensor_tags')
       .insert({
@@ -77,6 +79,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Tag ID is required' }, { status: 400 });
     }
 
+    const supabase = createClient();
     const { error } = await supabase
       .from('sensor_tags')
       .delete()

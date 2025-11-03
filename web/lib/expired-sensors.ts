@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-client';
 
 /**
  * Manually tags expired sensors by checking their expiration dates
@@ -10,6 +10,7 @@ export async function checkAndTagExpiredSensors(): Promise<{
   error?: string;
 }> {
   try {
+    const supabase = createClient();
     // Get the "Expired" tag ID
     const expiredTagId = await getExpiredTagId();
     if (!expiredTagId) {
@@ -56,6 +57,7 @@ export async function checkAndTagExpiredSensors(): Promise<{
  * Helper function to get the "Expired" tag ID
  */
 async function getExpiredTagId(): Promise<string | null> {
+  const supabase = createClient();
   const { data: expiredTag } = await supabase
     .from('tags')
     .select('id')
@@ -80,6 +82,7 @@ export async function getUntaggedExpiredSensors(): Promise<{
   error?: string;
 }> {
   try {
+    const supabase = createClient();
     const expiredTagId = await getExpiredTagId();
     if (!expiredTagId) {
       throw new Error('Expired tag not found');

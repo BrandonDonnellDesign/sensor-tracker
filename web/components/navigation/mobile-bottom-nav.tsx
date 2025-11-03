@@ -1,0 +1,94 @@
+'use client';
+
+import { usePathname } from 'next/navigation';
+import Link from 'next/link';
+import { 
+  Home, 
+  Activity, 
+  BarChart3, 
+  Settings,
+  Plus
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+const navItems = [
+  {
+    name: 'Dashboard',
+    href: '/dashboard',
+    icon: Home,
+    activePattern: /^\/dashboard$/
+  },
+  {
+    name: 'Sensors',
+    href: '/dashboard/sensors',
+    icon: Activity,
+    activePattern: /^\/dashboard\/sensors/
+  },
+  {
+    name: 'Add',
+    href: '/dashboard/sensors/new',
+    icon: Plus,
+    activePattern: /^\/dashboard\/sensors\/new$/,
+    isPrimary: true
+  },
+  {
+    name: 'Analytics',
+    href: '/dashboard/analytics',
+    icon: BarChart3,
+    activePattern: /^\/dashboard\/analytics/
+  },
+  {
+    name: 'Settings',
+    href: '/dashboard/settings',
+    icon: Settings,
+    activePattern: /^\/dashboard\/settings/
+  }
+];
+
+export function MobileBottomNav() {
+  const pathname = usePathname();
+
+  return (
+    <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50">
+      <div className="bg-white dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700 px-2 py-2">
+        <div className="flex items-center justify-around">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = item.activePattern.test(pathname);
+            
+            return (
+              <Link
+                key={item.name}
+                href={item.href}
+                className={cn(
+                  'flex flex-col items-center justify-center px-3 py-2 rounded-xl transition-all duration-200',
+                  'min-w-[60px] min-h-[60px]',
+                  item.isPrimary
+                    ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg'
+                    : isActive
+                    ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                    : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700'
+                )}
+              >
+                <Icon className={cn(
+                  'transition-all duration-200',
+                  item.isPrimary ? 'w-6 h-6' : 'w-5 h-5',
+                  isActive && !item.isPrimary && 'scale-110'
+                )} />
+                <span className={cn(
+                  'text-xs font-medium mt-1',
+                  item.isPrimary ? 'text-white' : ''
+                )}>
+                  {item.name}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+      
+      {/* Safe area for devices with home indicator */}
+      <div className="bg-white dark:bg-slate-800 h-safe-area-inset-bottom" />
+    </div>
+  );
+}

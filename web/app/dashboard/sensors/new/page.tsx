@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-client';
 import { useAuth } from '@/components/providers/auth-provider';
 import { useGamification } from '@/components/providers/gamification-provider';
 import ImageUpload from '@/components/sensors/image-upload';
@@ -45,6 +45,7 @@ export default function NewSensorPage() {
   // Fetch available sensor models
   useEffect(() => {
     const fetchSensorModels = async () => {
+      const supabase = createClient();
       const { data, error } = await (supabase as any)
         .from('sensor_models')
         .select('*')
@@ -148,6 +149,7 @@ export default function NewSensorPage() {
         ...(selectedSensorModel?.manufacturer === 'Dexcom' && { lot_number: lotNumber.trim() }),
       };
 
+      const supabase = createClient();
       const { data, error } = await supabase
         .from('sensors')
         .insert([sensorData]) // ✅ must be array

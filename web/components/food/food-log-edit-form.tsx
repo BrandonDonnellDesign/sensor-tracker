@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-client';
 import { Loader2 } from 'lucide-react';
+import { FavoriteButton } from './favorite-button';
 
 interface FoodLogEditFormProps {
   log: any;
@@ -11,20 +12,63 @@ interface FoodLogEditFormProps {
 }
 
 export function FoodLogEditForm({ log, onCancel, onSuccess }: FoodLogEditFormProps) {
-  const [servingSize, setServingSize] = useState(log.user_serving_size || log.serving_size);
-  const [servingUnit, setServingUnit] = useState(log.user_serving_unit || 'g');
+  // Smart defaults based on food type (same logic as new food form)
+  const getSmartDefaults = () => {
+    const foodName = (log.product_name || log.custom_food_name || '').toLowerCase();
+    const brand = (log.brand || '').toLowerCase();
+    
+    // Energy drinks and similar beverages default to servings
+    const energyDrinkKeywords = ['energy drink', 'energy', 'monster', 'red bull', 'rockstar', 'bang', 'reign', 'celsius', 'ghost', 'prime energy', 'gfuel', 'g fuel'];
+    const isEnergyDrink = energyDrinkKeywords.some(keyword => foodName.includes(keyword) || brand.includes(keyword));
+    
+    // Fast food chains and restaurant items default to servings
+    const fastFoodBrands = ['mcdonald', 'burger king', 'kfc', 'taco bell', 'subway', 'pizza hut', 'domino', 'wendy', 'chick-fil-a', 'chipotle', 'starbucks'];
+    const isFastFood = fastFoodBrands.some(brand_name => brand.includes(brand_name) || foodName.includes(brand_name));
+    
+    // Items that are typically measured in servings
+    const servingKeywords = ['large', 'medium', 'small', 'cup', 'bottle', 'can', 'piece', 'slice', 'sandwich', 'burger', 'fries'];
+    const isServingItem = servingKeywords.some(keyword => foodName.includes(keyword));
+    
+    return { shouldUseServings: isEnergyDrink || isFastFood || isServingItem };
+  };
+  
+  const smartDefaults = getSmartDefaults();
+  
+  // Use existing values, but convert to servings if it's a fast food item and currently in grams
+  const getInitialServingValues = () => {
+    // If user_serving_size exists, use that with its unit
+    if (log.user_serving_size && log.user_serving_unit) {
+      return { size: log.user_serving_size, unit: log.user_serving_unit };
+    }
+    
+    // Otherwise use the stored serving_size (which is in grams)
+    const currentSize = log.serving_size || 100;
+    const currentUnit = 'g';
+    
+    // If it's a fast food item but currently stored in grams, convert to servings for better UX
+    if (smartDefaults.shouldUseServings && currentUnit === 'g') {
+      const foodServingSize = parseFloat(log.food_serving_size) || 100;
+      const servings = currentSize / foodServingSize;
+      return { size: Math.round(servings * 10) / 10, unit: 'serving' }; // Round to 1 decimal
+    }
+    
+    return { size: currentSize, unit: currentUnit };
+  };
+  
+  const initialValues = getInitialServingValues();
+  const [servingSize, setServingSize] = useState(initialValues.size);
+  const [servingUnit, setServingUnit] = useState(initialValues.unit);
   const [mealType, setMealType] = useState(log.meal_type);
   const [notes, setNotes] = useState(log.notes || '');
   const [loggedTime, setLoggedTime] = useState(new Date(log.logged_at).toTimeString().slice(0, 5));
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Get food nutrition per 100g
-  const foodItem = log.food_items;
+  // Get food nutrition per 100g from the log (which includes food item data from the view)
   const nutritionPer100g = {
-    calories: foodItem?.energy_kcal || 0,
-    carbs: foodItem?.carbohydrates_g || 0,
-    protein: foodItem?.proteins_g || 0,
-    fat: foodItem?.fat_g || 0,
+    calories: log.energy_kcal || 0,
+    carbs: log.carbohydrates_g || 0,
+    protein: log.proteins_g || 0,
+    fat: log.fat_g || 0,
   };
 
   // Convert serving to grams for calculation
@@ -41,21 +85,21 @@ export function FoodLogEditForm({ log, onCancel, onSuccess }: FoodLogEditFormPro
       case 'tsp':
         return servingSize * 5;
       case 'serving':
-        // Calculate grams per serving from the original log
-        // If originally logged as "1 serving = 100g", then gramsPerServing = 100
-        const originalUserServing = log.user_serving_size || 1;
-        const originalGrams = log.serving_size || 100;
-        const gramsPerServing = originalGrams / originalUserServing;
-        return servingSize * gramsPerServing;
+        // Use the food item's defined serving size in grams
+        // This is the key fix - use food_serving_size from the food item
+        const foodServingSize = parseFloat(log.food_serving_size) || 100;
+        return servingSize * foodServingSize;
       case 'g':
       default:
         return servingSize;
     }
   };
 
-  const calculateNutrition = (valuePer100g: number) => {
+  const calculateNutrition = (valuePer100g: number | string) => {
+    const numValue = typeof valuePer100g === 'string' ? parseFloat(valuePer100g) : valuePer100g;
+    if (isNaN(numValue) || numValue === 0) return '0';
     const gramsServing = getServingInGrams();
-    return ((valuePer100g * gramsServing) / 100).toFixed(1);
+    return ((numValue * gramsServing) / 100).toFixed(1);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -63,6 +107,7 @@ export function FoodLogEditForm({ log, onCancel, onSuccess }: FoodLogEditFormPro
     setIsSubmitting(true);
 
     try {
+      const supabase = createClient();
       const gramsServing = getServingInGrams();
       
       // Create timestamp with timezone offset
@@ -118,20 +163,30 @@ export function FoodLogEditForm({ log, onCancel, onSuccess }: FoodLogEditFormPro
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Food Info */}
         <div className="flex items-start gap-4">
-          {foodItem?.image_url && (
+          {log.image_url && (
             <img
-              src={foodItem.image_url}
-              alt={foodItem.product_name}
+              src={log.image_url}
+              alt={log.product_name}
               className="w-24 h-24 object-cover rounded-lg"
             />
           )}
           <div className="flex-1">
-            <h4 className="text-xl font-semibold text-gray-900 dark:text-slate-100">
-              {log.custom_food_name || foodItem?.product_name}
-            </h4>
-            {foodItem?.brand && (
-              <p className="text-gray-600 dark:text-slate-400">{foodItem.brand}</p>
-            )}
+            <div className="flex items-start justify-between">
+              <div>
+                <h4 className="text-xl font-semibold text-gray-900 dark:text-slate-100">
+                  {log.custom_food_name || log.product_name}
+                </h4>
+                {log.brand && (
+                  <p className="text-gray-600 dark:text-slate-400">{log.brand}</p>
+                )}
+              </div>
+              <FavoriteButton
+                foodId={log.food_item_id}
+                foodName={log.custom_food_name || log.product_name}
+                defaultServingSize={servingSize}
+                defaultServingUnit={servingUnit}
+              />
+            </div>
           </div>
         </div>
 
@@ -154,18 +209,55 @@ export function FoodLogEditForm({ log, onCancel, onSuccess }: FoodLogEditFormPro
               onChange={(e) => setServingUnit(e.target.value)}
               className="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700"
             >
-              <option value="g">grams (g)</option>
-              <option value="oz">ounces (oz)</option>
-              <option value="lb">pounds (lb)</option>
-              <option value="cup">cups</option>
-              <option value="tbsp">tablespoons</option>
-              <option value="tsp">teaspoons</option>
-              <option value="serving">servings</option>
+              {(() => {
+                const foodName = (log.product_name || log.custom_food_name || '').toLowerCase();
+                const brand = (log.brand || '').toLowerCase();
+                
+                // Energy drinks and similar beverages default to servings
+                const energyDrinkKeywords = ['energy drink', 'energy', 'monster', 'red bull', 'rockstar', 'bang', 'reign', 'celsius', 'ghost', 'prime energy', 'gfuel', 'g fuel'];
+                const isEnergyDrink = energyDrinkKeywords.some(keyword => foodName.includes(keyword) || brand.includes(keyword));
+                
+                const fastFoodBrands = ['mcdonald', 'burger king', 'kfc', 'taco bell', 'subway', 'pizza hut', 'domino', 'wendy', 'chick-fil-a', 'chipotle', 'starbucks'];
+                const isFastFood = fastFoodBrands.some(brand_name => brand.includes(brand_name) || foodName.includes(brand_name));
+                
+                if (isEnergyDrink || isFastFood) {
+                  return (
+                    <>
+                      <option value="serving">servings</option>
+                      <option value="g">grams (g)</option>
+                      <option value="oz">ounces (oz)</option>
+                      <option value="lb">pounds (lb)</option>
+                      <option value="cup">cups</option>
+                      <option value="tbsp">tablespoons</option>
+                      <option value="tsp">teaspoons</option>
+                    </>
+                  );
+                } else {
+                  return (
+                    <>
+                      <option value="g">grams (g)</option>
+                      <option value="oz">ounces (oz)</option>
+                      <option value="lb">pounds (lb)</option>
+                      <option value="cup">cups</option>
+                      <option value="tbsp">tablespoons</option>
+                      <option value="tsp">teaspoons</option>
+                      <option value="serving">servings</option>
+                    </>
+                  );
+                }
+              })()}
             </select>
           </div>
           {servingUnit !== 'g' && (
             <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
               ≈ {getServingInGrams().toFixed(1)}g
+              {servingUnit === 'serving' && (log.product_name || log.custom_food_name) && (
+                <span className="ml-2 text-blue-600 dark:text-blue-400">
+                  (1 serving = {(log.product_name || log.custom_food_name).toLowerCase().includes('large') ? 'Large' : 
+                              (log.product_name || log.custom_food_name).toLowerCase().includes('medium') ? 'Medium' :
+                              (log.product_name || log.custom_food_name).toLowerCase().includes('small') ? 'Small' : 'Standard'} size)
+                </span>
+              )}
             </p>
           )}
         </div>

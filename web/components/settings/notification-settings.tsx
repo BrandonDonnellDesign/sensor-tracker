@@ -48,6 +48,33 @@ export function NotificationSettings({ profile, onUpdate }: NotificationSettings
     setTimeout(() => setMessage(null), 3000);
   };
 
+  const handleNotificationPreference = async (preference: string, value: boolean) => {
+    setSaving(true);
+    setMessage(null);
+
+    const currentPrefs = (profile?.notification_preferences as Record<string, any>) || {};
+    const updatedPrefs = {
+      ...currentPrefs,
+      emailNotifications: currentPrefs.emailNotifications ?? true,
+      [preference]: value
+    };
+
+    const result = await onUpdate({ 
+      notification_preferences: updatedPrefs 
+    });
+    
+    if (result.success) {
+      setMessage({ type: 'success', text: 'Notification preferences updated successfully' });
+    } else {
+      setMessage({ type: 'error', text: result.error || 'Failed to update preferences' });
+    }
+
+    setSaving(false);
+    
+    // Clear message after 3 seconds
+    setTimeout(() => setMessage(null), 3000);
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -141,6 +168,92 @@ export function NotificationSettings({ profile, onUpdate }: NotificationSettings
               <div className="w-11 h-6 bg-gray-200 dark:bg-slate-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
             </label>
           </div>
+        </div>
+      </div>
+
+      {/* Community Email Notifications */}
+      <div className="border-t border-gray-200 dark:border-slate-700 pt-6">
+        <h3 className="text-lg font-medium text-gray-900 dark:text-slate-100 mb-4">
+          Community Email Notifications
+        </h3>
+        <p className="text-gray-600 dark:text-slate-400 mb-6">
+          Manage email notifications for community interactions and updates.
+        </p>
+        
+        <div className="space-y-4">
+          {/* Comment Replies */}
+          <div className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+            <div className="flex-1">
+              <h4 className="text-base font-medium text-gray-900 dark:text-slate-100">
+                Comment Replies
+              </h4>
+              <p className="text-sm text-gray-600 dark:text-slate-400 mt-1">
+                Get notified when someone replies to your comments on community tips
+              </p>
+            </div>
+            <div className="ml-4">
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="sr-only peer"
+                  checked={(profile?.notification_preferences as any)?.commentReplies ?? true}
+                  onChange={(e) => handleNotificationPreference('commentReplies', e.target.checked)}
+                  disabled={saving}
+                />
+                <div className="w-11 h-6 bg-gray-200 dark:bg-slate-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+              </label>
+            </div>
+          </div>
+
+          {/* Weekly Digest */}
+          <div className="flex items-center justify-between p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
+            <div className="flex-1">
+              <h4 className="text-base font-medium text-gray-900 dark:text-slate-100">
+                Weekly Community Digest
+              </h4>
+              <p className="text-sm text-gray-600 dark:text-slate-400 mt-1">
+                Receive a weekly summary of top community tips and discussions
+              </p>
+            </div>
+            <div className="ml-4">
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="sr-only peer"
+                  checked={(profile?.notification_preferences as any)?.weeklyDigest ?? true}
+                  onChange={(e) => handleNotificationPreference('weeklyDigest', e.target.checked)}
+                  disabled={saving}
+                />
+                <div className="w-11 h-6 bg-gray-200 dark:bg-slate-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+              </label>
+            </div>
+          </div>
+
+          {/* Admin Alerts (only show for admins) */}
+          {profile?.role === 'admin' && (
+            <div className="flex items-center justify-between p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+              <div className="flex-1">
+                <h4 className="text-base font-medium text-gray-900 dark:text-slate-100">
+                  Admin Alerts
+                </h4>
+                <p className="text-sm text-gray-600 dark:text-slate-400 mt-1">
+                  Receive notifications about flagged content and moderation alerts
+                </p>
+              </div>
+              <div className="ml-4">
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="sr-only peer"
+                    checked={(profile?.notification_preferences as any)?.adminAlerts ?? false}
+                    onChange={(e) => handleNotificationPreference('adminAlerts', e.target.checked)}
+                    disabled={saving}
+                  />
+                  <div className="w-11 h-6 bg-gray-200 dark:bg-slate-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                </label>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

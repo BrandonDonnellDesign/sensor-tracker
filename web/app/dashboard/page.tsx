@@ -2,11 +2,11 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-client';
 import { useAuth } from '@/components/providers/auth-provider';
 import { useGamification } from '@/components/providers/gamification-provider';
 
-// New enhanced components
+// Enhanced desktop components
 import { HeroSection } from '@/components/dashboard/hero-section';
 import { EnhancedStatsGrid } from '@/components/dashboard/enhanced-stats-grid';
 import { ActivityTimeline } from '@/components/dashboard/activity-timeline';
@@ -14,6 +14,19 @@ import { QuickInsights } from '@/components/dashboard/quick-insights';
 import { CompactGamification } from '@/components/dashboard/compact-gamification';
 import { StreamlinedQuickActions } from '@/components/dashboard/streamlined-quick-actions';
 import { DashboardSkeleton } from '@/components/dashboard/dashboard-skeleton';
+
+// Mobile-optimized components
+import { MobileDashboard } from '@/components/dashboard/mobile-dashboard';
+import { WelcomeFlow } from '@/components/dashboard/welcome-flow';
+
+// AI-powered components
+import { AIInsightsPanel } from '@/components/dashboard/ai-insights-panel';
+import { SmartNotificationBar } from '@/components/dashboard/smart-notification-bar';
+import { useSmartNotifications } from '@/lib/notifications/smart-notifications';
+
+// Community components
+import { PerformanceComparison } from '@/components/community/performance-comparison';
+import { CommunityTips } from '@/components/community/community-tips';
 
 
 
@@ -35,6 +48,8 @@ export default function DashboardPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [adminError, setAdminError] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false);
 
   // Check for admin access errors from middleware
   useEffect(() => {
@@ -58,6 +73,24 @@ export default function DashboardPage() {
     }
   }, []);
 
+  // Detect mobile device and check for first-time user
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    // Check if user is new (no sensors and hasn't seen welcome)
+    const hasSeenWelcome = localStorage.getItem('hasSeenWelcome');
+    if (!hasSeenWelcome && sensors.length === 0 && !loading) {
+      setShowWelcome(true);
+    }
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, [sensors.length, loading]);
+
   const fetchSensors = useCallback(
     async (isRefresh = false) => {
       if (!user?.id) return;
@@ -68,6 +101,7 @@ export default function DashboardPage() {
           setRefreshing(true);
         }
 
+        const supabase = createClient();
         const { data, error } = await (supabase as any)
           .from('sensors')
           .select(
@@ -257,6 +291,49 @@ export default function DashboardPage() {
     return expirationDate > new Date() && !s.is_problematic;
   }).length;
 
+  // Calculate real average duration
+  const calculateAverageDuration = () => {
+    if (sensors.length < 2) return 0;
+
+    const durations: number[] = [];
+    const sortedSensors = [...sensors].sort((a, b) => 
+      new Date(a.date_added).getTime() - new Date(b.date_added).getTime()
+    );
+
+    // Calculate actual durations between consecutive sensors
+    for (let i = 0; i < sortedSensors.length - 1; i++) {
+      const currentSensor = sortedSensors[i];
+      const nextSensor = sortedSensors[i + 1];
+      
+      const startDate = new Date(currentSensor.date_added);
+      const endDate = new Date(nextSensor.date_added);
+      const duration = Math.floor((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+      
+      // Only include reasonable durations (1-30 days)
+      if (duration >= 1 && duration <= 30) {
+        durations.push(duration);
+      }
+    }
+
+    // Add problematic sensor durations (estimate based on when they failed)
+    sensors.forEach(sensor => {
+      if (sensor.is_problematic) {
+        const daysSinceAdded = Math.floor(
+          (Date.now() - new Date(sensor.date_added).getTime()) / (1000 * 60 * 60 * 24)
+        );
+        if (daysSinceAdded <= 14) {
+          durations.push(daysSinceAdded);
+        }
+      }
+    });
+
+    return durations.length > 0 
+      ? durations.reduce((a, b) => a + b, 0) / durations.length 
+      : 0;
+  };
+
+  const averageDuration = calculateAverageDuration();
+
   // Find current active sensor
   const currentSensor = sensors.find((s) => {
     const sensorModel = s.sensor_models || { duration_days: 10 };
@@ -278,10 +355,87 @@ export default function DashboardPage() {
     thisMonthSensors
   };
 
+  // Prepare data for AI insights
+  const { userStats } = useGamification();
+  const insightData = {
+    sensors,
+    userAchievements: userAchievements || [],
+    userStats
+  };
+
+  // Get smart notifications
+  const { notifications, dismissNotification } = useSmartNotifications({
+    sensors,
+    userStats,
+    currentTime: new Date()
+  });
+
+  // Handle welcome flow completion
+  const handleWelcomeComplete = () => {
+    setShowWelcome(false);
+    localStorage.setItem('hasSeenWelcome', 'true');
+  };
+
   if (loading) {
     return <DashboardSkeleton />;
   }
 
+  // Show welcome flow for new users
+  if (showWelcome && sensors.length === 0) {
+    return (
+      <WelcomeFlow 
+        onComplete={handleWelcomeComplete}
+        onSkip={handleWelcomeComplete}
+      />
+    );
+  }
+
+  // Mobile-optimized dashboard
+  if (isMobile) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
+        <div className="p-4">
+          {/* Admin Access Error */}
+          {adminError && (
+            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-4 text-center mb-6">
+              <h3 className="text-sm font-medium text-yellow-800 dark:text-yellow-300 mb-2">Access Denied</h3>
+              <p className="text-sm text-yellow-700 dark:text-yellow-400 mb-2">{adminError}</p>
+              <button
+                onClick={() => setAdminError(null)}
+                className="text-sm text-yellow-800 dark:text-yellow-300 underline hover:text-yellow-900 dark:hover:text-yellow-200">
+                Dismiss
+              </button>
+            </div>
+          )}
+
+          {/* Error State */}
+          {error && (
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 text-center mb-6">
+              <h3 className="text-sm font-medium text-red-800 dark:text-red-300 mb-2">Error loading sensors</h3>
+              <p className="text-sm text-red-700 dark:text-red-400 mb-2">{error}</p>
+              <button
+                onClick={() => fetchSensors(true)}
+                className="text-sm text-red-800 dark:text-red-300 underline hover:text-red-900 dark:hover:text-red-200">
+                Try again
+              </button>
+            </div>
+          )}
+
+          {/* Smart Notifications */}
+          <SmartNotificationBar 
+            notifications={notifications}
+            onDismiss={dismissNotification}
+            maxVisible={1}
+          />
+
+          {/* Mobile Dashboard */}
+          <MobileDashboard />
+        </div>
+      </div>
+    );
+  }
+
+  // Desktop dashboard
   return (
     <div className="min-h-screen">
       <div>
@@ -311,6 +465,13 @@ export default function DashboardPage() {
           </div>
         )}
 
+        {/* Smart Notifications */}
+        <SmartNotificationBar 
+          notifications={notifications}
+          onDismiss={dismissNotification}
+          maxVisible={2}
+        />
+
         {/* Hero Section */}
         {currentSensor && (
           <HeroSection 
@@ -326,6 +487,23 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
           {/* Left Column - Activity & Insights */}
           <div className="lg:col-span-2 space-y-4">
+            {/* AI Insights Panel */}
+            {sensors.length > 0 && (
+              <AIInsightsPanel data={insightData} />
+            )}
+
+            {/* Community Performance Comparison */}
+            {sensors.length >= 1 && userStats && (
+              <PerformanceComparison 
+                userStats={{
+                  successRate: successRate,
+                  averageDuration: averageDuration,
+                  totalSensors: totalSensors,
+                  currentStreak: userStats.current_streak || 0
+                }}
+              />
+            )}
+
             {/* Activity Timeline */}
             <ActivityTimeline 
               sensors={sensors}
@@ -334,6 +512,11 @@ export default function DashboardPage() {
 
             {/* Quick Insights */}
             <QuickInsights sensors={sensors} />
+
+            {/* Community Tips */}
+            {sensors.length > 0 && (
+              <CommunityTips />
+            )}
           </div>
 
           {/* Right Column - Actions & Gamification */}

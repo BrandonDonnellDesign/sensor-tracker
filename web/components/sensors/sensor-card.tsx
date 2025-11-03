@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, memo, useCallback, useMemo } from 'react';
 import { format } from 'date-fns';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-client';
 import { Database } from '@/lib/database.types';
 
 type Sensor = Database['public']['Tables']['sensors']['Row'];
@@ -10,14 +10,15 @@ interface SensorCardProps {
   onUpdate: () => void;
 }
 
-export function SensorCard({ sensor, onUpdate }: SensorCardProps) {
+export const SensorCard = memo(function SensorCard({ sensor, onUpdate }: SensorCardProps) {
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const handleDelete = async () => {
+  const handleDelete = useCallback(async () => {
     if (!confirm('Are you sure you want to delete this sensor?')) return;
 
     setIsDeleting(true);
     try {
+      const supabase = createClient();
       const { error } = await supabase
         .from('sensors')
         .update({ is_deleted: true })
@@ -30,7 +31,29 @@ export function SensorCard({ sensor, onUpdate }: SensorCardProps) {
     } finally {
       setIsDeleting(false);
     }
-  };
+  }, [sensor.id, onUpdate]);
+
+  // Memoize formatted dates
+  const formattedDates = useMemo(() => ({
+    dateAdded: format(new Date(sensor.date_added), 'MMM d, yyyy h:mm a'),
+    createdAt: format(new Date(sensor.created_at || Date.now()), 'MMM d, yyyy'),
+    updatedAt: sensor.updated_at !== sensor.created_at 
+      ? format(new Date(sensor.updated_at || Date.now()), 'MMM d, yyyy')
+      : null,
+  }), [sensor.date_added, sensor.created_at, sensor.updated_at]);
+
+  // Memoize sensor type styles
+  const sensorTypeStyles = useMemo(() => 
+    sensor.sensor_type === 'dexcom' 
+      ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300'
+      : 'bg-teal-100 dark:bg-teal-900/30 text-teal-800 dark:text-teal-300',
+    [sensor.sensor_type]
+  );
+
+  const sensorTypeLabel = useMemo(() => 
+    sensor.sensor_type === 'dexcom' ? 'Dexcom' : 'Freestyle',
+    [sensor.sensor_type]
+  );
 
   return (
     <div className="card hover:shadow-md transition-shadow">
@@ -40,12 +63,8 @@ export function SensorCard({ sensor, onUpdate }: SensorCardProps) {
           <div>
             <div className="flex items-center gap-2 mb-1">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">{sensor.serial_number}</h3>
-              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                sensor.sensor_type === 'dexcom' 
-                  ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300'
-                  : 'bg-teal-100 dark:bg-teal-900/30 text-teal-800 dark:text-teal-300'
-              }`}>
-                {sensor.sensor_type === 'dexcom' ? 'Dexcom' : 'Freestyle'}
+              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${sensorTypeStyles}`}>
+                {sensorTypeLabel}
               </span>
             </div>
             {sensor.lot_number && (
@@ -75,7 +94,7 @@ export function SensorCard({ sensor, onUpdate }: SensorCardProps) {
       <div className="space-y-2 text-sm text-gray-600">
         <div className="flex justify-between">
           <span>Date Added:</span>
-          <span>{format(new Date(sensor.date_added), 'MMM d, yyyy h:mm a')}</span>
+          <span>{formattedDates.dateAdded}</span>
         </div>
         
         {sensor.is_problematic && sensor.issue_notes && (
@@ -88,12 +107,12 @@ export function SensorCard({ sensor, onUpdate }: SensorCardProps) {
 
       <div className="mt-4 pt-4 border-t border-gray-200">
         <div className="flex justify-between items-center text-xs text-gray-500">
-          <span>Added {format(new Date(sensor.created_at || Date.now()), 'MMM d, yyyy')}</span>
-          {sensor.updated_at !== sensor.created_at && (
-            <span>Updated {format(new Date(sensor.updated_at || Date.now()), 'MMM d, yyyy')}</span>
+          <span>Added {formattedDates.createdAt}</span>
+          {formattedDates.updatedAt && (
+            <span>Updated {formattedDates.updatedAt}</span>
           )}
         </div>
       </div>
     </div>
   );
-}
+});

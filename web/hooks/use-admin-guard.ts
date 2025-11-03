@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/auth-provider';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-client';
 
 interface AdminGuardState {
   loading: boolean;
@@ -29,6 +29,7 @@ export function useAdminGuard() {
       }
 
       try {
+        const supabase = createClient();
         const { data: profile, error } = await supabase
           .from('profiles')
           .select('role')

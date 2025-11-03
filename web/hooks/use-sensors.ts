@@ -1,5 +1,5 @@
 import useSWR from 'swr';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-client';
 import { useAuth } from '@/components/providers/auth-provider';
 
 // const fetcher = async (url: string) => {
@@ -11,6 +11,7 @@ import { useAuth } from '@/components/providers/auth-provider';
 // };
 
 const supabaseFetcher = async (table: string, userId?: string) => {
+  const supabase = createClient();
   let query = (supabase as any).from(table).select('*');
   
   if (userId) {
@@ -55,6 +56,7 @@ export function useSensor(sensorId: string) {
   const { data, error, mutate, isLoading } = useSWR(
     user?.id && sensorId ? ['sensor', sensorId] : null,
     async ([, id]) => {
+      const supabase = createClient();
       const { data, error } = await supabase
         .from('sensors')
         .select(`
@@ -97,6 +99,7 @@ export function useGlucoseReadings(limit = 50) {
   const { data, error, mutate, isLoading } = useSWR(
     user?.id ? ['glucose_readings', user.id, limit] : null,
     async ([table, userId, limitCount]) => {
+      const supabase = createClient();
       const { data, error } = await (supabase as any)
         .from(table)
         .select('*')
@@ -129,6 +132,7 @@ export function useFoodLogs(limit = 20) {
   const { data, error, mutate, isLoading } = useSWR(
     user?.id ? ['food_logs_with_cgm', user.id, limit] : null,
     async ([view, userId, limitCount]) => {
+      const supabase = createClient();
       const { data, error } = await (supabase as any)
         .from(view)
         .select('*')

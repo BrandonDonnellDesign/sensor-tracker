@@ -18,6 +18,11 @@ export interface FoodItem {
   servingSize?: string;
   servingUnit?: string;
   imageUrl?: string;
+  // Custom food properties
+  isCustom?: boolean;
+  isOwnCustom?: boolean;
+  createdByUserId?: string;
+  isPublic?: boolean;
 }
 
 export async function searchProducts(query: string): Promise<FoodItem[]> {

@@ -1,9 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
-import { Loader2, Trash2, Calendar, Edit2 } from 'lucide-react';
+import { createClient } from '@/lib/supabase-client';
+import { Loader2, Trash2, Calendar, Edit2, Plus } from 'lucide-react';
 import { FoodLogEditForm } from './food-log-edit-form';
+import { FavoriteButton } from './favorite-button';
+import { useDateTimeFormatter } from '@/utils/date-formatter';
 
 interface FoodLogListProps {
   userId?: string;
@@ -17,6 +19,7 @@ export function FoodLogList({ userId }: FoodLogListProps) {
   const localDateString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   const [selectedDate, setSelectedDate] = useState(localDateString);
   const [editingLog, setEditingLog] = useState<any>(null);
+  const dateFormatter = useDateTimeFormatter();
 
   useEffect(() => {
     if (!userId) return;
@@ -28,22 +31,30 @@ export function FoodLogList({ userId }: FoodLogListProps) {
 
     setIsLoading(true);
     try {
-      // Use local timezone for date filtering
-      const startOfDay = `${selectedDate}T00:00:00`;
-      const endOfDay = `${selectedDate}T23:59:59`;
-
+      const supabase = createClient();
+      
+      // Get all logs for the user and filter client-side by local date
+      // This ensures we capture logs that might cross timezone boundaries
       const { data, error } = await (supabase as any)
         .from('food_logs_with_cgm')
         .select('*')
         .eq('user_id', userId)
-        .gte('logged_at', startOfDay)
-        .lte('logged_at', endOfDay)
         .order('logged_at', { ascending: false });
 
       if (error) throw error;
-      setLogs(data || []);
+      
+      // Filter by selected date in local timezone
+      const filteredLogs = (data || []).filter((log: any) => {
+        const logDate = new Date(log.logged_at);
+        const logLocalDate = logDate.toLocaleDateString('en-CA'); // YYYY-MM-DD format
+        return logLocalDate === selectedDate;
+      });
+      
+      setLogs(filteredLogs);
+
     } catch (error) {
       console.error('Error loading food logs:', error);
+      setLogs([]);
     } finally {
       setIsLoading(false);
     }
@@ -53,6 +64,7 @@ export function FoodLogList({ userId }: FoodLogListProps) {
     if (!confirm('Delete this food log?')) return;
 
     try {
+      const supabase = createClient();
       const { error } = await supabase
         .from('food_logs')
         .delete()
@@ -62,6 +74,38 @@ export function FoodLogList({ userId }: FoodLogListProps) {
       loadLogs();
     } catch (error) {
       console.error('Error deleting log:', error);
+    }
+  };
+
+  const handleLogAgain = async (originalLog: any) => {
+    if (!userId) return;
+    
+    try {
+      const supabase = createClient();
+      
+      // Create a new log entry with the same food and serving details
+      const { error } = await supabase
+        .from('food_logs')
+        .insert({
+          user_id: userId,
+          food_item_id: originalLog.food_item_id,
+          serving_size: originalLog.serving_size,
+          serving_unit: originalLog.serving_unit || 'g',
+          user_serving_size: originalLog.user_serving_size || null,
+          user_serving_unit: originalLog.user_serving_unit || null,
+          total_carbs_g: originalLog.total_carbs_g || null,
+          total_calories: originalLog.total_calories || null,
+          total_protein_g: originalLog.total_protein_g || null,
+          total_fat_g: originalLog.total_fat_g || null,
+          meal_type: 'snack', // Default to snack, user can edit if needed
+          logged_at: new Date().toISOString(),
+        } as any); // Type assertion to bypass TypeScript issues
+
+      if (error) throw error;
+      loadLogs();
+    } catch (error) {
+      console.error('Error logging food again:', error);
+      alert('Failed to log food again. Please try again.');
     }
   };
 
@@ -264,19 +308,37 @@ export function FoodLogList({ userId }: FoodLogListProps) {
                         }
                       </p>
                       <p className="text-xs text-slate-500 mt-1">
-                        {new Date(log.logged_at).toLocaleTimeString()}
+                        {dateFormatter.formatTime(log.logged_at)}
                       </p>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-1">
+                      <div title="Add to favorites">
+                        <FavoriteButton
+                          foodId={log.food_item_id}
+                          foodName={log.custom_food_name || log.product_name}
+                          defaultServingSize={log.user_serving_size || log.serving_size}
+                          defaultServingUnit={log.user_serving_unit || log.serving_unit}
+                          className="p-1.5"
+                        />
+                      </div>
+                      <button
+                        onClick={() => handleLogAgain(log)}
+                        className="p-2 text-green-400 hover:bg-green-900/20 rounded-lg transition-colors"
+                        title="Log this food again"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </button>
                       <button
                         onClick={() => setEditingLog(log)}
                         className="p-2 text-blue-400 hover:bg-blue-900/20 rounded-lg transition-colors"
+                        title="Edit food log"
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleDelete(log.id)}
                         className="p-2 text-red-400 hover:bg-red-900/20 rounded-lg transition-colors"
+                        title="Delete food log"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>

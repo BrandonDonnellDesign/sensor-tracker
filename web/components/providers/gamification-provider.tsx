@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-client';
 import { useAuth } from './auth-provider';
 
 interface Achievement {
@@ -46,6 +46,7 @@ interface GamificationContextType {
   allAchievements: Achievement[];
   loading: boolean;
   refreshStats: () => Promise<void>;
+  updateSensorCount: () => Promise<void>;
   recordActivity: (activity: string) => Promise<void>;
   recordLoginActivity: () => Promise<void>;
   checkAchievements: () => Promise<UserAchievement[]>;
@@ -91,6 +92,7 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
     if (!user?.id) return;
 
     try {
+      const supabase = createClient();
       const { data: stats, error: statsError } = await (supabase as any)
         .from('user_gamification_stats')
         .select('*')
@@ -192,6 +194,7 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
     if (!user?.id) return;
 
     try {
+      const supabase = createClient();
       const { data, error } = await (supabase as any)
         .from('user_achievements')
         .select(`
@@ -214,6 +217,7 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
 
   const fetchAllAchievements = useCallback(async () => {
     try {
+      const supabase = createClient();
       const { data, error } = await (supabase as any)
         .from('achievements')
         .select('*')
@@ -231,20 +235,59 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
     }
   }, []);
 
+  const updateSensorCount = useCallback(async () => {
+    if (!user?.id) return;
+
+    try {
+      const supabase = createClient();
+      // Get actual sensor count from sensors table
+      const { data: sensors, error: sensorsError } = await supabase
+        .from('sensors')
+        .select('id, is_problematic')
+        .eq('user_id', user.id)
+        .eq('is_deleted', false);
+
+      if (sensorsError) {
+        console.error('Error fetching sensors for count update:', sensorsError);
+        return;
+      }
+
+      const sensorsCount = sensors?.length || 0;
+      const successfulSensors = sensors?.filter(s => !s.is_problematic).length || 0;
+
+      // Update gamification stats with correct counts
+      const { error: updateError } = await (supabase as any)
+        .from('user_gamification_stats')
+        .update({
+          sensors_tracked: sensorsCount,
+          successful_sensors: successfulSensors
+        })
+        .eq('user_id', user.id);
+
+      if (updateError) {
+        console.error('Error updating sensor count:', updateError);
+      }
+    } catch (error) {
+      console.error('Error in updateSensorCount:', error);
+    }
+  }, [user?.id]);
+
   const refreshStats = useCallback(async () => {
     setLoading(true);
+    await updateSensorCount(); // Update sensor count first
     await Promise.all([
       fetchUserStats(),
       fetchUserAchievements(),
       fetchAllAchievements()
     ]);
     setLoading(false);
-  }, [fetchUserStats, fetchUserAchievements, fetchAllAchievements]);
+  }, [updateSensorCount, fetchUserStats, fetchUserAchievements, fetchAllAchievements]);
 
   const recordActivity = useCallback(async (activity: string) => {
     if (!user?.id) return;
 
     try {
+      const supabase = createClient();
       const { error } = await (supabase as any).rpc('update_daily_activity', {
         p_user_id: user.id,
         p_activity: activity
@@ -266,6 +309,7 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
     if (!user?.id) return;
     
     try {
+      const supabase = createClient();
       // Ensure user has gamification stats first
       const { data: existingStats } = await (supabase as any)
         .from('user_gamification_stats')
@@ -314,6 +358,7 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
     if (!user?.id) return [];
 
     try {
+      const supabase = createClient();
       const { data, error } = await (supabase as any).rpc('check_and_award_achievements', {
         p_user_id: user.id
       });
@@ -382,6 +427,7 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
     allAchievements,
     loading,
     refreshStats,
+    updateSensorCount,
     recordActivity,
     recordLoginActivity,
     checkAchievements,

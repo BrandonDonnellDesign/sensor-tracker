@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-client';
 import { useAuth } from '@/components/providers/auth-provider';
 import { Database } from '@/lib/database.types';
 import ImageUpload from '@/components/sensors/image-upload';
@@ -56,6 +56,7 @@ export default function SensorDetailPage() {
     if (!user?.id || !sensorId) return;
 
     try {
+      const supabase = createClient();
       const { data, error } = await (supabase as any)
         .from('sensors')
         .select(`
@@ -83,6 +84,7 @@ export default function SensorDetailPage() {
     if (!user?.id || !sensorId) return;
 
     try {
+      const supabase = createClient();
       const { data, error } = await supabase
         .from('sensor_photos')
         .select('*')
@@ -103,6 +105,7 @@ export default function SensorDetailPage() {
     if (!user?.id || !sensorId) return;
 
     try {
+      const supabase = createClient();
       const { data, error } = await supabase
         .from('sensor_tags')
         .select(`
@@ -130,6 +133,7 @@ export default function SensorDetailPage() {
 
     setSavingTags(true);
     try {
+      const supabase = createClient();
       // Delete existing tags
       const { error: deleteError } = await supabase
         .from('sensor_tags')
@@ -177,6 +181,7 @@ export default function SensorDetailPage() {
   // Fetch available sensor models
   useEffect(() => {
     const fetchSensorModels = async () => {
+      const supabase = createClient();
       const { data, error } = await (supabase as any)
         .from('sensor_models')
         .select('*')
@@ -203,6 +208,7 @@ export default function SensorDetailPage() {
     setUpdating(true);
 
     try {
+      const supabase = createClient();
       const { error } = await supabase
         .from('sensors')
         .update({
@@ -233,6 +239,7 @@ export default function SensorDetailPage() {
 
     setUpdating(true);
     try {
+      const supabase = createClient();
       // Create a Date object from the local datetime input and convert to ISO string
       // This ensures the timestamp represents the exact local time the user selected
       const localDateTime = new Date(newDateAdded + ':00'); // Add seconds if missing
@@ -279,6 +286,7 @@ export default function SensorDetailPage() {
 
     setUpdating(true);
     try {
+      const supabase = createClient();
       const { error } = await (supabase as any)
         .from('sensors')
         .update({ sensor_model_id: newSensorModelId })
@@ -311,6 +319,7 @@ export default function SensorDetailPage() {
 
     setUpdating(true);
     try {
+      const supabase = createClient();
       const { error } = await supabase
         .from('sensors')
         .update({ serial_number: newSerialNumber.trim() })
@@ -352,6 +361,7 @@ export default function SensorDetailPage() {
 
     setUpdating(true);
     try {
+      const supabase = createClient();
       const { error } = await supabase
         .from('sensors')
         .update({ lot_number: newLotNumber.trim() || null })
@@ -393,6 +403,7 @@ export default function SensorDetailPage() {
 
     setUpdating(true);
     try {
+      const supabase = createClient();
       const { error } = await supabase
         .from('sensors')
         .update({ 
@@ -447,6 +458,7 @@ export default function SensorDetailPage() {
 
     setDeleting(true);
     try {
+      const supabase = createClient();
       // Soft delete by setting is_deleted to true
       const { error } = await supabase
         .from('sensors')

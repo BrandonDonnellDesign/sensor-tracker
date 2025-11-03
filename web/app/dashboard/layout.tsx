@@ -1,6 +1,8 @@
 import { Sidebar } from '@/components/dashboard/sidebar';
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { AchievementNotificationContainer } from '@/components/gamification/achievement-notification-container';
+import { ResponsiveHeader } from '@/components/navigation/responsive-header';
+import { MobileBottomNav } from '@/components/navigation/mobile-bottom-nav';
 
 export default function DashboardLayout({
   children,
@@ -9,15 +11,29 @@ export default function DashboardLayout({
 }) {
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-[#0f172a] transition-colors duration-200">
-        <Sidebar />
-        <div className="lg:pl-72 relative">
-          <main className="py-6">
-            <div className="mx-auto max-w-7xl px-6">
+      <div className="min-h-screen bg-gray-50 dark:bg-[#0f172a] transition-colors duration-200">
+        {/* Responsive Header - Mobile Only */}
+        <div className="lg:hidden">
+          <ResponsiveHeader />
+        </div>
+        
+        {/* Desktop Sidebar */}
+        <div className="hidden lg:block">
+          <Sidebar />
+        </div>
+        
+        {/* Main Content */}
+        <div className="lg:pl-72 pb-20 lg:pb-0">
+          <main className="lg:py-6">
+            <div className="mx-auto max-w-7xl lg:px-6">
               {children}
             </div>
           </main>
         </div>
+        
+        {/* Mobile Bottom Navigation */}
+        <MobileBottomNav />
+        
         <AchievementNotificationContainer />
       </div>
     </ProtectedRoute>

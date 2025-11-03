@@ -3,7 +3,7 @@
 import { useEffect, useState, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/auth-provider';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-client';
 
 interface AdminGuardProps {
   children: ReactNode;
@@ -24,6 +24,7 @@ export function AdminGuard({ children }: AdminGuardProps) {
       }
 
       try {
+        const supabase = createClient();
         // Check if user has admin role
         const { data: profile, error: profileError } = await supabase
           .from('profiles')

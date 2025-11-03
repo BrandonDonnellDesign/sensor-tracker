@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-client';
 import { useAuth } from '@/components/providers/auth-provider';
 import { MagnifyingGlassIcon, ClockIcon, TagIcon, DocumentTextIcon } from '@heroicons/react/24/outline';
 import Link from 'next/link';
@@ -34,6 +34,7 @@ export default function SearchPage() {
     try {
       setLoading(true);
       
+      const supabase = createClient();
       // Fetch all sensors
       const { data: sensors, error: sensorsError } = await (supabase as any)
         .from('sensors')

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import { createWorker, PSM } from 'tesseract.js';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-client';
 import { extractSensorData, type ExtractedSensorData } from '@/utils/sensor-ocr';
 
 interface ImageUploadProps {
@@ -147,6 +147,7 @@ export default function ImageUpload({ sensorId, userId, skipDatabase = false, on
             : `temp/${userId}/${timestamp}-${uniqueId}.${fileExt}`;
 
           // Upload to storage
+          const supabase = createClient();
           const { error: uploadError } = await supabase.storage
             .from('sensor_photos')
             .upload(filePath, file, {

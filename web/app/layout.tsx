@@ -1,15 +1,22 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
+
 import './globals.css';
+import '@/lib/logout-utils';
+
 import { AuthProvider } from '@/components/providers/auth-provider';
 import { ThemeProvider } from '@/components/providers/theme-provider';
 import { GamificationProvider } from '@/components/providers/gamification-provider';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 
-// Import logout utils for debugging
-import '@/lib/logout-utils';
+import { ServiceWorkerRegistration } from '@/components/pwa/service-worker-registration';
+import { PWAInstallPrompt } from '@/components/pwa/pwa-install-prompt';
 
-const inter = Inter({ subsets: ['latin'] });
+const inter = Inter({ 
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-inter',
+});
 
 export const metadata: Metadata = {
   title: 'CGM Sensor Tracker',
@@ -40,7 +47,10 @@ export default function RootLayout({
           <ThemeProvider>
             <AuthProvider>
               <GamificationProvider>
+                <ServiceWorkerRegistration />
+                {/* <WebVitalsTracker /> */}
                 {children}
+                <PWAInstallPrompt />
               </GamificationProvider>
             </AuthProvider>
           </ThemeProvider>

@@ -1,15 +1,16 @@
 'use client';
 
+import { memo, useCallback, useMemo } from 'react';
 import { useTheme } from '@/components/providers/theme-provider';
 
-export function ThemeToggle() {
+export const ThemeToggle = memo(function ThemeToggle() {
   const { setTheme, actualTheme } = useTheme();
 
-  const toggleTheme = () => {
+  const toggleTheme = useCallback(() => {
     setTheme(actualTheme === 'dark' ? 'light' : 'dark');
-  };
+  }, [setTheme, actualTheme]);
 
-  const getIcon = () => {
+  const icon = useMemo(() => {
     if (actualTheme === 'dark') {
       return (
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -23,15 +24,20 @@ export function ThemeToggle() {
         </svg>
       );
     }
-  };
+  }, [actualTheme]);
+
+  const title = useMemo(() => 
+    `Switch to ${actualTheme === 'dark' ? 'light' : 'dark'} mode`,
+    [actualTheme]
+  );
 
   return (
     <button
       onClick={toggleTheme}
       className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 text-gray-700 dark:text-slate-300 transition-colors duration-200"
-      title={`Switch to ${actualTheme === 'dark' ? 'light' : 'dark'} mode`}
+      title={title}
     >
-      {getIcon()}
+      {icon}
     </button>
   );
-}
+});

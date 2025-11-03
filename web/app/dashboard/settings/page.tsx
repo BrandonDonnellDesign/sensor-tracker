@@ -3,13 +3,15 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/components/providers/auth-provider';
 import { useSearchParams } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-client';
 import { NotificationSettings } from '@/components/settings/notification-settings';
 import { TimezoneSettings } from '@/components/settings/timezone-settings';
 import { ExportSettings } from '@/components/settings/export-settings';
 import { ProfileSettings } from '@/components/settings/profile-settings';
 import { CgmIntegrations } from '@/components/settings/cgm-integrations';
-import { User, Bell, Settings, Link, BarChart3 } from 'lucide-react';
+import { ApiKeyManager } from '@/components/api/api-key-manager';
+import { ApiShortcutCard } from '@/components/api/api-shortcut-card';
+import { User, Bell, Settings, Link, BarChart3, Key } from 'lucide-react';
 
 import { Profile } from '@/types/profile';
 import { dateTimeFormatter } from '@/utils/date-formatter';
@@ -24,7 +26,7 @@ export default function SettingsPage() {
   useEffect(() => {
     // Check for URL parameters to set initial tab
     const tab = searchParams.get('tab');
-    if (tab && ['profile', 'notifications', 'preferences', 'integrations', 'export'].includes(tab)) {
+    if (tab && ['profile', 'notifications', 'preferences', 'integrations', 'export', 'api'].includes(tab)) {
       setActiveTab(tab);
     }
 
@@ -40,6 +42,7 @@ export default function SettingsPage() {
       
       try {
         // First try to get existing profile
+        const supabase = createClient();
         const { data, error } = await supabase
           .from('profiles')
           .select('*')
@@ -54,6 +57,7 @@ export default function SettingsPage() {
             username: user.user_metadata?.username || user.email?.split('@')[0] || null,
             full_name: user.user_metadata?.full_name || null,
             avatar_url: user.user_metadata?.avatar_url || null,
+            email: user.email || '',
             timezone: 'UTC',
             notifications_enabled: true,
             dark_mode_enabled: false,
@@ -64,7 +68,9 @@ export default function SettingsPage() {
             critical_days_before: 1,
             date_format: 'MM/dd/yyyy',
             time_format: '12h',
-
+            notification_preferences: {},
+            preferred_achievement_id: null,
+            preferred_achievement_tracking: null,
             role: 'user',
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
@@ -91,6 +97,7 @@ export default function SettingsPage() {
     if (!user?.id) return { success: false, error: 'User not found' };
     
     try {
+      const supabase = createClient();
       // First try to update
       const { error } = await supabase
         .from('profiles')
@@ -173,6 +180,7 @@ export default function SettingsPage() {
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'preferences', label: 'Preferences', icon: Settings },
     { id: 'integrations', label: 'Integrations', icon: Link },
+    { id: 'api', label: 'API Keys', icon: Key },
     { id: 'export', label: 'Export Data', icon: BarChart3 },
   ];
 
@@ -193,6 +201,56 @@ export default function SettingsPage() {
           Manage your account preferences and data settings
         </p>
       </div>
+
+      {/* Quick Actions */}
+      {activeTab === 'profile' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+          <button
+            onClick={() => setActiveTab('api')}
+            className="p-4 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg hover:border-blue-300 dark:hover:border-blue-600 transition-colors text-left group"
+          >
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg group-hover:bg-blue-200 dark:group-hover:bg-blue-900/50 transition-colors">
+                <Key className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <h3 className="font-medium text-gray-900 dark:text-slate-100">API Keys</h3>
+                <p className="text-sm text-gray-600 dark:text-slate-400">Manage programmatic access</p>
+              </div>
+            </div>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('integrations')}
+            className="p-4 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg hover:border-blue-300 dark:hover:border-blue-600 transition-colors text-left group"
+          >
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg group-hover:bg-green-200 dark:group-hover:bg-green-900/50 transition-colors">
+                <Link className="w-5 h-5 text-green-600 dark:text-green-400" />
+              </div>
+              <div>
+                <h3 className="font-medium text-gray-900 dark:text-slate-100">Integrations</h3>
+                <p className="text-sm text-gray-600 dark:text-slate-400">Connect external services</p>
+              </div>
+            </div>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('export')}
+            className="p-4 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg hover:border-blue-300 dark:hover:border-blue-600 transition-colors text-left group"
+          >
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg group-hover:bg-purple-200 dark:group-hover:bg-purple-900/50 transition-colors">
+                <BarChart3 className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+              </div>
+              <div>
+                <h3 className="font-medium text-gray-900 dark:text-slate-100">Export Data</h3>
+                <p className="text-sm text-gray-600 dark:text-slate-400">Download your information</p>
+              </div>
+            </div>
+          </button>
+        </div>
+      )}
 
       {/* Tab Navigation */}
       <div className="border-b border-gray-200 dark:border-slate-700">
@@ -217,10 +275,20 @@ export default function SettingsPage() {
       {/* Tab Content */}
       <div className="mt-8">
         {activeTab === 'profile' && (
-          <ProfileSettings 
-            profile={profile} 
-            onUpdate={updateProfile} 
-          />
+          <div className="space-y-8">
+            <ProfileSettings 
+              profile={profile} 
+              onUpdate={updateProfile} 
+            />
+            
+            {/* API Integration Shortcut */}
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-slate-100 mb-4">
+                Developer Tools
+              </h3>
+              <ApiShortcutCard variant="compact" />
+            </div>
+          </div>
         )}
         {activeTab === 'notifications' && (
           <NotificationSettings 
@@ -236,6 +304,34 @@ export default function SettingsPage() {
         )}
         {activeTab === 'integrations' && (
           <CgmIntegrations />
+        )}
+        {activeTab === 'api' && (
+          <div className="space-y-6">
+            {/* API Documentation Link */}
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-medium text-blue-900 dark:text-blue-100">
+                    API Documentation
+                  </h3>
+                  <p className="text-blue-700 dark:text-blue-300 text-sm">
+                    Explore interactive API docs and test endpoints
+                  </p>
+                </div>
+                <a
+                  href="/docs"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <Settings className="w-4 h-4 mr-2" />
+                  Open Docs
+                </a>
+              </div>
+            </div>
+            
+            <ApiKeyManager />
+          </div>
         )}
         {activeTab === 'export' && user?.id && (
           <ExportSettings 

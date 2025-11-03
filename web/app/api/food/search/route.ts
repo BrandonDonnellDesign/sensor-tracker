@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-client';
 import { searchProducts } from '@/lib/openfoodfacts';
 
 export async function GET(request: NextRequest) {
@@ -16,12 +16,29 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Search local database (cached results + user's logged foods)
-    const { data: localResults } = await supabase
+    // Search local database (cached results + user's custom foods)
+    const supabase = createClient();
+    
+    // Get current user to prioritize their custom foods
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    // Search with priority for user's custom foods
+    let query_builder = supabase
       .from('food_items')
       .select('*')
-      .or(`product_name.ilike.%${query}%,brand.ilike.%${query}%`)
-      .limit(20);
+      .or(`product_name.ilike.%${query}%,brand.ilike.%${query}%`);
+    
+    // If user is logged in, prioritize their custom foods
+    if (user) {
+      query_builder = query_builder
+        .order('created_by_user_id', { ascending: false, nullsFirst: false }) // User's foods first
+        .order('is_custom', { ascending: false }); // Then other custom foods
+    } else {
+      query_builder = query_builder
+        .order('is_custom', { ascending: false }); // Custom foods first for anonymous users
+    }
+    
+    const { data: localResults } = await query_builder.limit(20);
 
     // Convert local results to FoodItem format
     const formattedLocalResults = (localResults || []).map((item: any) => ({
@@ -29,16 +46,18 @@ export async function GET(request: NextRequest) {
       name: item.product_name,
       brand: item.brand,
       barcode: item.barcode,
-      calories: item.energy_kcal || 0,
-      protein: item.proteins_g || 0,
-      carbs: item.carbohydrates_g || 0,
-      fat: item.fat_g || 0,
-      fiber: item.fiber_g,
-      sugar: item.sugars_g,
-      sodium: item.sodium_mg,
-      servingSize: item.serving_size,
-      servingUnit: item.serving_unit,
+      calories: parseFloat(item.energy_kcal) || 0,
+      protein: parseFloat(item.proteins_g) || 0,
+      carbs: parseFloat(item.carbohydrates_g) || 0,
+      fat: parseFloat(item.fat_g) || 0,
+      fiber: parseFloat(item.fiber_g) || undefined,
+      sugar: parseFloat(item.sugars_g) || undefined,
+      sodium: parseFloat(item.sodium_mg) || undefined,
+      servingSize: parseFloat(item.serving_size) || 100,
+      servingUnit: item.serving_unit || 'g',
       imageUrl: item.image_url,
+      isCustom: item.is_custom,
+      isOwnCustom: item.created_by_user_id === user?.id,
     }));
 
     // If we have enough local results, return them
@@ -80,6 +99,7 @@ export async function GET(request: NextRequest) {
 
 // Cache OpenFoodFacts results to database
 async function cacheOpenFoodFactsResults(results: any[]) {
+  const supabase = createClient();
   for (const item of results) {
     try {
       // Check if already exists

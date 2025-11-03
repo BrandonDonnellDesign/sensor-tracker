@@ -1,0 +1,71 @@
+/* Minimal Swagger UI Text Visibility Fixes */
+/* Only fixes the gray text issue without breaking layout */
+
+/* Fix main text that appears gray */
+.swagger-ui .info .title {
+  color: #3b4151 !important;
+}
+
+.swagger-ui .info .description,
+.swagger-ui .info .description p {
+  color: #3b4151 !important;
+}
+
+/* Fix operation descriptions */
+.swagger-ui .opblock .opblock-summary-description {
+  color: #3b4151 !important;
+}
+
+.swagger-ui .opblock-description-wrapper p {
+  color: #3b4151 !important;
+}
+
+/* Fix parameter names and types */
+.swagger-ui .parameter__name {
+  color: #3b4151 !important;
+}
+
+.swagger-ui .parameter__type {
+  color: #3b4151 !important;
+}
+
+/* Fix response descriptions */
+.swagger-ui .response-col_description__inner div.markdown,
+.swagger-ui .response-col_description__inner div.renderedMarkdown {
+  color: #3b4151 !important;
+}
+
+/* Fix model properties */
+.swagger-ui .model .property {
+  color: #3b4151 !important;
+}
+
+.swagger-ui .prop-type {
+  color: #3b4151 !important;
+}
+
+/* Fix table text */
+.swagger-ui table thead tr td,
+.swagger-ui table thead tr th {
+  color: #3b4151 !important;
+}
+
+.swagger-ui table tbody tr td {
+  color: #3b4151 !important;
+}
+
+/* Fix parameter descriptions */
+.swagger-ui .parameters-col_description p,
+.swagger-ui .parameters-col_description div {
+  color: #3b4151 !important;
+}
+
+/* Fix operation tags */
+.swagger-ui .opblock-tag {
+  color: #3b4151 !important;
+}
+
+/* Fix tab text */
+.swagger-ui .tab li {
+  color: #3b4151 !important;
+}

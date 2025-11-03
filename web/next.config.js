@@ -1,21 +1,24 @@
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
-    turbopack: {
-      rules: {
-        '*.svg': {
-          loaders: ['@svgr/webpack'],
-          as: '*.js',
-        },
-      },
-    },
     // Enable optimized loading
     optimizePackageImports: ['lucide-react', 'date-fns'],
   },
   
+  // Turbopack configuration (Next.js 16+)
+  turbopack: {
+    // Set the root directory to silence workspace warning
+    root: path.resolve(__dirname),
+  },
+  
   // Image optimization
   images: {
-    domains: ['images.openfoodfacts.org'],
     remotePatterns: [
       {
         protocol: 'https',
@@ -28,6 +31,12 @@ const nextConfig = {
         hostname: 'localhost',
         port: '54321',
         pathname: '/storage/v1/object/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'images.openfoodfacts.org',
+        port: '',
+        pathname: '/**',
       },
     ],
     formats: ['image/webp', 'image/avif'],

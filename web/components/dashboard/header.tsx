@@ -23,19 +23,11 @@ const getPageInfo = (pathname: string) => {
           { name: 'Overview', href: '/admin/overview' }
         ]
       },
-      '/admin/analytics': {
-        name: 'Analytics',
+      '/admin/performance': {
+        name: 'Performance',
         breadcrumb: [
           { name: 'Admin', href: '/admin' },
-          { name: 'Analytics', href: '/admin/analytics' }
-        ]
-      },
-      '/admin/analytics/historical': {
-        name: 'Historical Data',
-        breadcrumb: [
-          { name: 'Admin', href: '/admin' },
-          { name: 'Analytics', href: '/admin/analytics' },
-          { name: 'Historical Data', href: '/admin/analytics/historical' }
+          { name: 'Performance', href: '/admin/performance' }
         ]
       },
       '/admin/integrations': {

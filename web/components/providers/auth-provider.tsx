@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { supabase } from '@/lib/supabase'; // adjust path if needed
+import { createClient } from '@/lib/supabase-client';
 import { dateTimeFormatter } from '@/utils/date-formatter';
 import { Profile } from '@/types/profile';
 import type { Session, User, AuthError } from '@supabase/supabase-js';
@@ -32,6 +32,9 @@ type AuthProviderProps = {
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  
+  // Create the SSR-compatible Supabase client
+  const supabase = createClient();
 
   // Load user profile and set it in the date formatter
   const loadUserProfile = async (userId: string) => {

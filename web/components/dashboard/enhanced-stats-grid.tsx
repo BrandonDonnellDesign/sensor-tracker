@@ -1,6 +1,6 @@
 'use client';
 
-
+import { memo, useCallback, useMemo } from 'react';
 
 interface StatCardProps {
   title: string;
@@ -75,14 +75,17 @@ const colorClasses = {
 };
 */
 
-function StatCard({ title, value, icon: _icon, color: _color, trend, subtitle: _subtitle, onClick }: StatCardProps) {
-  
+const StatCard = memo(function StatCard({ title, value, icon: _icon, color: _color, trend, subtitle: _subtitle, onClick }: StatCardProps) {
+  const handleClick = useCallback(() => {
+    onClick?.();
+  }, [onClick]);
+
   return (
     <div 
       className={`relative group cursor-pointer transform transition-all duration-300 hover:scale-105 ${
         onClick ? 'hover:shadow-xl' : ''
       }`}
-      onClick={onClick}
+      onClick={handleClick}
     >
       <div className="bg-[#1e293b] rounded-lg p-4 border border-slate-700/30 hover:border-slate-600/50 transition-all duration-300">
         <div className="flex flex-col">
@@ -104,9 +107,9 @@ function StatCard({ title, value, icon: _icon, color: _color, trend, subtitle: _
       </div>
     </div>
   );
-}
+});
 
-export function EnhancedStatsGrid({ stats }: EnhancedStatsGridProps) {
+export const EnhancedStatsGrid = memo(function EnhancedStatsGrid({ stats }: EnhancedStatsGridProps) {
   const {
     totalSensors,
     activeSensors,
@@ -117,19 +120,41 @@ export function EnhancedStatsGrid({ stats }: EnhancedStatsGridProps) {
     thisMonthSensors: _thisMonthSensors
   } = stats;
 
-  // Calculate trend for success rate
-  const successRateTrend = totalSensors > 0 ? {
-    value: Math.round(successRate),
-    isPositive: successRate >= 80,
-    label: successRate >= 90 ? 'Excellent' : successRate >= 80 ? 'Good' : 'Needs improvement'
-  } : undefined;
+  // Memoize trend calculations
+  const successRateTrend = useMemo(() => 
+    totalSensors > 0 ? {
+      value: Math.round(successRate),
+      isPositive: successRate >= 80,
+      label: successRate >= 90 ? 'Excellent' : successRate >= 80 ? 'Good' : 'Needs improvement'
+    } : undefined,
+    [totalSensors, successRate]
+  );
 
-  // Calculate sensor trend
-  const monthlyTrend = sensorTrend !== undefined ? {
-    value: Math.abs(Math.round(sensorTrend)),
-    isPositive: sensorTrend >= 0,
-    label: 'vs last month'
-  } : undefined;
+  const monthlyTrend = useMemo(() => 
+    sensorTrend !== undefined ? {
+      value: Math.abs(Math.round(sensorTrend)),
+      isPositive: sensorTrend >= 0,
+      label: 'vs last month'
+    } : undefined,
+    [sensorTrend]
+  );
+
+  // Memoize navigation handlers
+  const navigateToSensors = useCallback(() => {
+    window.location.href = '/dashboard/sensors';
+  }, []);
+
+  const navigateToActiveSensors = useCallback(() => {
+    window.location.href = '/dashboard/sensors?filter=active';
+  }, []);
+
+  const navigateToAnalytics = useCallback(() => {
+    window.location.href = '/dashboard/analytics';
+  }, []);
+
+  const navigateToProblematicSensors = useCallback(() => {
+    window.location.href = problematicSensors > 0 ? '/dashboard/sensors?filter=problematic' : '/dashboard/sensors';
+  }, [problematicSensors]);
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -144,7 +169,7 @@ export function EnhancedStatsGrid({ stats }: EnhancedStatsGridProps) {
         color="blue"
         subtitle="All time"
         {...(monthlyTrend && { trend: monthlyTrend })}
-        onClick={() => { window.location.href = '/dashboard/sensors'; }}
+        onClick={navigateToSensors}
       />
 
       <StatCard
@@ -164,7 +189,7 @@ export function EnhancedStatsGrid({ stats }: EnhancedStatsGridProps) {
             label: 'Active now'
           }
         })}
-        onClick={() => window.location.href = '/dashboard/sensors?filter=active'}
+        onClick={navigateToActiveSensors}
       />
 
       <StatCard
@@ -178,7 +203,7 @@ export function EnhancedStatsGrid({ stats }: EnhancedStatsGridProps) {
         color="purple"
         subtitle="Performance"
         {...(successRateTrend && { trend: successRateTrend })}
-        onClick={() => window.location.href = '/dashboard/analytics'}
+        onClick={navigateToAnalytics}
       />
 
       <StatCard
@@ -204,8 +229,8 @@ export function EnhancedStatsGrid({ stats }: EnhancedStatsGridProps) {
             label: 'Perfect!'
           }
         })}
-        onClick={() => window.location.href = problematicSensors > 0 ? '/dashboard/sensors?filter=problematic' : '/dashboard/sensors'}
+        onClick={navigateToProblematicSensors}
       />
     </div>
   );
-}
+});

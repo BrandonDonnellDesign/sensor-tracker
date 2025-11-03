@@ -10,7 +10,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { useAuth } from '@/components/providers/auth-provider';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-client';
 
 interface DexcomConnection {
   id: string;
@@ -62,6 +62,7 @@ export function DexcomSettings({ user: _user }: DexcomSettingsProps) {
 
       const userId = user.id;
 
+      const supabase = createClient();
       const { data: connectionData, error: connectionError } = await (supabase as any)
         .from('dexcom_tokens')
         .select('id, token_expires_at, created_at')
@@ -146,6 +147,7 @@ export function DexcomSettings({ user: _user }: DexcomSettingsProps) {
     try {
       if (!user) return;
 
+      const supabase = createClient();
       await (supabase as any)
         .from('dexcom_tokens')
         .update({ is_active: false } as any)

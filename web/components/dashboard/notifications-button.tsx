@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Bell } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-client';
 import { useDateTimeFormatter } from '@/utils/date-formatter';
 
 type Notification = {
@@ -124,6 +124,7 @@ export function NotificationsButton() {
 
   const loadNotifications = async () => {
     try {
+      const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
@@ -151,6 +152,7 @@ export function NotificationsButton() {
 
   const handleMarkAsRead = async (notificationId: string) => {
     try {
+      const supabase = createClient();
       const { error } = await (supabase as any)
         .from('notifications')
         .update({ read: true, updated_at: new Date().toISOString() })
@@ -171,6 +173,7 @@ export function NotificationsButton() {
 
   const handleMarkAllAsRead = async () => {
     try {
+      const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
@@ -195,6 +198,7 @@ export function NotificationsButton() {
     event.stopPropagation(); // Prevent triggering the notification click
     
     try {
+      const supabase = createClient();
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         alert('Please log in to dismiss notifications');
@@ -229,6 +233,7 @@ export function NotificationsButton() {
 
   const handleClearAll = async () => {
     try {
+      const supabase = createClient();
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         alert('Please log in to clear notifications');
