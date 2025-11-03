@@ -106,11 +106,12 @@ export async function POST(
     }
 
     // Check if user has already voted
+    const userId = authResult.userId || 'anonymous';
     const { data: existingVote } = await supabase
       .from('community_tip_votes')
       .select('id, vote_type')
       .eq('tip_id', tipId)
-      .eq('user_id', authResult.userId)
+      .eq('user_id', userId)
       .single();
 
     if (existingVote) {
@@ -136,9 +137,14 @@ export async function POST(
         );
       }
 
-      // Get updated vote counts
+      // Get updated vote counts - using direct query instead of RPC
       const { data: voteCounts } = await supabase
-        .rpc('get_tip_vote_counts', { tip_id: tipId });
+        .from('community_tip_votes')
+        .select('vote_type')
+        .eq('tip_id', tipId);
+      
+      const upvotes = voteCounts?.filter(v => v.vote_type === 'upvote').length || 0;
+      const downvotes = voteCounts?.filter(v => v.vote_type === 'downvote').length || 0;
 
       return NextResponse.json({
         success: true,
@@ -146,7 +152,7 @@ export async function POST(
         data: {
           vote_id: updatedVote.id,
           vote_type: updatedVote.vote_type,
-          tip_votes: voteCounts || { upvotes: 0, downvotes: 0 }
+          tip_votes: { upvotes, downvotes }
         }
       });
     }
@@ -156,8 +162,8 @@ export async function POST(
       .from('community_tip_votes')
       .insert({
         tip_id: tipId,
-        user_id: authResult.userId,
-        vote_type
+        user_id: userId,
+        vote_type: vote_type as string
       })
       .select()
       .single();
@@ -169,9 +175,14 @@ export async function POST(
       );
     }
 
-    // Get updated vote counts
-    const { data: voteCounts } = await supabase
-      .rpc('get_tip_vote_counts', { tip_id: tipId });
+    // Get updated vote counts - using direct query instead of RPC
+    const { data: allVoteCounts } = await supabase
+      .from('community_tip_votes')
+      .select('vote_type')
+      .eq('tip_id', tipId);
+    
+    const finalUpvotes = allVoteCounts?.filter(v => v.vote_type === 'upvote').length || 0;
+    const finalDownvotes = allVoteCounts?.filter(v => v.vote_type === 'downvote').length || 0;
 
     return NextResponse.json({
       success: true,
@@ -179,7 +190,7 @@ export async function POST(
       data: {
         vote_id: newVote.id,
         vote_type: newVote.vote_type,
-        tip_votes: voteCounts || { upvotes: 0, downvotes: 0 }
+        tip_votes: { upvotes: finalUpvotes, downvotes: finalDownvotes }
       }
     });
 
@@ -249,6 +260,7 @@ export async function DELETE(
     }
 
     const { tipId } = await params;
+    const userId = authResult.userId || 'anonymous';
     const supabase = await createClient();
 
     // Find and delete the vote
@@ -256,7 +268,7 @@ export async function DELETE(
       .from('community_tip_votes')
       .delete()
       .eq('tip_id', tipId)
-      .eq('user_id', authResult.userId);
+      .eq('user_id', userId);
 
     if (deleteError) {
       return NextResponse.json(
@@ -265,15 +277,20 @@ export async function DELETE(
       );
     }
 
-    // Get updated vote counts
-    const { data: voteCounts } = await supabase
-      .rpc('get_tip_vote_counts', { tip_id: tipId });
+    // Get updated vote counts - using direct query instead of RPC
+    const { data: remainingVotes } = await supabase
+      .from('community_tip_votes')
+      .select('vote_type')
+      .eq('tip_id', tipId);
+    
+    const remainingUpvotes = remainingVotes?.filter(v => v.vote_type === 'upvote').length || 0;
+    const remainingDownvotes = remainingVotes?.filter(v => v.vote_type === 'downvote').length || 0;
 
     return NextResponse.json({
       success: true,
       message: 'Vote removed successfully',
       data: {
-        tip_votes: voteCounts || { upvotes: 0, downvotes: 0 }
+        tip_votes: { upvotes: remainingUpvotes, downvotes: remainingDownvotes }
       }
     });
 
