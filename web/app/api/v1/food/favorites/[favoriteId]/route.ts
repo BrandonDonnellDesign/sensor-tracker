@@ -124,6 +124,7 @@ export async function GET(
     }
 
     const { favoriteId } = await params;
+    const userId = authResult.userId || 'anonymous';
     const supabase = await createClient();
 
     const { data: favorite, error } = await supabase
@@ -151,7 +152,7 @@ export async function GET(
         )
       `)
       .eq('id', favoriteId)
-      .eq('user_id', authResult.userId)
+      .eq('user_id', userId)
       .single();
 
     if (error || !favorite) {
@@ -191,6 +192,7 @@ export async function PUT(
 
     const { favoriteId } = await params;
     const { favorite_name, default_quantity } = await request.json();
+    const userId = authResult.userId || 'anonymous';
 
     const supabase = await createClient();
 
@@ -217,7 +219,7 @@ export async function PUT(
       .from('food_favorites')
       .update(updateData)
       .eq('id', favoriteId)
-      .eq('user_id', authResult.userId)
+      .eq('user_id', userId)
       .select()
       .single();
 
@@ -258,13 +260,14 @@ export async function DELETE(
     }
 
     const { favoriteId } = await params;
+    const userId = authResult.userId || 'anonymous';
     const supabase = await createClient();
 
     const { error } = await supabase
       .from('food_favorites')
       .delete()
       .eq('id', favoriteId)
-      .eq('user_id', authResult.userId);
+      .eq('user_id', userId);
 
     if (error) {
       return NextResponse.json(

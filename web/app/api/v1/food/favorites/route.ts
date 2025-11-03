@@ -150,6 +150,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100);
     const search = searchParams.get('search');
+    const userId = authResult.userId || 'anonymous';
 
     const supabase = await createClient();
 
@@ -176,7 +177,7 @@ export async function GET(request: NextRequest) {
           sugar_per_100g
         )
       `)
-      .eq('user_id', authResult.userId)
+      .eq('user_id', userId)
       .order('usage_count', { ascending: false })
       .order('last_used', { ascending: false })
       .limit(limit);
@@ -222,6 +223,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { food_item_id, favorite_name, default_quantity = 100 } = await request.json();
+    const userId = authResult.userId || 'anonymous';
 
     // Validate required fields
     if (!food_item_id) {
@@ -251,7 +253,7 @@ export async function POST(request: NextRequest) {
     const { data: existingFavorite } = await supabase
       .from('food_favorites')
       .select('id')
-      .eq('user_id', authResult.userId)
+      .eq('user_id', userId)
       .eq('food_item_id', food_item_id)
       .single();
 
@@ -266,7 +268,7 @@ export async function POST(request: NextRequest) {
     const { data: newFavorite, error: insertError } = await supabase
       .from('food_favorites')
       .insert({
-        user_id: authResult.userId,
+        user_id: userId,
         food_item_id,
         favorite_name: favorite_name || foodItem.name,
         default_quantity,

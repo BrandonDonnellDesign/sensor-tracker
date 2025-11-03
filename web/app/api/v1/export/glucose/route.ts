@@ -144,13 +144,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const userId = authResult.userId || 'anonymous';
     const supabase = await createClient();
 
     // Build glucose readings query
     let glucoseQuery = supabase
       .from('glucose_readings')
       .select('*')
-      .eq('user_id', authResult.userId)
+      .eq('user_id', userId)
       .order('timestamp', { ascending: true });
 
     if (startDate) {
@@ -184,7 +185,7 @@ export async function GET(request: NextRequest) {
             calories_per_100g
           )
         `)
-        .eq('user_id', authResult.userId)
+        .eq('user_id', userId)
         .order('logged_at', { ascending: true });
 
       if (startDate) {
@@ -209,7 +210,7 @@ export async function GET(request: NextRequest) {
     // Prepare export data
     const exportData = {
       export_info: {
-        user_id: authResult.userId,
+        user_id: userId,
         export_date: new Date().toISOString(),
         date_range: {
           start: startDate || 'All time',
