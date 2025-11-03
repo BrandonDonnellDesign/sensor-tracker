@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     },
     servers: [
       {
-        url: `${process.env.NEXT_PUBLIC_APP_URL}/api/v1`,
+        url: 'https://cgmtracker.netlify.app/api/v1',
         description: 'Production server'
       }
     ],
@@ -608,44 +608,6 @@ export async function GET(request: NextRequest) {
         }
       },
       // Authentication API
-      '/auth/test': {
-        get: {
-          tags: ['Authentication'],
-          summary: 'Test authentication',
-          description: 'Test if authentication is working properly',
-          security: [{ BearerAuth: [] }],
-          responses: {
-            '200': {
-              description: 'Authentication successful',
-              content: {
-                'application/json': {
-                  schema: {
-                    type: 'object',
-                    properties: {
-                      message: { type: 'string' },
-                      user: {
-                        type: 'object',
-                        properties: {
-                          id: { type: 'string' },
-                          email: { type: 'string' }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            },
-            '401': {
-              description: 'Authentication failed',
-              content: {
-                'application/json': {
-                  schema: { $ref: '#/components/schemas/Error' }
-                }
-              }
-            }
-          }
-        }
-      },
       '/auth/api-keys': {
         get: {
           tags: ['Authentication'],

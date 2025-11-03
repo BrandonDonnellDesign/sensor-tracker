@@ -131,20 +131,59 @@ serve(async (req) => {
     console.log(`Token expires at: ${tokenData.token_expires_at}`);
     console.log(`Token scope: ${tokenData.scope}`);
     console.log(`Access token length: ${accessToken.length}`);
+    console.log(`Access token prefix: ${accessToken.substring(0, 20)}...`);
     
     // Test token validity with a simple API call first
-    const apiBaseUrl = Deno.env.get('DEXCOM_API_BASE_URL') || 'https://api.dexcom.com/v2';
+    let apiBaseUrl = Deno.env.get('DEXCOM_API_BASE_URL') || 'https://api.dexcom.com/v3';
     console.log(`Using Dexcom API base URL: ${apiBaseUrl}`);
 
-    // Test token validity first
+    // Test token validity first and attempt refresh if needed
+    let currentAccessToken = accessToken;
+    
+    // Try different API base URLs if the default doesn't work
+    const possibleApiUrls = [
+      apiBaseUrl,
+      'https://api.dexcom.com/v3',
+      'https://api.dexcom.com/v2',
+      'https://sandbox-api.dexcom.com/v3',
+      'https://sandbox-api.dexcom.com/v2'
+    ];
+    
+    let workingApiUrl = apiBaseUrl;
+    let testResponse;
+    
     try {
       console.log('Testing token validity...');
-      const testResponse = await fetch(`${apiBaseUrl}/users/self`, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-      });
+      
+      // Test with a simple EGV request instead of /users/self which might not exist
+      const now = new Date();
+      const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+      const testStartDate = oneHourAgo.toISOString().split('.')[0];
+      const testEndDate = now.toISOString().split('.')[0];
+      
+      // Try each API URL until we find one that works
+      for (const testApiUrl of possibleApiUrls) {
+        console.log(`Testing API URL: ${testApiUrl}`);
+        console.log(`Testing endpoint: ${testApiUrl}/users/self/egvs`);
+        
+        testResponse = await fetch(`${testApiUrl}/users/self/egvs?startDate=${testStartDate}&endDate=${testEndDate}`, {
+          headers: {
+            Authorization: `Bearer ${currentAccessToken}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        console.log(`Response status for ${testApiUrl}: ${testResponse.status}`);
+        
+        if (testResponse.status !== 404) {
+          workingApiUrl = testApiUrl;
+          console.log(`Found working API URL: ${workingApiUrl}`);
+          break;
+        }
+      }
+      
+      // Update apiBaseUrl to the working one
+      apiBaseUrl = workingApiUrl;
       
       console.log(`Token test response status: ${testResponse.status}`);
       
@@ -152,21 +191,110 @@ serve(async (req) => {
         const errorText = await testResponse.text();
         console.error(`Token validation failed: ${testResponse.status} - ${errorText}`);
         
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: `Invalid or expired Dexcom token: ${testResponse.status}`,
-            details: errorText.substring(0, 200)
-          }),
-          {
-            status: 401,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        // If token is invalid/expired, try to refresh it
+        if (testResponse.status === 401 || testResponse.status === 403 || testResponse.status === 404) {
+          console.log('Attempting to refresh expired token...');
+          
+          try {
+            // Call the refresh token function
+            const refreshResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/dexcom-refresh-token`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ userId: targetUserId })
+            });
+            
+            if (refreshResponse.ok) {
+              const refreshResult = await refreshResponse.json();
+              console.log('Token refresh successful:', refreshResult);
+              
+              // Get the new token from database
+              const { data: newTokenData } = await supabaseClient
+                .from('dexcom_tokens')
+                .select('access_token_encrypted')
+                .eq('user_id', targetUserId)
+                .eq('is_active', true)
+                .single();
+              
+              if (newTokenData) {
+                currentAccessToken = atob(newTokenData.access_token_encrypted);
+                console.log('Using refreshed token for sync');
+                
+                // Test the new token with the same EGV endpoint
+                const retestResponse = await fetch(`${workingApiUrl}/users/self/egvs?startDate=${testStartDate}&endDate=${testEndDate}`, {
+                  headers: {
+                    Authorization: `Bearer ${currentAccessToken}`,
+                    'Content-Type': 'application/json',
+                  },
+                });
+                
+                if (!retestResponse.ok) {
+                  const retestError = await retestResponse.text();
+                  console.error(`Refreshed token still invalid: ${retestResponse.status} - ${retestError}`);
+                  
+                  return new Response(
+                    JSON.stringify({
+                      success: false,
+                      error: `Token refresh failed - still invalid: ${retestResponse.status}`,
+                      details: retestError.substring(0, 200)
+                    }),
+                    {
+                      status: 401,
+                      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                    }
+                  );
+                }
+              }
+            } else {
+              const refreshError = await refreshResponse.text();
+              console.error('Token refresh failed:', refreshError);
+              
+              return new Response(
+                JSON.stringify({
+                  success: false,
+                  error: `Token refresh failed: ${refreshResponse.status}`,
+                  details: refreshError.substring(0, 200)
+                }),
+                {
+                  status: 401,
+                  headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                }
+              );
+            }
+          } catch (refreshError) {
+            console.error('Error during token refresh:', refreshError);
+            
+            return new Response(
+              JSON.stringify({
+                success: false,
+                error: 'Failed to refresh token',
+                details: refreshError.message
+              }),
+              {
+                status: 500,
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              }
+            );
           }
-        );
+        } else {
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: `Invalid Dexcom token: ${testResponse.status}`,
+              details: errorText.substring(0, 200)
+            }),
+            {
+              status: 401,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            }
+          );
+        }
+      } else {
+        const testResult = await testResponse.json();
+        console.log('Token validation successful, test result:', JSON.stringify(testResult).substring(0, 200));
       }
-      
-      const userInfo = await testResponse.json();
-      console.log('Token validation successful, user info:', JSON.stringify(userInfo).substring(0, 200));
       
     } catch (tokenTestError) {
       console.error('Token test error:', tokenTestError);
@@ -234,12 +362,20 @@ serve(async (req) => {
         : new Date(Date.now() - 24 * 60 * 60 * 1000);
       const endDate = new Date();
 
-      // Fetch glucose readings from Dexcom API
-      const apiBaseUrl = Deno.env.get('DEXCOM_API_BASE_URL') || 'https://api.dexcom.com/v2';
+      // Fetch glucose readings from Dexcom API (apiBaseUrl already set above)
       
-      // Format dates properly for Dexcom API (they expect YYYY-MM-DDTHH:mm:ss format)
-      const startDateStr = startDate.toISOString().split('.')[0]; // Remove milliseconds
-      const endDateStr = endDate.toISOString().split('.')[0]; // Remove milliseconds
+      // Format dates properly for Dexcom API - they expect ISO format but may be picky about time ranges
+      // Let's use a more conservative approach and limit to last 24 hours max
+      const now = new Date();
+      const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      
+      // Use the more recent of: last reading time or 24 hours ago
+      const actualStartDate = lastReading?.system_time 
+        ? new Date(Math.max(new Date(lastReading.system_time).getTime(), twentyFourHoursAgo.getTime()))
+        : twentyFourHoursAgo;
+      
+      const startDateStr = actualStartDate.toISOString().split('.')[0]; // Remove milliseconds
+      const endDateStr = now.toISOString().split('.')[0]; // Remove milliseconds
       
       console.log(`Fetching glucose readings from ${startDateStr} to ${endDateStr}`);
       
@@ -247,7 +383,7 @@ serve(async (req) => {
         `${apiBaseUrl}/users/self/egvs?startDate=${startDateStr}&endDate=${endDateStr}`,
         {
           headers: {
-            Authorization: `Bearer ${accessToken}`,
+            Authorization: `Bearer ${currentAccessToken}`,
             'Content-Type': 'application/json',
           },
         }
@@ -270,6 +406,11 @@ serve(async (req) => {
         }
 
         console.log(`Processing ${egvs.length} glucose readings`);
+
+        if (egvs.length === 0) {
+          console.log('No new glucose readings found in the specified time range');
+          syncResults.errors.push('No new glucose readings found. This may be normal if no new data is available.');
+        }
 
         for (const egv of egvs) {
           try {
@@ -311,9 +452,20 @@ serve(async (req) => {
       } else {
         const errorText = await egvsResponse.text();
         console.error(`Glucose API error: ${egvsResponse.status} - ${errorText}`);
-        syncResults.errors.push(
-          `Failed to fetch glucose readings: ${egvsResponse.status} - ${errorText.substring(0, 200)}`
-        );
+        
+        // Provide more specific error messages based on status code
+        let errorMessage = `Failed to fetch glucose readings: ${egvsResponse.status}`;
+        if (egvsResponse.status === 400) {
+          errorMessage += ' - Bad Request. Check date range or API parameters.';
+        } else if (egvsResponse.status === 401) {
+          errorMessage += ' - Unauthorized. Token may be expired or invalid.';
+        } else if (egvsResponse.status === 403) {
+          errorMessage += ' - Forbidden. Check API permissions or scope.';
+        } else if (egvsResponse.status === 429) {
+          errorMessage += ' - Rate limit exceeded. Try again later.';
+        }
+        
+        syncResults.errors.push(`${errorMessage} Details: ${errorText.substring(0, 200)}`);
       }
     } catch (error) {
       syncResults.errors.push(`Glucose sync error: ${error.message}`);
@@ -328,7 +480,7 @@ serve(async (req) => {
           `${apiBaseUrl}/users/self/devices`,
           {
             headers: {
-              Authorization: `Bearer ${accessToken}`,
+              Authorization: `Bearer ${currentAccessToken}`,
               'Content-Type': 'application/json',
             },
           }
@@ -348,9 +500,18 @@ serve(async (req) => {
             devices = devicesData.devices;
           } else if (devicesData.records && Array.isArray(devicesData.records)) {
             devices = devicesData.records;
+          } else if (devicesData.data && Array.isArray(devicesData.data)) {
+            devices = devicesData.data;
           } else {
-            console.log('Unexpected devices response format:', typeof devicesData);
-            syncResults.errors.push(`Unexpected devices response format: ${typeof devicesData}`);
+            console.log('Unexpected devices response format:', typeof devicesData, 'Keys:', Object.keys(devicesData || {}));
+            // If it's an object but not an array, try to extract device info
+            if (devicesData && typeof devicesData === 'object') {
+              // Sometimes the API returns a single device object instead of an array
+              devices = [devicesData];
+            } else {
+              syncResults.errors.push(`Unexpected devices response format: ${typeof devicesData}. Keys: ${Object.keys(devicesData || {}).join(', ')}`);
+              devices = []; // Set to empty array to prevent iteration error
+            }
           }
 
           console.log(`Processing ${devices.length} devices`);
@@ -367,7 +528,7 @@ serve(async (req) => {
                 `${apiBaseUrl}/users/self/dataRange?startDate=${startDateStr}&endDate=${endDateStr}`,
                 {
                   headers: {
-                    Authorization: `Bearer ${accessToken}`,
+                    Authorization: `Bearer ${currentAccessToken}`,
                     'Content-Type': 'application/json',
                   },
                 }

@@ -87,7 +87,7 @@ serve(async (req) => {
       );
     }
 
-    // Call Dexcom token refresh endpoint
+    // Call Dexcom token refresh endpoint - try v3 first, then v2
     const formData = new URLSearchParams({
       grant_type: 'refresh_token',
       refresh_token: refreshToken,
@@ -95,13 +95,25 @@ serve(async (req) => {
       client_secret: dexcomClientSecret
     });
 
-    const tokenResponse = await fetch('https://api.dexcom.com/v2/oauth2/token', {
+    let tokenResponse = await fetch('https://api.dexcom.com/v3/oauth2/token', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded'
       },
       body: formData.toString()
     });
+
+    // If v3 fails with 404, try v2
+    if (!tokenResponse.ok && tokenResponse.status === 404) {
+      console.log('v3 token endpoint not found, trying v2...');
+      tokenResponse = await fetch('https://api.dexcom.com/v2/oauth2/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: formData.toString()
+      });
+    }
 
     if (!tokenResponse.ok) {
       const errorText = await tokenResponse.text();
