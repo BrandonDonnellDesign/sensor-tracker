@@ -209,6 +209,7 @@ export async function GET(request: NextRequest) {
       success: true,
       data: {
         date: targetDate,
+        timezone,
         glucose_stats: glucoseStats,
         food_summary: foodSummary,
         insights,
