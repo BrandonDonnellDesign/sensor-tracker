@@ -92,6 +92,7 @@ export async function GET(
     const { barcode } = await params;
     const { searchParams } = new URL(request.url);
     const fallbackApi = searchParams.get('fallback_api') !== 'false';
+    const userId = authResult.userId || 'anonymous';
 
     // Validate barcode format
     if (!barcode || !/^\d{8,14}$/.test(barcode)) {
@@ -128,7 +129,7 @@ export async function GET(
         const openFoodFactsResult = await fetchFromOpenFoodFacts(barcode);
         if (openFoodFactsResult) {
           // Optionally save to database for future use
-          await saveToDatabase(supabase, openFoodFactsResult, authResult.userId);
+          await saveToDatabase(supabase, openFoodFactsResult, userId);
           return NextResponse.json({
             success: true,
             data: openFoodFactsResult
@@ -138,7 +139,7 @@ export async function GET(
         // Try USDA FoodData Central as fallback
         const usdaResult = await fetchFromUSDA(barcode);
         if (usdaResult) {
-          await saveToDatabase(supabase, usdaResult, authResult.userId);
+          await saveToDatabase(supabase, usdaResult, userId);
           return NextResponse.json({
             success: true,
             data: usdaResult
