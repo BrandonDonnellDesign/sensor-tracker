@@ -128,7 +128,7 @@ export async function GET(
     const supabase = await createClient();
 
     const { data: favorite, error } = await supabase
-      .from('food_favorites')
+      .from('food_favorites' as any)
       .select(`
         id,
         favorite_name,
@@ -216,7 +216,7 @@ export async function PUT(
     }
 
     const { data: updatedFavorite, error } = await supabase
-      .from('food_favorites')
+      .from('food_favorites' as any)
       .update(updateData)
       .eq('id', favoriteId)
       .eq('user_id', userId)
@@ -264,7 +264,7 @@ export async function DELETE(
     const supabase = await createClient();
 
     const { error } = await supabase
-      .from('food_favorites')
+      .from('food_favorites' as any)
       .delete()
       .eq('id', favoriteId)
       .eq('user_id', userId);

@@ -263,9 +263,20 @@ export async function apiAuthMiddleware(request: NextRequest): Promise<{
     };
   }
 
-  return {
+  const result: {
+    success: boolean;
+    error?: string;
+    status?: number;
+    userId?: string;
+    apiKeyId?: string;
+  } = {
     success: true,
-    userId: authResult.context?.user?.id || authResult.context?.apiKey?.userId || 'anonymous',
-    apiKeyId: authResult.context?.apiKey?.id
+    userId: authResult.context?.user?.id || authResult.context?.apiKey?.userId || 'anonymous'
   };
+
+  if (authResult.context?.apiKey?.id) {
+    result.apiKeyId = authResult.context.apiKey.id;
+  }
+
+  return result;
 }

@@ -108,14 +108,14 @@ export async function POST(
     // Check if user has already voted
     const userId = authResult.userId || 'anonymous';
     const { data: existingVote } = await supabase
-      .from('community_tip_votes')
+      .from('community_tip_votes' as any)
       .select('id, vote_type')
       .eq('tip_id', tipId)
       .eq('user_id', userId)
       .single();
 
     if (existingVote) {
-      if (existingVote.vote_type === vote_type) {
+      if ((existingVote as any).vote_type === vote_type) {
         return NextResponse.json(
           { error: 'You have already cast this vote on this tip' },
           { status: 409 }
@@ -124,9 +124,9 @@ export async function POST(
 
       // Update existing vote
       const { data: updatedVote, error: updateError } = await supabase
-        .from('community_tip_votes')
+        .from('community_tip_votes' as any)
         .update({ vote_type, updated_at: new Date().toISOString() })
-        .eq('id', existingVote.id)
+        .eq('id', (existingVote as any).id)
         .select()
         .single();
 
@@ -139,19 +139,19 @@ export async function POST(
 
       // Get updated vote counts - using direct query instead of RPC
       const { data: voteCounts } = await supabase
-        .from('community_tip_votes')
+        .from('community_tip_votes' as any)
         .select('vote_type')
         .eq('tip_id', tipId);
       
-      const upvotes = voteCounts?.filter(v => v.vote_type === 'upvote').length || 0;
-      const downvotes = voteCounts?.filter(v => v.vote_type === 'downvote').length || 0;
+      const upvotes = voteCounts?.filter((v: any) => v.vote_type === 'upvote').length || 0;
+      const downvotes = voteCounts?.filter((v: any) => v.vote_type === 'downvote').length || 0;
 
       return NextResponse.json({
         success: true,
         message: 'Vote updated successfully',
         data: {
-          vote_id: updatedVote.id,
-          vote_type: updatedVote.vote_type,
+          vote_id: (updatedVote as any).id,
+          vote_type: (updatedVote as any).vote_type,
           tip_votes: { upvotes, downvotes }
         }
       });
@@ -159,7 +159,7 @@ export async function POST(
 
     // Create new vote
     const { data: newVote, error: voteError } = await supabase
-      .from('community_tip_votes')
+      .from('community_tip_votes' as any)
       .insert({
         tip_id: tipId,
         user_id: userId,
@@ -177,19 +177,19 @@ export async function POST(
 
     // Get updated vote counts - using direct query instead of RPC
     const { data: allVoteCounts } = await supabase
-      .from('community_tip_votes')
+      .from('community_tip_votes' as any)
       .select('vote_type')
       .eq('tip_id', tipId);
     
-    const finalUpvotes = allVoteCounts?.filter(v => v.vote_type === 'upvote').length || 0;
-    const finalDownvotes = allVoteCounts?.filter(v => v.vote_type === 'downvote').length || 0;
+    const finalUpvotes = allVoteCounts?.filter((v: any) => v.vote_type === 'upvote').length || 0;
+    const finalDownvotes = allVoteCounts?.filter((v: any) => v.vote_type === 'downvote').length || 0;
 
     return NextResponse.json({
       success: true,
       message: 'Vote cast successfully',
       data: {
-        vote_id: newVote.id,
-        vote_type: newVote.vote_type,
+        vote_id: (newVote as any).id,
+        vote_type: (newVote as any).vote_type,
         tip_votes: { upvotes: finalUpvotes, downvotes: finalDownvotes }
       }
     });
@@ -265,7 +265,7 @@ export async function DELETE(
 
     // Find and delete the vote
     const { error: deleteError } = await supabase
-      .from('community_tip_votes')
+      .from('community_tip_votes' as any)
       .delete()
       .eq('tip_id', tipId)
       .eq('user_id', userId);
@@ -279,12 +279,12 @@ export async function DELETE(
 
     // Get updated vote counts - using direct query instead of RPC
     const { data: remainingVotes } = await supabase
-      .from('community_tip_votes')
+      .from('community_tip_votes' as any)
       .select('vote_type')
       .eq('tip_id', tipId);
     
-    const remainingUpvotes = remainingVotes?.filter(v => v.vote_type === 'upvote').length || 0;
-    const remainingDownvotes = remainingVotes?.filter(v => v.vote_type === 'downvote').length || 0;
+    const remainingUpvotes = remainingVotes?.filter((v: any) => v.vote_type === 'upvote').length || 0;
+    const remainingDownvotes = remainingVotes?.filter((v: any) => v.vote_type === 'downvote').length || 0;
 
     return NextResponse.json({
       success: true,

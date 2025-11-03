@@ -155,7 +155,7 @@ export async function GET(request: NextRequest) {
     const supabase = await createClient();
 
     let query = supabase
-      .from('food_favorites')
+      .from('food_favorites' as any)
       .select(`
         id,
         favorite_name,
@@ -251,7 +251,7 @@ export async function POST(request: NextRequest) {
 
     // Check if already in favorites
     const { data: existingFavorite } = await supabase
-      .from('food_favorites')
+      .from('food_favorites' as any)
       .select('id')
       .eq('user_id', userId)
       .eq('food_item_id', food_item_id)
@@ -266,11 +266,11 @@ export async function POST(request: NextRequest) {
 
     // Add to favorites
     const { data: newFavorite, error: insertError } = await supabase
-      .from('food_favorites')
+      .from('food_favorites' as any)
       .insert({
         user_id: userId,
         food_item_id,
-        favorite_name: favorite_name || foodItem.name,
+        favorite_name: favorite_name || (foodItem as any).name,
         default_quantity,
         usage_count: 0
       })

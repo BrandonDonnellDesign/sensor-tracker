@@ -213,7 +213,7 @@ async function fetchFromOpenFoodFacts(barcode: string) {
   }
 }
 
-async function fetchFromUSDA(barcode: string) {
+async function fetchFromUSDA(_barcode: string) {
   // Note: USDA FoodData Central doesn't directly support barcode lookup
   // This is a placeholder for potential future integration or other APIs
   // You might want to integrate with other services like Edamam, Spoonacular, etc.
