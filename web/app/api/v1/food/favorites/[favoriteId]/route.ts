@@ -119,7 +119,7 @@ export async function GET(
     if (!authResult.success) {
       return NextResponse.json(
         { error: authResult.error },
-        { status: authResult.status }
+        { status: authResult.status || 401 }
       );
     }
 
@@ -185,7 +185,7 @@ export async function PUT(
     if (!authResult.success) {
       return NextResponse.json(
         { error: authResult.error },
-        { status: authResult.status }
+        { status: authResult.status || 401 }
       );
     }
 
@@ -253,7 +253,7 @@ export async function DELETE(
     if (!authResult.success) {
       return NextResponse.json(
         { error: authResult.error },
-        { status: authResult.status }
+        { status: authResult.status || 401 }
       );
     }
 

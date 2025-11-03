@@ -143,7 +143,7 @@ export async function GET(request: NextRequest) {
     if (!authResult.success) {
       return NextResponse.json(
         { error: authResult.error },
-        { status: authResult.status }
+        { status: authResult.status || 401 }
       );
     }
 
@@ -217,7 +217,7 @@ export async function POST(request: NextRequest) {
     if (!authResult.success) {
       return NextResponse.json(
         { error: authResult.error },
-        { status: authResult.status }
+        { status: authResult.status || 401 }
       );
     }
 

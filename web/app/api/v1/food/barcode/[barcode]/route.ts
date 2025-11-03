@@ -85,7 +85,7 @@ export async function GET(
     if (!authResult.success) {
       return NextResponse.json(
         { error: authResult.error },
-        { status: authResult.status }
+        { status: authResult.status || 401 }
       );
     }
 
