@@ -153,13 +153,14 @@ export async function GET(request: NextRequest) {
     // Default to today if no date provided
     const targetDate = dateParam || new Date().toISOString().split('T')[0];
     
+    const userId = authResult.userId || 'anonymous';
     const supabase = await createClient();
 
     // Get glucose readings for the day
     const { data: glucoseReadings, error: glucoseError } = await supabase
       .from('glucose_readings')
       .select('*')
-      .eq('user_id', authResult.userId)
+      .eq('user_id', userId)
       .gte('timestamp', `${targetDate}T00:00:00.000Z`)
       .lt('timestamp', `${targetDate}T23:59:59.999Z`)
       .order('timestamp', { ascending: true });
@@ -179,7 +180,7 @@ export async function GET(request: NextRequest) {
           calories_per_100g
         )
       `)
-      .eq('user_id', authResult.userId)
+      .eq('user_id', userId)
       .gte('logged_at', `${targetDate}T00:00:00.000Z`)
       .lt('logged_at', `${targetDate}T23:59:59.999Z`)
       .order('logged_at', { ascending: true });
@@ -200,7 +201,7 @@ export async function GET(request: NextRequest) {
     // Get comparison data
     const comparison = await getComparisonData(
       supabase, 
-      authResult.userId, 
+      userId, 
       targetDate, 
       glucoseStats
     );
