@@ -77,7 +77,7 @@ import { apiAuthMiddleware } from '@/lib/middleware/api-auth-middleware';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { barcode: string } }
+  { params }: { params: Promise<{ barcode: string }> }
 ) {
   try {
     // Authenticate request
@@ -89,7 +89,7 @@ export async function GET(
       );
     }
 
-    const { barcode } = params;
+    const { barcode } = await params;
     const { searchParams } = new URL(request.url);
     const fallbackApi = searchParams.get('fallback_api') !== 'false';
 

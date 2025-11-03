@@ -66,7 +66,7 @@ import { apiAuthMiddleware } from '@/lib/middleware/api-auth-middleware';
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { tipId: string } }
+  { params }: { params: Promise<{ tipId: string }> }
 ) {
   try {
     // Authenticate request
@@ -78,7 +78,7 @@ export async function POST(
       );
     }
 
-    const { tipId } = params;
+    const { tipId } = await params;
     const { vote_type } = await request.json();
 
     // Validate vote type
@@ -236,7 +236,7 @@ export async function POST(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { tipId: string } }
+  { params }: { params: Promise<{ tipId: string }> }
 ) {
   try {
     // Authenticate request
@@ -248,7 +248,7 @@ export async function DELETE(
       );
     }
 
-    const { tipId } = params;
+    const { tipId } = await params;
     const supabase = await createClient();
 
     // Find and delete the vote

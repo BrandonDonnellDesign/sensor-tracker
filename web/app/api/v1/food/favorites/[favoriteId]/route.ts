@@ -111,7 +111,7 @@ import { apiAuthMiddleware } from '@/lib/middleware/api-auth-middleware';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { favoriteId: string } }
+  { params }: { params: Promise<{ favoriteId: string }> }
 ) {
   try {
     // Authenticate request
@@ -123,7 +123,7 @@ export async function GET(
       );
     }
 
-    const { favoriteId } = params;
+    const { favoriteId } = await params;
     const supabase = await createClient();
 
     const { data: favorite, error } = await supabase
@@ -177,7 +177,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { favoriteId: string } }
+  { params }: { params: Promise<{ favoriteId: string }> }
 ) {
   try {
     // Authenticate request
@@ -189,7 +189,7 @@ export async function PUT(
       );
     }
 
-    const { favoriteId } = params;
+    const { favoriteId } = await params;
     const { favorite_name, default_quantity } = await request.json();
 
     const supabase = await createClient();
@@ -245,7 +245,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { favoriteId: string } }
+  { params }: { params: Promise<{ favoriteId: string }> }
 ) {
   try {
     // Authenticate request
@@ -257,7 +257,7 @@ export async function DELETE(
       );
     }
 
-    const { favoriteId } = params;
+    const { favoriteId } = await params;
     const supabase = await createClient();
 
     const { error } = await supabase
