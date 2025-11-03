@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/supabase-server';
 import { apiAuthMiddleware } from '@/lib/middleware/api-auth-middleware';
 
 /**
@@ -89,7 +89,7 @@ export async function POST(
       );
     }
 
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Check if tip exists
     const { data: tip, error: tipError } = await supabase
@@ -249,7 +249,7 @@ export async function DELETE(
     }
 
     const { tipId } = params;
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Find and delete the vote
     const { error: deleteError } = await supabase

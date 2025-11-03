@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/supabase-server';
 import { apiAuthMiddleware } from '@/lib/middleware/api-auth-middleware';
 
 /**
@@ -144,7 +144,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Build glucose readings query
     let glucoseQuery = supabase

@@ -237,3 +237,35 @@ export async function logSuccessfulApiUsage(
     ...(contentLength && { responseSize: parseInt(contentLength) })
   }).catch(console.error);
 }
+
+/**
+ * Simplified API authentication middleware for new endpoints
+ * Returns a simple success/error result with userId for convenience
+ */
+export async function apiAuthMiddleware(request: NextRequest): Promise<{
+  success: boolean;
+  error?: string;
+  status?: number;
+  userId?: string;
+  apiKeyId?: string;
+}> {
+  const authResult = await withApiAuth(request, {
+    requireAuth: true,
+    allowApiKey: true,
+    allowJWT: true
+  });
+
+  if (!authResult.success) {
+    return {
+      success: false,
+      error: 'Authentication required',
+      status: authResult.response?.status || 401
+    };
+  }
+
+  return {
+    success: true,
+    userId: authResult.context?.user?.id || authResult.context?.apiKey?.userId || 'anonymous',
+    apiKeyId: authResult.context?.apiKey?.id
+  };
+}

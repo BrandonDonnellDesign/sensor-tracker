@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/supabase-server';
 import { apiAuthMiddleware } from '@/lib/middleware/api-auth-middleware';
 
 /**
@@ -101,7 +101,7 @@ export async function GET(
       );
     }
 
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // First, check our database
     const { data: foodItem, error: dbError } = await supabase

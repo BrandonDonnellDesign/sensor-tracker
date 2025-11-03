@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/supabase-server';
 import { apiAuthMiddleware } from '@/lib/middleware/api-auth-middleware';
 
 /**
@@ -151,7 +151,7 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100);
     const search = searchParams.get('search');
 
-    const supabase = createClient();
+    const supabase = await createClient();
 
     let query = supabase
       .from('food_favorites')
@@ -231,7 +231,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Check if food item exists
     const { data: foodItem, error: foodError } = await supabase
