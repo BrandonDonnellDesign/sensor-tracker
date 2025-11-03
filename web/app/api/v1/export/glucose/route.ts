@@ -344,7 +344,7 @@ function generateCSVResponse(exportData: any) {
   });
 }
 
-function generatePDFResponse(exportData: any) {
+function generatePDFResponse(_exportData: any) {
   // For PDF generation, you would typically use a library like jsPDF or Puppeteer
   // This is a simplified implementation that returns a placeholder
   
