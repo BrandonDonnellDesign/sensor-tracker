@@ -1073,12 +1073,15 @@ export type Database = {
           carbohydrates_g: number | null
           categories: string | null
           created_at: string
+          created_by_user_id: string | null
           data_quality_score: number | null
           energy_kcal: number | null
           fat_g: number | null
           fiber_g: number | null
           id: string
           image_url: string | null
+          is_custom: boolean | null
+          is_public: boolean | null
           off_id: string | null
           off_last_updated: string | null
           product_name: string
@@ -1096,12 +1099,15 @@ export type Database = {
           carbohydrates_g?: number | null
           categories?: string | null
           created_at?: string
+          created_by_user_id?: string | null
           data_quality_score?: number | null
           energy_kcal?: number | null
           fat_g?: number | null
           fiber_g?: number | null
           id?: string
           image_url?: string | null
+          is_custom?: boolean | null
+          is_public?: boolean | null
           off_id?: string | null
           off_last_updated?: string | null
           product_name: string
@@ -1119,12 +1125,15 @@ export type Database = {
           carbohydrates_g?: number | null
           categories?: string | null
           created_at?: string
+          created_by_user_id?: string | null
           data_quality_score?: number | null
           energy_kcal?: number | null
           fat_g?: number | null
           fiber_g?: number | null
           id?: string
           image_url?: string | null
+          is_custom?: boolean | null
+          is_public?: boolean | null
           off_id?: string | null
           off_last_updated?: string | null
           product_name?: string
@@ -1136,7 +1145,15 @@ export type Database = {
           sugars_g?: number | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "food_items_created_by_user_id_fkey"
+            columns: ["created_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       food_logs: {
         Row: {
@@ -1459,6 +1476,66 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      insulin_logs: {
+        Row: {
+          activity_level: string | null
+          blood_glucose_after: number | null
+          blood_glucose_before: number | null
+          created_at: string | null
+          delivery_type: string
+          id: string
+          injection_site: string | null
+          insulin_name: string | null
+          insulin_type: string
+          logged_via: string | null
+          meal_relation: string | null
+          mood: string | null
+          notes: string | null
+          taken_at: string
+          units: number
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          activity_level?: string | null
+          blood_glucose_after?: number | null
+          blood_glucose_before?: number | null
+          created_at?: string | null
+          delivery_type?: string
+          id?: string
+          injection_site?: string | null
+          insulin_name?: string | null
+          insulin_type: string
+          logged_via?: string | null
+          meal_relation?: string | null
+          mood?: string | null
+          notes?: string | null
+          taken_at?: string
+          units: number
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          activity_level?: string | null
+          blood_glucose_after?: number | null
+          blood_glucose_before?: number | null
+          created_at?: string | null
+          delivery_type?: string
+          id?: string
+          injection_site?: string | null
+          insulin_name?: string | null
+          insulin_type?: string
+          logged_via?: string | null
+          meal_relation?: string | null
+          mood?: string | null
+          notes?: string | null
+          taken_at?: string
+          units?: number
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       insulin_types: {
         Row: {
@@ -2395,6 +2472,66 @@ export type Database = {
         }
         Relationships: []
       }
+      user_medications: {
+        Row: {
+          brand_name: string | null
+          created_at: string | null
+          custom_name: string | null
+          dosage_form: string | null
+          expiry_date: string | null
+          id: string
+          is_active: boolean | null
+          medication_type_id: string | null
+          notes: string | null
+          pharmacy: string | null
+          prescriber: string | null
+          prescription_number: string | null
+          refill_date: string | null
+          storage_instructions: string | null
+          strength: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          brand_name?: string | null
+          created_at?: string | null
+          custom_name?: string | null
+          dosage_form?: string | null
+          expiry_date?: string | null
+          id?: string
+          is_active?: boolean | null
+          medication_type_id?: string | null
+          notes?: string | null
+          pharmacy?: string | null
+          prescriber?: string | null
+          prescription_number?: string | null
+          refill_date?: string | null
+          storage_instructions?: string | null
+          strength?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          brand_name?: string | null
+          created_at?: string | null
+          custom_name?: string | null
+          dosage_form?: string | null
+          expiry_date?: string | null
+          id?: string
+          is_active?: boolean | null
+          medication_type_id?: string | null
+          notes?: string | null
+          pharmacy?: string | null
+          prescriber?: string | null
+          prescription_number?: string | null
+          refill_date?: string | null
+          storage_instructions?: string | null
+          strength?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_notifications: {
         Row: {
           action_url: string | null
@@ -2779,35 +2916,49 @@ export type Database = {
       }
       food_logs_with_cgm: {
         Row: {
+          barcode: string | null
           brand: string | null
+          carbohydrates_g: number | null
           cgm_1hr_post_meal: number | null
           cgm_2hr_post_meal: number | null
-          cgm_reading_at_meal: number | null
-          cgm_trend_at_meal: string | null
+          cgm_pre_meal: number | null
           created_at: string | null
-          custom_calories: number | null
-          custom_carbs_g: number | null
+          created_by_user_id: string | null
           custom_food_name: string | null
+          energy_kcal: number | null
+          fat_g: number | null
           food_item_id: string | null
+          food_serving_size: string | null
+          food_serving_unit: string | null
           id: string | null
           image_url: string | null
+          insulin_dose: Json | null
+          is_custom: boolean | null
+          is_public: boolean | null
           logged_at: string | null
           meal_type: string | null
           notes: string | null
-          photo_url: string | null
           product_name: string | null
+          proteins_g: number | null
           serving_size: number | null
           serving_unit: string | null
           total_calories: number | null
           total_carbs_g: number | null
           total_fat_g: number | null
+          total_insulin_units: number | null
           total_protein_g: number | null
-          updated_at: string | null
           user_id: string | null
           user_serving_size: number | null
           user_serving_unit: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "food_items_created_by_user_id_fkey"
+            columns: ["created_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "food_logs_food_item_id_fkey"
             columns: ["food_item_id"]

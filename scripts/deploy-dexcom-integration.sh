@@ -92,7 +92,6 @@ deploy_functions() {
     
     # Deploy each function
     supabase functions deploy dexcom-oauth
-    supabase functions deploy dexcom-sync  
     supabase functions deploy daily-notifications
     
     print_status "Edge functions deployed"
@@ -169,7 +168,6 @@ generate_summary() {
     echo "✅ Database migrations applied"
     echo "✅ Edge functions deployed:"
     echo "   - dexcom-oauth (OAuth 2.0 flow)"
-    echo "   - dexcom-sync (Data synchronization)"  
     echo "   - daily-notifications (Updated with Dexcom alerts)"
     echo "✅ Secrets configured:"
     echo "   - Dexcom API credentials"

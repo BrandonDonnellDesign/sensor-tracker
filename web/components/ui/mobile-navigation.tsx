@@ -11,7 +11,9 @@ import {
   X,
   Plus,
   Search,
-  Bell
+  Bell,
+  UtensilsCrossed,
+  Syringe
 } from 'lucide-react';
 
 interface MobileNavigationProps {
@@ -25,8 +27,9 @@ export function MobileNavigation({ user }: MobileNavigationProps) {
   const navigationItems = [
     { href: '/dashboard', icon: Home, label: 'Dashboard' },
     { href: '/dashboard/sensors', icon: Activity, label: 'Sensors' },
-    { href: '/dashboard/analytics', icon: Search, label: 'Analytics' },
-    { href: '/dashboard/profile', icon: User, label: 'Profile' }
+    { href: '/dashboard/food', icon: UtensilsCrossed, label: 'Food Log' },
+    { href: '/dashboard/insulin', icon: Syringe, label: 'Insulin' },
+
   ];
 
   const isActive = (href: string) => {
@@ -109,7 +112,15 @@ export function MobileNavigation({ user }: MobileNavigationProps) {
                 ))}
               </div>
               
-              <div className="mt-6 pt-6 border-t border-gray-200 dark:border-slate-700">
+              <div className="mt-6 pt-6 border-t border-gray-200 dark:border-slate-700 space-y-2">
+                <Link
+                  href="/dashboard/analytics"
+                  onClick={() => setIsMenuOpen(false)}
+                  className="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
+                >
+                  <Search className="w-5 h-5" />
+                  <span className="font-medium">Analytics</span>
+                </Link>
                 <Link
                   href="/dashboard/settings"
                   onClick={() => setIsMenuOpen(false)}
@@ -125,19 +136,19 @@ export function MobileNavigation({ user }: MobileNavigationProps) {
       )}
 
       {/* Bottom Navigation (Mobile) */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-slate-700 px-4 py-2 z-40">
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-slate-700 px-2 py-2 z-40">
         <div className="flex items-center justify-around">
           {navigationItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className={`flex flex-col items-center space-y-1 px-3 py-2 rounded-lg transition-colors ${
+              className={`flex flex-col items-center space-y-1 px-2 py-2 rounded-lg transition-colors ${
                 isActive(item.href)
                   ? 'text-blue-600 dark:text-blue-400'
                   : 'text-gray-600 dark:text-slate-400'
               }`}
             >
-              <item.icon className="w-5 h-5" />
+              <item.icon className="w-4 h-4" />
               <span className="text-xs font-medium">{item.label}</span>
             </Link>
           ))}

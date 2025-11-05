@@ -377,6 +377,16 @@ export default function SensorsPage() {
           </p>
         </div>
         <div className="flex items-center space-x-3">
+          <Link
+            href="/dashboard/sensors/replacements"
+            className="btn-secondary flex items-center space-x-2"
+            title="Track replacement sensors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M9 1v6m6-6v6" />
+            </svg>
+            <span>Track Replacements</span>
+          </Link>
           <button
             onClick={() => setShowExportDialog(true)}
             className="btn-secondary flex items-center space-x-2"

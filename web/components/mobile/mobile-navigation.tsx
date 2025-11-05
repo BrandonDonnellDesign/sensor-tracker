@@ -13,7 +13,8 @@ import {
   X,
   User,
   Bell,
-  Search
+  UtensilsCrossed,
+  Syringe
 } from 'lucide-react';
 
 interface MobileNavigationProps {
@@ -56,6 +57,19 @@ export function MobileNavigation({ className = '' }: MobileNavigationProps) {
       description: 'Manage your sensors'
     },
     {
+      name: 'Food Log',
+      href: '/dashboard/food',
+      icon: UtensilsCrossed,
+      description: 'Track your meals'
+    },
+    {
+      name: 'Insulin',
+      href: '/dashboard/insulin',
+      icon: Syringe,
+      description: 'Log bolus doses'
+    },
+
+    {
       name: 'Analytics',
       href: '/dashboard/analytics',
       icon: BarChart3,
@@ -77,10 +91,16 @@ export function MobileNavigation({ className = '' }: MobileNavigationProps) {
       color: 'bg-blue-600 hover:bg-blue-700'
     },
     {
-      name: 'Search',
-      href: '/dashboard/search',
-      icon: Search,
-      color: 'bg-gray-600 hover:bg-gray-700'
+      name: 'Log Food',
+      href: '/dashboard/food',
+      icon: UtensilsCrossed,
+      color: 'bg-green-600 hover:bg-green-700'
+    },
+    {
+      name: 'Log Insulin',
+      href: '/dashboard/insulin',
+      icon: Syringe,
+      color: 'bg-orange-600 hover:bg-orange-700'
     }
   ];
 
@@ -210,8 +230,9 @@ export function MobileNavigation({ className = '' }: MobileNavigationProps) {
 
       {/* Bottom Navigation (Alternative mobile nav) */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700 z-40">
-        <div className="grid grid-cols-4 h-16">
-          {navigationItems.map((item) => (
+        <div className="grid grid-cols-5 h-16">
+          {/* Show most important navigation items */}
+          {navigationItems.slice(0, 5).map((item) => (
             <Link
               key={item.name}
               href={item.href}
@@ -221,7 +242,7 @@ export function MobileNavigation({ className = '' }: MobileNavigationProps) {
                   : 'text-gray-500 dark:text-slate-400'
               }`}
             >
-              <item.icon className="w-5 h-5" />
+              <item.icon className="w-4 h-4" />
               <span className="text-xs font-medium">{item.name}</span>
             </Link>
           ))}

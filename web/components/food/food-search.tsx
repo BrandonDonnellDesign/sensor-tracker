@@ -1,13 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { Search, Barcode, Loader2, ShoppingCart, Plus, Heart } from 'lucide-react';
+import { Search, Barcode, Loader2, ShoppingCart, Plus, Heart, Camera } from 'lucide-react';
 import { BarcodeScanner } from './barcode-scanner';
 import { FoodLogForm } from './food-log-form';
 import { MultiFoodLogForm } from './multi-food-log-form';
 import { CustomFoodForm } from './custom-food-form';
 import { FavoritesList } from './favorites-list';
 import { FavoriteButton } from './favorite-button';
+import { CameraPermissionDialog } from '@/components/ui/camera-permission-dialog';
+import { useCameraPermission } from '@/lib/hooks/use-camera-permission';
 
 type SearchMode = 'search' | 'barcode' | 'custom' | 'favorites';
 
@@ -25,6 +27,9 @@ export function FoodSearch({ onFoodLogged }: FoodSearchProps) {
   const [isSearching, setIsSearching] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
   const [searchMode, setSearchMode] = useState<SearchMode>('search');
+  const [showPermissionDialog, setShowPermissionDialog] = useState(false);
+
+  const { permission, requestPermission, hasCamera, isLoading: permissionLoading, error: permissionError } = useCameraPermission();
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
@@ -61,6 +66,35 @@ export function FoodSearch({ onFoodLogged }: FoodSearchProps) {
       setIsSearching(false);
     }
   };
+
+  const handleStartScanner = async () => {
+    if (!hasCamera) {
+      alert('No camera available on this device');
+      return;
+    }
+
+    if (permission === 'granted') {
+      setShowScanner(true);
+    } else if (permission === 'denied') {
+      setShowPermissionDialog(true);
+    } else {
+      // Request permission
+      setShowPermissionDialog(true);
+    }
+  };
+
+  const handlePermissionRequest = async () => {
+    const granted = await requestPermission();
+    if (granted) {
+      setShowPermissionDialog(false);
+      setShowScanner(true);
+    }
+    return granted;
+  };
+
+
+
+
 
   const handleAddToMeal = (food: any) => {
     setMealItems([...mealItems, food]);
@@ -207,6 +241,8 @@ export function FoodSearch({ onFoodLogged }: FoodSearchProps) {
         </button>
       </div>
 
+
+
       {/* Search Mode */}
       {searchMode === 'search' && (
         <>
@@ -304,18 +340,58 @@ export function FoodSearch({ onFoodLogged }: FoodSearchProps) {
         </>
       )}
 
+
+
       {/* Barcode Mode */}
       {searchMode === 'barcode' && (
         <div className="space-y-4">
           {!showScanner ? (
             <div className="text-center py-8">
+              {/* Camera Status Info */}
+              {permissionLoading ? (
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
+                  <div className="animate-spin w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full mx-auto mb-2" />
+                  <p className="text-blue-800 dark:text-blue-200 text-sm">
+                    Checking camera availability...
+                  </p>
+                </div>
+              ) : !hasCamera ? (
+                <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-4">
+                  <Camera className="w-8 h-8 mx-auto text-yellow-600 dark:text-yellow-400 mb-2" />
+                  <p className="text-yellow-800 dark:text-yellow-200 text-sm">
+                    No camera detected on this device
+                  </p>
+                </div>
+              ) : permission === 'denied' ? (
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-4">
+                  <Camera className="w-8 h-8 mx-auto text-red-600 dark:text-red-400 mb-2" />
+                  <p className="text-red-800 dark:text-red-200 text-sm mb-2">
+                    Camera access was denied
+                  </p>
+                  <p className="text-red-700 dark:text-red-300 text-xs">
+                    Enable camera permissions to scan barcodes
+                  </p>
+                </div>
+              ) : null}
+
               <button
-                onClick={() => setShowScanner(true)}
-                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
+                onClick={handleStartScanner}
+                disabled={!hasCamera || permissionLoading}
+                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Barcode className="w-5 h-5 inline mr-2" />
-                Start Scanner
+                {permissionLoading ? (
+                  <>
+                    <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full inline mr-2" />
+                    Checking Camera...
+                  </>
+                ) : (
+                  <>
+                    <Camera className="w-5 h-5 inline mr-2" />
+                    {permission === 'denied' ? 'Request Camera Access' : 'Start Scanner'}
+                  </>
+                )}
               </button>
+
               <p className="mt-4 text-sm text-gray-600 dark:text-slate-400">
                 Or enter barcode manually:
               </p>
@@ -345,6 +421,15 @@ export function FoodSearch({ onFoodLogged }: FoodSearchProps) {
           )}
         </div>
       )}
+
+      {/* Camera Permission Dialog */}
+      <CameraPermissionDialog
+        isOpen={showPermissionDialog}
+        onRequestPermission={handlePermissionRequest}
+        onCancel={() => setShowPermissionDialog(false)}
+        error={permissionError}
+        isLoading={permissionLoading}
+      />
     </div>
   );
 }

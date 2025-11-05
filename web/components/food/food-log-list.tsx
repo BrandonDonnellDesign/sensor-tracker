@@ -14,6 +14,7 @@ interface FoodLogListProps {
 export function FoodLogList({ userId }: FoodLogListProps) {
   const [logs, setLogs] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [totalDayInsulin, setTotalDayInsulin] = useState(0);
   // Get today's date in local timezone
   const today = new Date();
   const localDateString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
@@ -24,6 +25,7 @@ export function FoodLogList({ userId }: FoodLogListProps) {
   useEffect(() => {
     if (!userId) return;
     loadLogs();
+    loadDayInsulin();
   }, [userId, selectedDate]);
 
   const loadLogs = async () => {
@@ -57,6 +59,37 @@ export function FoodLogList({ userId }: FoodLogListProps) {
       setLogs([]);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadDayInsulin = async () => {
+    if (!userId) return;
+
+    try {
+      const supabase = createClient();
+      
+      // Get start and end of selected date in local timezone
+      const startOfDay = new Date(selectedDate + 'T00:00:00');
+      const endOfDay = new Date(selectedDate + 'T23:59:59');
+      
+      // Get all insulin logs for the selected date
+      const { data, error } = await supabase
+        .from('insulin_logs')
+        .select('units, delivery_type')
+        .eq('user_id', userId)
+        .gte('taken_at', startOfDay.toISOString())
+        .lte('taken_at', endOfDay.toISOString())
+        .in('delivery_type', ['bolus', 'meal', 'correction']); // Only bolus insulin
+
+      if (error) throw error;
+      
+      // Calculate total bolus insulin for the day
+      const total = (data || []).reduce((sum, log) => sum + (log.units || 0), 0);
+      setTotalDayInsulin(total);
+
+    } catch (error) {
+      console.error('Error loading day insulin:', error);
+      setTotalDayInsulin(0);
     }
   };
 
@@ -103,6 +136,7 @@ export function FoodLogList({ userId }: FoodLogListProps) {
 
       if (error) throw error;
       loadLogs();
+      loadDayInsulin();
     } catch (error) {
       console.error('Error logging food again:', error);
       alert('Failed to log food again. Please try again.');
@@ -188,6 +222,118 @@ export function FoodLogList({ userId }: FoodLogListProps) {
               </p>
             </div>
           </div>
+          
+          {/* Daily Summary - Glucose & Insulin */}
+          {(() => {
+            const mealsWithCGM = logs.filter(log => log.cgm_1hr_post_meal || log.cgm_2hr_post_meal);
+            const mealsWithInsulin = logs.filter(log => log.total_insulin_units > 0);
+            const totalInsulin = logs.reduce((sum, log) => sum + (log.total_insulin_units || 0), 0);
+            
+            if (mealsWithCGM.length === 0 && mealsWithInsulin.length === 0) return null;
+            
+            const avgPeak = mealsWithCGM.length > 0 ? mealsWithCGM.reduce((sum, log) => {
+              const peak = Math.max(log.cgm_1hr_post_meal || 0, log.cgm_2hr_post_meal || 0);
+              return sum + peak;
+            }, 0) / mealsWithCGM.length : 0;
+            
+            const highReadings = mealsWithCGM.filter(log => 
+              (log.cgm_1hr_post_meal && log.cgm_1hr_post_meal > 180) || 
+              (log.cgm_2hr_post_meal && log.cgm_2hr_post_meal > 180)
+            ).length;
+            
+            return (
+              <div className="mt-4 p-4 bg-gradient-to-r from-slate-800/40 to-slate-700/40 rounded-lg border border-slate-600/40">
+                <h4 className="text-sm font-medium text-slate-200 mb-4 flex items-center gap-2">
+                  📈 Daily Insights
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Glucose Summary */}
+                  {mealsWithCGM.length > 0 && (
+                    <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
+                      <h5 className="text-xs font-medium text-slate-300 mb-2 flex items-center gap-1">
+                        📊 Glucose Impact
+                      </h5>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">Avg Peak:</span>
+                          <span className={`font-semibold ${
+                            avgPeak > 180 ? 'text-orange-400' : avgPeak > 140 ? 'text-yellow-400' : 'text-green-400'
+                          }`}>
+                            {avgPeak.toFixed(0)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">High Readings:</span>
+                          <span className={`font-semibold ${highReadings > 0 ? 'text-orange-400' : 'text-green-400'}`}>
+                            {highReadings}/{mealsWithCGM.length}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Insulin Summary */}
+                  {mealsWithInsulin.length > 0 && (
+                    <div className="bg-orange-900/20 p-3 rounded-lg border border-orange-700/30">
+                      <h5 className="text-xs font-medium text-orange-200 mb-2 flex items-center gap-1">
+                        💉 Insulin Usage
+                      </h5>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-orange-300">Total Bolus:</span>
+                          <span className="font-semibold text-orange-200">
+                            {totalDayInsulin.toFixed(1)}U
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-orange-300">Coverage:</span>
+                          <span className="font-semibold text-orange-200">
+                            {mealsWithInsulin.length}/{logs.length}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-orange-300">I:C Ratio:</span>
+                          <span className="font-semibold text-orange-200">
+                            {totalInsulin > 0 && totals.carbs > 0 
+                              ? `1:${(totals.carbs / totalInsulin).toFixed(1)}`
+                              : 'N/A'
+                            }
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Nutrition Summary */}
+                  <div className="bg-blue-900/20 p-3 rounded-lg border border-blue-700/30">
+                    <h5 className="text-xs font-medium text-blue-200 mb-2 flex items-center gap-1">
+                      🍽️ Nutrition
+                    </h5>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-blue-300">Carbs:</span>
+                        <span className="font-semibold text-blue-200">
+                          {totals.carbs.toFixed(1)}g
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-blue-300">Calories:</span>
+                        <span className="font-semibold text-blue-200">
+                          {totals.calories.toFixed(0)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-blue-300">Protein:</span>
+                        <span className="font-semibold text-blue-200">
+                          {totals.protein.toFixed(1)}g
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
 
@@ -238,43 +384,97 @@ export function FoodLogList({ userId }: FoodLogListProps) {
                       <h3 className="text-lg font-semibold text-white">
                         {mealType.charAt(0).toUpperCase() + mealType.slice(1)}
                       </h3>
-                      <div className="flex gap-3 text-sm flex-wrap items-center">
-                        <span className="px-2 py-1 bg-blue-900/40 text-blue-300 font-semibold rounded">
-                          {mealTotals.carbs.toFixed(1)}g carbs
-                        </span>
-                        <span className="text-slate-400">
-                          {mealTotals.calories.toFixed(0)} cal
-                        </span>
-                        {hasCGM && (
-                          <>
-                            <span className="text-slate-500">•</span>
-                            <div className="flex items-center gap-3">
-                              {firstLog.cgm_1hr_post_meal && (
-                                <div className="flex items-center gap-1.5">
-                                  <span className="text-slate-400 text-xs">1hr:</span>
-                                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                                    firstLog.cgm_1hr_post_meal < 70 ? 'bg-red-900/30 text-red-400' :
-                                    firstLog.cgm_1hr_post_meal > 180 ? 'bg-orange-900/30 text-orange-400' :
-                                    'bg-green-900/30 text-green-400'
-                                  }`}>
-                                    {firstLog.cgm_1hr_post_meal}
-                                  </span>
+                      <div className="flex flex-col gap-3">
+                        {/* Primary Metrics */}
+                        <div className="flex gap-3 text-sm flex-wrap items-center">
+                          <span className="px-3 py-1.5 bg-blue-900/40 text-blue-300 font-semibold rounded-lg border border-blue-700/30">
+                            {mealTotals.carbs.toFixed(1)}g carbs
+                          </span>
+                          <span className="px-3 py-1.5 bg-slate-700/40 text-slate-300 rounded-lg">
+                            {mealTotals.calories.toFixed(0)} cal
+                          </span>
+                        </div>
+                        
+                        {/* Insulin & CGM Data */}
+                        {(hasCGM || firstLog.total_insulin_units > 0) && (
+                          <div className="flex flex-wrap gap-3">
+                            {/* Insulin Dose */}
+                            {firstLog.total_insulin_units > 0 && (
+                              <div className="flex items-center gap-2 px-3 py-1.5 bg-orange-900/30 border border-orange-700/40 rounded-lg">
+                                <span className="text-orange-200 text-xs font-medium">💉</span>
+                                <span className="text-orange-200 font-semibold">
+                                  {firstLog.total_insulin_units}U
+                                </span>
+                                {firstLog.insulin_dose && (() => {
+                                  try {
+                                    const insulinData = typeof firstLog.insulin_dose === 'string' 
+                                      ? JSON.parse(firstLog.insulin_dose) 
+                                      : firstLog.insulin_dose;
+                                    return (
+                                      <span className="text-orange-300 text-xs">
+                                        {insulinData.insulin_name || 'Insulin'}
+                                      </span>
+                                    );
+                                  } catch (e) {
+                                    return (
+                                      <span className="text-orange-300 text-xs">
+                                        Insulin
+                                      </span>
+                                    );
+                                  }
+                                })()}
+                              </div>
+                            )}
+                            
+                            {/* CGM Readings */}
+                            {hasCGM && (
+                              <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-700/40 border border-slate-600/40 rounded-lg">
+                                <span className="text-slate-300 text-xs font-medium">📊</span>
+                                <div className="flex items-center gap-3">
+                                  {firstLog.cgm_1hr_post_meal && (
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-slate-400 text-xs">1h</span>
+                                      <span className={`px-2 py-0.5 rounded text-xs font-bold ${
+                                        firstLog.cgm_1hr_post_meal < 70 
+                                          ? 'bg-red-800/60 text-red-200' :
+                                        firstLog.cgm_1hr_post_meal > 180 
+                                          ? 'bg-orange-800/60 text-orange-200' :
+                                          'bg-green-800/60 text-green-200'
+                                      }`}>
+                                        {firstLog.cgm_1hr_post_meal}
+                                      </span>
+                                    </div>
+                                  )}
+                                  {firstLog.cgm_2hr_post_meal && (
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-slate-400 text-xs">2h</span>
+                                      <span className={`px-2 py-0.5 rounded text-xs font-bold ${
+                                        firstLog.cgm_2hr_post_meal < 70 
+                                          ? 'bg-red-800/60 text-red-200' :
+                                        firstLog.cgm_2hr_post_meal > 180 
+                                          ? 'bg-orange-800/60 text-orange-200' :
+                                          'bg-green-800/60 text-green-200'
+                                      }`}>
+                                        {firstLog.cgm_2hr_post_meal}
+                                      </span>
+                                    </div>
+                                  )}
+                                  {/* Trend indicator */}
+                                  {firstLog.cgm_1hr_post_meal && firstLog.cgm_2hr_post_meal && (
+                                    <span className={`text-sm ${
+                                      firstLog.cgm_2hr_post_meal < firstLog.cgm_1hr_post_meal 
+                                        ? 'text-green-400' :
+                                      firstLog.cgm_2hr_post_meal > firstLog.cgm_1hr_post_meal 
+                                        ? 'text-orange-400' : 'text-slate-400'
+                                    }`}>
+                                      {firstLog.cgm_2hr_post_meal < firstLog.cgm_1hr_post_meal ? '↓' :
+                                       firstLog.cgm_2hr_post_meal > firstLog.cgm_1hr_post_meal ? '↑' : '→'}
+                                    </span>
+                                  )}
                                 </div>
-                              )}
-                              {firstLog.cgm_2hr_post_meal && (
-                                <div className="flex items-center gap-1.5">
-                                  <span className="text-slate-400 text-xs">2hr:</span>
-                                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                                    firstLog.cgm_2hr_post_meal < 70 ? 'bg-red-900/30 text-red-400' :
-                                    firstLog.cgm_2hr_post_meal > 180 ? 'bg-orange-900/30 text-orange-400' :
-                                    'bg-green-900/30 text-green-400'
-                                  }`}>
-                                    {firstLog.cgm_2hr_post_meal}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                          </>
+                              </div>
+                            )}
+                          </div>
                         )}
                       </div>
                     </div>
@@ -288,13 +488,20 @@ export function FoodLogList({ userId }: FoodLogListProps) {
                         className="p-4 hover:bg-slate-800/30 transition-colors"
                       >
               <div className="flex items-start gap-4">
-                {log.image_url && (
-                  <img
-                    src={log.image_url}
-                    alt={log.product_name || log.custom_food_name}
-                    className="w-16 h-16 object-cover rounded border border-slate-600"
-                  />
-                )}
+                {/* Always reserve space for image to maintain alignment */}
+                <div className="w-16 h-16 flex-shrink-0">
+                  {log.image_url ? (
+                    <img
+                      src={log.image_url}
+                      alt={log.product_name || log.custom_food_name}
+                      className="w-full h-full object-cover rounded border border-slate-600"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-slate-700/50 border border-slate-600 rounded flex items-center justify-center">
+                      <span className="text-slate-500 text-2xl">🍽️</span>
+                    </div>
+                  )}
+                </div>
                 <div className="flex-1">
                   <div className="flex items-start justify-between">
                     <div>
@@ -344,16 +551,15 @@ export function FoodLogList({ userId }: FoodLogListProps) {
                       </button>
                     </div>
                   </div>
-                  <div className="flex gap-3 mt-2 text-sm flex-wrap">
-                    {/* Carbs - Most Prominent */}
-                    <span className="px-3 py-1 bg-blue-900/40 text-blue-300 font-semibold rounded-full">
+                  <div className="flex gap-2 mt-2 text-sm flex-wrap">
+                    <span className="px-2.5 py-1 bg-blue-900/40 text-blue-300 font-semibold rounded-lg text-xs">
                       {Number(log.total_carbs_g).toFixed(1)}g carbs
                     </span>
-                    <span className="text-slate-400">
+                    <span className="px-2.5 py-1 bg-slate-700/40 text-slate-300 rounded-lg text-xs">
                       {Number(log.total_calories).toFixed(0)} cal
                     </span>
                     {log.total_protein_g && (
-                      <span className="text-slate-400">
+                      <span className="px-2.5 py-1 bg-slate-700/40 text-slate-300 rounded-lg text-xs">
                         {Number(log.total_protein_g).toFixed(1)}g protein
                       </span>
                     )}

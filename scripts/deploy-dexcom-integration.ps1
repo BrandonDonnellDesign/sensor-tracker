@@ -121,7 +121,7 @@ function Deploy-Database {
 function Deploy-Functions {
     Write-Host "⚡ Deploying edge functions..." -ForegroundColor Cyan
     
-    $functions = @("dexcom-oauth", "dexcom-sync", "daily-notifications")
+    $functions = @("dexcom-oauth", "daily-notifications")
     
     foreach ($func in $functions) {
         Write-Host "Deploying $func..." -ForegroundColor Gray
@@ -219,7 +219,6 @@ function Generate-Summary {
     Write-Host "✅ Database migrations applied" -ForegroundColor Green
     Write-Host "✅ Edge functions deployed:" -ForegroundColor Green
     Write-Host "   - dexcom-oauth (OAuth 2.0 flow)" -ForegroundColor White
-    Write-Host "   - dexcom-sync (Data synchronization)" -ForegroundColor White
     Write-Host "   - daily-notifications (Updated with Dexcom alerts)" -ForegroundColor White
     Write-Host "✅ Secrets configured:" -ForegroundColor Green
     Write-Host "   - Dexcom API credentials" -ForegroundColor White

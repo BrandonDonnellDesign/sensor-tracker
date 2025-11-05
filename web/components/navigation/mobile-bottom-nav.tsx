@@ -5,9 +5,8 @@ import Link from 'next/link';
 import { 
   Home, 
   Activity, 
-  BarChart3, 
-  Settings,
-  Plus
+  UtensilsCrossed,
+  Syringe
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -25,24 +24,18 @@ const navItems = [
     activePattern: /^\/dashboard\/sensors/
   },
   {
-    name: 'Add',
-    href: '/dashboard/sensors/new',
-    icon: Plus,
-    activePattern: /^\/dashboard\/sensors\/new$/,
-    isPrimary: true
+    name: 'Food',
+    href: '/dashboard/food',
+    icon: UtensilsCrossed,
+    activePattern: /^\/dashboard\/food/
   },
   {
-    name: 'Analytics',
-    href: '/dashboard/analytics',
-    icon: BarChart3,
-    activePattern: /^\/dashboard\/analytics/
+    name: 'Insulin',
+    href: '/dashboard/insulin',
+    icon: Syringe,
+    activePattern: /^\/dashboard\/insulin/
   },
-  {
-    name: 'Settings',
-    href: '/dashboard/settings',
-    icon: Settings,
-    activePattern: /^\/dashboard\/settings/
-  }
+
 ];
 
 export function MobileBottomNav() {
@@ -63,22 +56,16 @@ export function MobileBottomNav() {
                 className={cn(
                   'flex flex-col items-center justify-center px-3 py-2 rounded-xl transition-all duration-200',
                   'min-w-[60px] min-h-[60px]',
-                  item.isPrimary
-                    ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg'
-                    : isActive
+                  isActive
                     ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
                     : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700'
                 )}
               >
                 <Icon className={cn(
-                  'transition-all duration-200',
-                  item.isPrimary ? 'w-6 h-6' : 'w-5 h-5',
-                  isActive && !item.isPrimary && 'scale-110'
+                  'transition-all duration-200 w-5 h-5',
+                  isActive && 'scale-110'
                 )} />
-                <span className={cn(
-                  'text-xs font-medium mt-1',
-                  item.isPrimary ? 'text-white' : ''
-                )}>
+                <span className="text-xs font-medium mt-1">
                   {item.name}
                 </span>
               </Link>

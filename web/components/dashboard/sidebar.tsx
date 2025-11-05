@@ -28,6 +28,7 @@ import {
   Wrench,
   UtensilsCrossed,
   MessageSquare,
+  TrendingUp,
 } from 'lucide-react';
 import { NotificationsButton } from '@/components/dashboard/notifications-button';
 
@@ -50,6 +51,12 @@ const primaryNavigation = [
     icon: UtensilsCrossed,
     description: 'Track meals & carbs',
     badge: 'BETA',
+  },
+  {
+    name: 'Glucose Data',
+    href: '/dashboard/glucose-data',
+    icon: TrendingUp,
+    description: 'CGM readings & sync',
   },
   {
     name: 'Analytics',

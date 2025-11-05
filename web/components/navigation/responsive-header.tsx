@@ -11,7 +11,10 @@ import {
   User,
   Settings,
   LogOut,
-  Activity
+  Activity,
+  UtensilsCrossed,
+  Syringe,
+  BarChart3
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -169,6 +172,50 @@ export function ResponsiveHeader({
                 variant="ghost"
                 size="lg"
                 fullWidth
+                icon={<UtensilsCrossed />}
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  window.location.href = '/dashboard/food';
+                }}
+                className="justify-start"
+              >
+                Food Log
+              </TouchFriendlyButton>
+
+              <TouchFriendlyButton
+                variant="ghost"
+                size="lg"
+                fullWidth
+                icon={<Syringe />}
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  window.location.href = '/dashboard/insulin';
+                }}
+                className="justify-start"
+              >
+                Insulin Logging
+              </TouchFriendlyButton>
+
+
+
+              <TouchFriendlyButton
+                variant="ghost"
+                size="lg"
+                fullWidth
+                icon={<BarChart3 />}
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  window.location.href = '/dashboard/analytics';
+                }}
+                className="justify-start"
+              >
+                Analytics
+              </TouchFriendlyButton>
+
+              <TouchFriendlyButton
+                variant="ghost"
+                size="lg"
+                fullWidth
                 icon={<Settings />}
                 onClick={() => {
                   setIsMenuOpen(false);
@@ -177,34 +224,6 @@ export function ResponsiveHeader({
                 className="justify-start"
               >
                 Settings
-              </TouchFriendlyButton>
-
-              <TouchFriendlyButton
-                variant="ghost"
-                size="lg"
-                fullWidth
-                icon={<Activity />}
-                onClick={() => {
-                  setIsMenuOpen(false);
-                  window.location.href = '/docs';
-                }}
-                className="justify-start"
-              >
-                API Documentation
-              </TouchFriendlyButton>
-
-              <TouchFriendlyButton
-                variant="ghost"
-                size="lg"
-                fullWidth
-                icon={<Settings />}
-                onClick={() => {
-                  setIsMenuOpen(false);
-                  window.location.href = '/dashboard/settings?tab=api';
-                }}
-                className="justify-start"
-              >
-                API Keys
               </TouchFriendlyButton>
 
               {showSearch && (

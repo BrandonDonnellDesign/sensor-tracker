@@ -57,6 +57,22 @@ export function StreamlinedQuickActions({
           </Link>
 
           <Link
+            href='/dashboard/insulin'
+            className='flex flex-col items-center justify-center p-4 bg-orange-50 dark:bg-orange-900/20 hover:bg-orange-100 dark:hover:bg-orange-900/30 rounded-xl transition-all duration-200 group border border-orange-200 dark:border-orange-800 hover:border-orange-300 dark:hover:border-orange-700'>
+            <svg className='w-6 h-6 text-orange-600 dark:text-orange-400 group-hover:text-orange-700 dark:group-hover:text-orange-300 mb-2 transition-colors' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+              <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 7.172V5L8 4z' />
+            </svg>
+            <span className='text-sm font-medium text-gray-900 dark:text-slate-100 mb-1'>
+              Log Insulin
+            </span>
+            <span className='text-xs text-gray-500 dark:text-slate-500'>
+              Bolus
+            </span>
+          </Link>
+        </div>
+        
+        <div className='grid grid-cols-1 gap-4'>
+          <Link
             href='/dashboard/analytics'
             className='flex flex-col items-center justify-center p-4 bg-gray-50 dark:bg-slate-700/50 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-xl transition-all duration-200 group border border-gray-200 dark:border-slate-600 hover:border-gray-300 dark:hover:border-slate-500'>
             <BarChart3 className='w-6 h-6 text-gray-600 dark:text-slate-400 group-hover:text-purple-600 dark:group-hover:text-purple-400 mb-2 transition-colors' />

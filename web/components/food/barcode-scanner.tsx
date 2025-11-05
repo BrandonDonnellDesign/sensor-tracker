@@ -19,14 +19,30 @@ export function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps) {
     const startCamera = async () => {
       try {
         stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment' }
+          video: { 
+            facingMode: 'environment', // Prefer back camera
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          }
         });
         
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
         }
-      } catch (err) {
-        setError('Camera access denied. Please enable camera permissions.');
+      } catch (err: any) {
+        console.error('Camera error:', err);
+        
+        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+          setError('Camera access was denied. Please enable camera permissions in your browser settings.');
+        } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+          setError('No camera found on this device.');
+        } else if (err.name === 'NotSupportedError') {
+          setError('Camera is not supported on this device.');
+        } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+          setError('Camera is already in use by another application.');
+        } else {
+          setError('Failed to access camera. Please check your browser settings.');
+        }
       }
     };
 
@@ -64,14 +80,33 @@ export function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps) {
         <div className="p-4">
           {error ? (
             <div className="text-center py-8">
-              <Camera className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-              <p className="text-red-600 dark:text-red-400 mb-4">{error}</p>
-              <button
-                onClick={handleManualEntry}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
-              >
-                Enter Manually
-              </button>
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6">
+                <Camera className="w-16 h-16 mx-auto text-red-400 mb-4" />
+                <h3 className="text-lg font-medium text-red-800 dark:text-red-200 mb-2">
+                  Camera Access Issue
+                </h3>
+                <p className="text-red-600 dark:text-red-400 mb-4 text-sm">{error}</p>
+                
+                {error.includes('denied') && (
+                  <div className="bg-red-100 dark:bg-red-900/30 rounded-lg p-3 mb-4 text-left">
+                    <p className="text-sm font-medium text-red-800 dark:text-red-200 mb-2">
+                      To enable camera access:
+                    </p>
+                    <ul className="text-sm text-red-700 dark:text-red-300 space-y-1">
+                      <li>• Look for a camera icon in your browser's address bar</li>
+                      <li>• Click it and select "Allow" for camera access</li>
+                      <li>• Refresh the page and try again</li>
+                    </ul>
+                  </div>
+                )}
+                
+                <button
+                  onClick={handleManualEntry}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
+                >
+                  Enter Barcode Manually
+                </button>
+              </div>
             </div>
           ) : (
             <>

@@ -1,0 +1,30 @@
+name: Dexcom Auto Sync & Refresh (Backup)
+
+on:
+  schedule:
+    # Run sync every 30 minutes as backup to Netlify scheduled functions
+    - cron: '*/30 * * * *'
+    # Run token refresh every hour
+    - cron: '15 * * * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Dexcom Token Refresh
+        run: |
+          curl -X GET \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "User-Agent: GitHub-Actions-Backup-Refresh" \
+            "${{ secrets.NETLIFY_SITE_URL }}/api/cron/dexcom-refresh"
+      
+      - name: Wait before sync
+        run: sleep 30
+        
+      - name: Trigger Dexcom Sync
+        run: |
+          curl -X GET \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "User-Agent: GitHub-Actions-Backup-Sync" \
+            "${{ secrets.NETLIFY_SITE_URL }}/api/cron/dexcom-sync"

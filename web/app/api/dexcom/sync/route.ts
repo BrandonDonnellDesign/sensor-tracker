@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
-import { getCurrentUser } from '@/lib/auth-utils';
 
 export async function POST(request: NextRequest) {
-  console.log('🔄 Dexcom sync API called:', request.url);
-  console.log('🍪 Request cookies:', request.cookies.getAll().map(c => c.name));
+  console.log('🔄 Dexcom sync API called');
+  console.log('🔄 Request method:', request.method);
+  console.log('🔄 Request headers:', Object.fromEntries(request.headers.entries()));
   
   try {
     const supabase = await createClient();
@@ -12,292 +12,286 @@ export async function POST(request: NextRequest) {
     // Get user from Supabase auth
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
-    console.log('🔐 Sync auth check:', { 
-      hasUser: !!user, 
-      userId: user?.id?.substring(0, 8) + '...', 
-      authError: authError?.message 
-    });
-    
     if (authError || !user) {
       console.error('Auth error in Dexcom sync API:', authError);
       return NextResponse.json({ 
         error: 'Unauthorized',
-        details: 'Please log in to sync Dexcom data',
-        authError: authError?.message
+        details: 'Please log in to sync Dexcom data'
       }, { status: 401 });
     }
 
     const body = await request.json();
     const { userId } = body;
+    
+    console.log('🔄 Request body:', { userId });
 
-    // Verify the user is syncing their own data or is an admin
+    // Verify the user is syncing their own data
     if (userId !== user.id) {
-      // Check if user is admin
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-
-      if (!profile || profile.role !== 'admin') {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-      }
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Get user's active Dexcom token
-    let { data: token, error: tokenError } = await supabase
+    // Get user's Dexcom token
+    const { data: token, error: tokenError } = await supabase
       .from('dexcom_tokens')
       .select('*')
       .eq('user_id', userId)
-      .eq('is_active', true)
       .order('created_at', { ascending: false })
       .limit(1)
       .single();
 
-    // If no active token found, check if there's any token at all (might be inactive due to refresh)
-    if (tokenError || !token) {
-      console.log('🔍 No active token found, checking for any tokens for user:', userId);
-      
-      const { data: anyTokens } = await supabase
-        .from('dexcom_tokens')
-        .select('*')
-        .eq('user_id', userId)
-        .order('updated_at', { ascending: false })
-        .limit(5);
-
-      console.log('🔍 All tokens for user:', anyTokens?.map(t => ({
-        id: t.id,
-        is_active: t.is_active,
-        created_at: t.created_at,
-        updated_at: t.updated_at,
-        expires_at: t.token_expires_at
-      })));
-
-      // Try to get the most recently updated token (might have just been refreshed)
-      if (anyTokens && anyTokens.length > 0) {
-        const mostRecentToken = anyTokens[0];
-        
-        // If the most recent token was updated within the last 5 minutes, use it
-        const updatedAt = new Date(mostRecentToken.updated_at);
-        const now = new Date();
-        const minutesSinceUpdate = (now.getTime() - updatedAt.getTime()) / (1000 * 60);
-        
-        if (minutesSinceUpdate <= 5) {
-          console.log('🔄 Using recently updated token (updated', minutesSinceUpdate.toFixed(1), 'minutes ago)');
-          
-          // Reactivate this token if it's not active
-          if (!mostRecentToken.is_active) {
-            await supabase
-              .from('dexcom_tokens')
-              .update({ is_active: true })
-              .eq('id', mostRecentToken.id);
-          }
-          
-          token = mostRecentToken;
-          tokenError = null;
-        }
-      }
-    }
+    console.log('🔍 Token found:', {
+      hasToken: !!token,
+      isActive: token?.is_active,
+      expiresAt: token?.token_expires_at
+    });
 
     if (tokenError || !token) {
-      // Log the sync attempt failure
-      await supabase.rpc('log_dexcom_operation', {
-        p_user_id: userId,
-        p_operation: 'sync',
-        p_sync_type: 'manual_sync',
-        p_status: 'error',
-        p_message: 'No active Dexcom token found'
-      });
-
+      console.log('🔄 No token found - returning 404');
       return NextResponse.json({
         success: false,
         error: 'No Dexcom token found. Please connect your Dexcom account first.'
       }, { status: 404 });
     }
 
-    // Check if token is expired or expiring soon
+    // Activate token if it's not active
+    if (!token.is_active) {
+      console.log('🔄 Activating inactive token');
+      const { error: activateError } = await supabase
+        .from('dexcom_tokens')
+        .update({ is_active: true })
+        .eq('id', token.id);
+      
+      if (!activateError) {
+        token.is_active = true;
+        console.log('🔄 Token activated successfully');
+      }
+    }
+
+    // Check if token is expired
     const expiresAt = new Date(token.token_expires_at);
     const now = new Date();
     const hoursUntilExpiration = (expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60);
 
-    let tokenAutoRefreshed = false;
+    console.log('🔄 Token expiration check:', {
+      expiresAt: expiresAt.toISOString(),
+      now: now.toISOString(),
+      hoursUntilExpiration
+    });
 
-    // If token expires within 2 hours, try to refresh it first
-    if (hoursUntilExpiration <= 2 && hoursUntilExpiration > 0) {
+    if (hoursUntilExpiration <= 0) {
+      console.log('🔄 Token expired, attempting refresh...');
+      
+      // Try to refresh the token directly
       try {
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        console.log('🔄 Attempting direct token refresh...');
+        
+        // Decrypt refresh token
+        const refreshToken = atob(token.refresh_token_encrypted);
+        const dexcomClientId = process.env.DEXCOM_CLIENT_ID;
+        const dexcomClientSecret = process.env.DEXCOM_CLIENT_SECRET;
+        
+        if (!dexcomClientId || !dexcomClientSecret) {
+          console.log('🔄 Dexcom credentials missing');
+          return NextResponse.json({
+            success: false,
+            error: 'Dexcom configuration missing. Please reconnect your Dexcom account.',
+            expired: true
+          }, { status: 401 });
+        }
 
-        if (supabaseUrl && supabaseServiceKey) {
-          const refreshResponse = await fetch(`${supabaseUrl}/functions/v1/dexcom-refresh-token`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${supabaseServiceKey}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ userId })
-          });
+        // Call Dexcom token refresh API
+        const tokenRefreshResponse = await fetch('https://api.dexcom.com/v2/oauth2/token', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams({
+            grant_type: 'refresh_token',
+            refresh_token: refreshToken,
+            client_id: dexcomClientId,
+            client_secret: dexcomClientSecret,
+          }),
+        });
 
-          if (refreshResponse.ok) {
-            tokenAutoRefreshed = true;
-            await supabase.rpc('log_dexcom_operation', {
-              p_user_id: userId,
-              p_operation: 'auto_refresh',
-              p_sync_type: 'pre_sync_refresh',
-              p_status: 'success',
-              p_message: 'Token auto-refreshed before sync'
-            });
+        if (tokenRefreshResponse.ok) {
+          const tokenData = await tokenRefreshResponse.json();
+          console.log('🔄 Token refresh successful');
+          
+          // Update token in database
+          const expiresAt = new Date(Date.now() + tokenData.expires_in * 1000);
+          
+          const { error: updateError } = await supabase
+            .from('dexcom_tokens')
+            .update({
+              access_token_encrypted: btoa(tokenData.access_token),
+              refresh_token_encrypted: btoa(tokenData.refresh_token),
+              token_expires_at: expiresAt.toISOString(),
+              is_active: true,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', token.id);
+
+          if (!updateError) {
+            // Update our local token object
+            token.access_token_encrypted = btoa(tokenData.access_token);
+            token.token_expires_at = expiresAt.toISOString();
+            token.is_active = true;
+            console.log('🔄 Token updated successfully, new expiry:', expiresAt.toISOString());
+          } else {
+            console.error('🔄 Failed to update token in database:', updateError);
           }
+        } else {
+          const errorText = await tokenRefreshResponse.text();
+          console.log('🔄 Dexcom token refresh failed:', tokenRefreshResponse.status, errorText);
+          return NextResponse.json({
+            success: false,
+            error: 'Dexcom token has expired and refresh failed. Please reconnect your Dexcom account.',
+            expired: true
+          }, { status: 401 });
         }
       } catch (refreshError) {
-        console.warn('Token auto-refresh failed, continuing with existing token:', refreshError);
+        console.error('🔄 Token refresh error:', refreshError);
+        return NextResponse.json({
+          success: false,
+          error: 'Dexcom token has expired and refresh failed. Please reconnect your Dexcom account.',
+          expired: true
+        }, { status: 401 });
       }
     }
 
-    // If token is expired, return error
-    if (hoursUntilExpiration <= 0) {
-      await supabase.rpc('log_dexcom_operation', {
-        p_user_id: userId,
-        p_operation: 'sync',
-        p_sync_type: 'manual_sync',
-        p_status: 'error',
-        p_message: 'Token has expired'
-      });
-
-      return NextResponse.json({
-        success: false,
-        error: 'Dexcom token has expired. Please reconnect your Dexcom account.',
-        expired: true
-      }, { status: 401 });
-    }
-
-    // Call the Supabase Edge Function to sync glucose data
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-    if (!supabaseUrl || !supabaseServiceKey) {
-      return NextResponse.json({
-        success: false,
-        error: 'Supabase configuration missing'
-      }, { status: 500 });
-    }
-
-    console.log('🔄 Calling Edge Function:', `${supabaseUrl}/functions/v1/dexcom-sync`);
+    // Implement sync logic directly (bypass Edge Function)
+    console.log('🔄 Starting direct sync implementation');
     
-    const syncResponse = await fetch(`${supabaseUrl}/functions/v1/dexcom-sync`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${supabaseServiceKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ userId })
-    });
+    // Decrypt access token (simple base64 for demo)
+    const accessToken = atob(token.access_token_encrypted);
+    const apiBaseUrl = process.env.DEXCOM_API_BASE_URL || 'https://api.dexcom.com/v3';
+    
+    console.log('🔄 Using Dexcom API:', apiBaseUrl);
+    
+    // Get the last sync time (default to 24 hours ago)
+    const { data: lastReading } = await supabase
+      .from('glucose_readings')
+      .select('system_time')
+      .eq('user_id', userId)
+      .order('system_time', { ascending: false })
+      .limit(1)
+      .single();
 
-    console.log('🔄 Edge Function response status:', syncResponse.status);
-    console.log('🔄 Edge Function response headers:', Object.fromEntries(syncResponse.headers.entries()));
+    const startDate = lastReading?.system_time
+      ? new Date(lastReading.system_time)
+      : new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const endDate = new Date();
 
-    let syncResult;
+    // Format dates for Dexcom API
+    const startDateStr = startDate.toISOString().split('.')[0];
+    const endDateStr = endDate.toISOString().split('.')[0];
+    
+    console.log('🔄 Fetching glucose readings from', startDateStr, 'to', endDateStr);
+    
+    let glucoseReadings = 0;
+    
     try {
-      const responseText = await syncResponse.text();
-      console.log('🔄 Edge Function raw response:', responseText.substring(0, 500));
+      // Fetch glucose readings from Dexcom API
+      const egvsResponse = await fetch(
+        `${apiBaseUrl}/users/self/egvs?startDate=${startDateStr}&endDate=${endDateStr}`,
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      console.log('🔄 Dexcom API response status:', egvsResponse.status);
       
-      if (!responseText || responseText.trim() === '') {
-        throw new Error('Edge Function returned empty response');
+      if (egvsResponse.ok) {
+        const egvsData = await egvsResponse.json();
+        console.log('🔄 Dexcom API response data:', JSON.stringify(egvsData).substring(0, 500));
+
+        // Handle both array and object responses
+        let egvs = [];
+        if (Array.isArray(egvsData)) {
+          egvs = egvsData;
+        } else if (egvsData.egvs && Array.isArray(egvsData.egvs)) {
+          egvs = egvsData.egvs;
+        } else if (egvsData.records && Array.isArray(egvsData.records)) {
+          egvs = egvsData.records;
+        }
+
+        console.log('🔄 Processing', egvs.length, 'glucose readings');
+
+        for (const egv of egvs) {
+          try {
+            // Handle different possible value formats
+            let glucoseValue = egv.value;
+            if (typeof egv.value === 'object' && egv.value !== null) {
+              glucoseValue = egv.value['mg/dL'] || egv.value.mgdl || egv.value.value;
+            }
+
+            // Insert glucose reading (ON CONFLICT DO NOTHING handled by unique constraint)
+            const { error: insertError } = await supabase.from('glucose_readings').insert({
+              user_id: userId,
+              record_id: egv.recordId || egv.record_id || egv.id,
+              transmitter_id: egv.transmitterId || egv.transmitter_id || 'unknown',
+              transmitter_generation: egv.transmitterGeneration || egv.transmitter_generation,
+              value: glucoseValue,
+              unit: 'mg/dL',
+              trend: egv.trend,
+              trend_rate: egv.trendRate || egv.trend_rate,
+              rate_unit: egv.rateUnit || egv.rate_unit || 'mg/dL/min',
+              system_time: egv.systemTime || egv.system_time,
+              display_time: egv.displayTime || egv.display_time,
+              display_device: egv.displayDevice || egv.display_device,
+              display_app: egv.displayApp || egv.display_app,
+              transmitter_ticks: egv.transmitterTicks || egv.transmitter_ticks,
+              source: 'dexcom_api',
+            });
+
+            if (!insertError) {
+              glucoseReadings++;
+            }
+          } catch (error) {
+            // Likely a duplicate (record_id conflict), skip
+            console.log('🔄 Skipping duplicate reading:', egv.recordId || egv.record_id);
+          }
+        }
+      } else {
+        const errorText = await egvsResponse.text();
+        console.error('🔄 Dexcom API error:', egvsResponse.status, errorText);
+        
+        return NextResponse.json({
+          success: false,
+          error: `Dexcom API error: ${egvsResponse.status}`,
+          details: errorText.substring(0, 200)
+        }, { status: 502 });
       }
-      
-      syncResult = JSON.parse(responseText);
-      
-      // Ensure syncResult is not empty
-      if (!syncResult || Object.keys(syncResult).length === 0) {
-        throw new Error('Edge Function returned empty JSON object');
-      }
-      
-    } catch (parseError) {
-      console.error('🔄 Failed to parse Edge Function response:', parseError);
-      
-      const errorMessage = parseError instanceof Error ? parseError.message : String(parseError);
+    } catch (apiError) {
+      console.error('🔄 Error calling Dexcom API:', apiError);
       
       return NextResponse.json({
         success: false,
-        error: 'Edge Function returned invalid or empty response',
-        details: errorMessage,
-        httpStatus: syncResponse.status
-      }, { status: 500 });
+        error: 'Failed to connect to Dexcom API',
+        details: apiError instanceof Error ? apiError.message : 'Unknown error'
+      }, { status: 502 });
     }
 
-    console.log('🔄 Edge Function parsed result:', syncResult);
+    console.log('🔄 Sync completed successfully:', glucoseReadings, 'readings');
 
-    if (!syncResponse.ok || !syncResult.success) {
-      // Handle empty or malformed responses
-      const errorMessage = syncResult?.error || 
-                          (syncResponse.status === 500 ? 'Internal server error in Edge Function' : 
-                           syncResponse.status === 404 ? 'Edge Function not found' :
-                           syncResponse.status === 401 ? 'Unauthorized access to Edge Function' :
-                           `Edge Function failed with status ${syncResponse.status}`);
-      
-      // Log the sync failure
-      await supabase.rpc('log_dexcom_operation', {
-        p_user_id: userId,
-        p_operation: 'sync',
-        p_sync_type: 'manual_sync',
-        p_status: 'error',
-        p_message: errorMessage,
-        p_error_details: syncResult ? JSON.stringify(syncResult) : `HTTP ${syncResponse.status}`
-      });
-
-      return NextResponse.json({
-        success: false,
-        error: errorMessage,
-        details: syncResult?.details || `HTTP status: ${syncResponse.status}`,
-        httpStatus: syncResponse.status
-      }, { status: syncResponse.status });
-    }
-
-    // Log successful sync
-    await supabase.rpc('log_dexcom_operation', {
-      p_user_id: userId,
-      p_operation: 'sync',
-      p_sync_type: 'manual_sync',
-      p_status: 'success',
-      p_message: `Synced ${syncResult.glucose_readings || 0} glucose readings`
-    });
-
+    // Return successful result
     return NextResponse.json({
       success: true,
       message: 'Glucose data synced successfully',
-      glucose_readings: syncResult.glucose_readings || 0,
-      token_auto_refreshed: tokenAutoRefreshed,
+      glucose_readings: glucoseReadings,
       last_sync: new Date().toISOString()
     });
 
   } catch (error) {
-    console.error('Error syncing Dexcom data:', error);
+    console.error('🔄 Sync API error:', error);
     
-    // Try to log the error if we have user context
-    try {
-      const user = await getCurrentUser();
-      if (user) {
-        const supabase = await createClient();
-        await supabase.rpc('log_dexcom_operation', {
-          p_user_id: user.id,
-          p_operation: 'sync',
-          p_sync_type: 'manual_sync',
-          p_status: 'error',
-          p_message: 'Internal server error during sync',
-          p_error_details: error instanceof Error ? JSON.stringify({ message: error.message, stack: error.stack }) : null
-        });
-      }
-    } catch (logError) {
-      console.error('Failed to log sync error:', logError);
-    }
-
-    return NextResponse.json(
-      { 
-        success: false,
-        error: 'Internal server error',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
-    );
+    return NextResponse.json({
+      success: false,
+      error: 'Internal server error',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
 }

@@ -1,0 +1,9 @@
+Date,Time,Insulin Type,Dose (units),Injection Site,Notes
+2024-11-01,08:30,Humalog,12,Abdomen,Before breakfast
+2024-11-01,12:15,Humalog,8,Thigh,Before lunch
+2024-11-01,18:45,Humalog,10,Arm,Before dinner
+2024-11-01,22:00,Lantus,24,Abdomen,Bedtime dose
+2024-11-02,08:30,Rapid-Acting,11,Abdomen,Morning bolus
+2024-11-02,12:00,NovoLog,9,Thigh,Lunch bolus
+2024-11-02,19:00,Apidra,12,Arm,Dinner bolus
+2024-11-02,22:00,Long-Acting,24,Abdomen,Basal dose

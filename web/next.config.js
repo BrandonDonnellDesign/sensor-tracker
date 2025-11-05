@@ -91,6 +91,17 @@ const nextConfig = {
     return config;
   },
   
+  // Redirects
+  async redirects() {
+    return [
+      {
+        source: '/docs/simple',
+        destination: '/docs',
+        permanent: true,
+      },
+    ];
+  },
+  
   // Headers for caching
   async headers() {
     return [
