@@ -6,7 +6,18 @@ export async function POST(request: NextRequest) {
   console.log('🔄 Request method:', request.method);
   console.log('🔄 Request headers:', Object.fromEntries(request.headers.entries()));
   
+  // Ensure we return JSON even on early errors
   try {
+    // Check required environment variables
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      console.error('🔄 Missing Supabase environment variables');
+      return NextResponse.json({
+        success: false,
+        error: 'Server configuration error',
+        details: 'Missing required environment variables'
+      }, { status: 500 });
+    }
+
     const supabase = await createClient();
     
     // Get user from Supabase auth
@@ -292,6 +303,25 @@ export async function POST(request: NextRequest) {
       success: false,
       error: 'Internal server error',
       details: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 });
+    }, { 
+      status: 500,
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    });
   }
+}
+
+// Also handle GET requests to prevent HTML responses
+export async function GET() {
+  return NextResponse.json({
+    success: false,
+    error: 'Method not allowed',
+    details: 'This endpoint only accepts POST requests'
+  }, { 
+    status: 405,
+    headers: {
+      'Content-Type': 'application/json',
+    }
+  });
 }

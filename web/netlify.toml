@@ -5,23 +5,18 @@
 [build.environment]
   NODE_VERSION = "18"
 
-# Scheduled Functions Configuration
+# Next.js Plugin Configuration
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
-# Environment variables for scheduled functions
+# Environment variables for production
 [context.production.environment]
   NODE_ENV = "production"
 
-# Function settings
+# Function settings for Netlify functions (not Next.js API routes)
 [functions]
   node_bundler = "esbuild"
-
-# Redirects for API routes
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/:splat"
-  status = 200
+  directory = "netlify/functions"
 
 # Headers for security
 [[headers]]
