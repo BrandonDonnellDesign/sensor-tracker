@@ -295,7 +295,7 @@ export function SmartCalculator({
           <div className="border-t border-gray-200 dark:border-gray-700" />
 
           {/* Input Fields */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label htmlFor="carbs" className="text-sm font-medium">Carbohydrates</Label>
               <div className="relative">
@@ -307,7 +307,7 @@ export function SmartCalculator({
                   value={carbs || ''}
                   onChange={(e) => setCarbs(Number(e.target.value) || 0)}
                   placeholder="0"
-                  className="pr-12 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-2"
+                  className="pr-12 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-2 h-12 text-lg"
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">g</span>
               </div>
@@ -324,7 +324,7 @@ export function SmartCalculator({
                   value={targetGlucose || ''}
                   onChange={(e) => setTargetGlucose(Number(e.target.value) || 100)}
                   placeholder="100"
-                  className="pr-16 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-2"
+                  className="pr-16 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-2 h-12 text-lg"
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">mg/dL</span>
               </div>
@@ -455,7 +455,7 @@ export function SmartCalculator({
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
-          <div className="grid grid-cols-4 gap-1 text-center">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 text-center">
             <div className="p-1.5 bg-blue-50 dark:bg-blue-900/20 rounded border">
               <div className="text-xs font-semibold text-blue-600 dark:text-blue-400">
                 1:{settings.insulinToCarb}

@@ -29,6 +29,8 @@ import {
   UtensilsCrossed,
   MessageSquare,
   TrendingUp,
+  Syringe,
+  Package,
 } from 'lucide-react';
 import { NotificationsButton } from '@/components/dashboard/notifications-button';
 
@@ -40,23 +42,38 @@ const primaryNavigation = [
     description: 'Overview & insights',
   },
   {
+    name: 'Glucose Data',
+    href: '/dashboard/glucose-data',
+    icon: TrendingUp,
+    description: 'CGM readings & predictions',
+    badge: 'ENHANCED',
+  },
+  {
     name: 'My Sensors',
     href: '/dashboard/sensors',
     icon: Activity,
     description: 'Manage your sensors',
   },
   {
+    name: 'Insulin Tracking',
+    href: '/dashboard/insulin',
+    icon: Syringe,
+    description: 'Doses & calculator',
+    badge: 'NEW',
+  },
+  {
+    name: 'Replacement Tracking',
+    href: '/dashboard/replacement-tracking',
+    icon: Package,
+    description: 'Track shipments',
+    badge: 'NEW',
+  },
+  {
     name: 'Food Log',
     href: '/dashboard/food',
     icon: UtensilsCrossed,
-    description: 'Track meals & carbs',
-    badge: 'BETA',
-  },
-  {
-    name: 'Glucose Data',
-    href: '/dashboard/glucose-data',
-    icon: TrendingUp,
-    description: 'CGM readings & sync',
+    description: 'Meals + insulin calc',
+    badge: 'SMART',
   },
   {
     name: 'Analytics',

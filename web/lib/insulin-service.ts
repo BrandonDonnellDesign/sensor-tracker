@@ -125,21 +125,21 @@ export async function getInsulinDoses(
   userId: string,
   startDate?: Date,
   endDate?: Date
-): Promise<InsulinDoseWithContext[]> {
+): Promise<any[]> {
   const supabase = createClient();
   
   let query = (supabase as any)
-    .from('insulin_doses_with_cgm')
+    .from('insulin_logs')
     .select('*')
     .eq('user_id', userId)
-    .order('dosed_at', { ascending: false });
+    .order('taken_at', { ascending: false });
   
   if (startDate) {
-    query = query.gte('dosed_at', startDate.toISOString());
+    query = query.gte('taken_at', startDate.toISOString());
   }
   
   if (endDate) {
-    query = query.lte('dosed_at', endDate.toISOString());
+    query = query.lte('taken_at', endDate.toISOString());
   }
   
   const { data, error } = await query;

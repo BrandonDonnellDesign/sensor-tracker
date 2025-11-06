@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { useInsulinData } from '@/lib/hooks/use-insulin-data';
+import { useCalculatorSettings } from '@/lib/hooks/use-calculator-settings';
 import { 
   Clock, 
   Activity, 
@@ -20,46 +21,78 @@ interface IOBTrackerProps {
 }
 
 export function IOBTracker({ className = '' }: IOBTrackerProps) {
-  const { doses, isLoading } = useInsulinData();
+  const { doses, isLoading: insulinLoading } = useInsulinData();
+  const { settings, isLoading: settingsLoading } = useCalculatorSettings();
   const now = new Date();
+  
+  const isLoading = insulinLoading || settingsLoading;
 
-  // Calculate IOB for each dose
+
+
+
+
+  // Calculate IOB for each dose using user's insulin settings
   const doseAnalysis = useMemo(() => {
     return doses.map(dose => {
       const hoursElapsed = (now.getTime() - dose.timestamp.getTime()) / (1000 * 60 * 60);
       
+      // Get duration from user settings based on insulin type
+      const duration = dose.type === 'rapid' ? settings.rapidActingDuration : 
+                     dose.type === 'short' ? settings.shortActingDuration :
+                     dose.type === 'intermediate' ? 12 : // Default for intermediate
+                     dose.type === 'long' ? 24 : // Default for long-acting
+                     settings.rapidActingDuration; // Default to rapid-acting duration
+      
       let remainingPercentage = 0;
       let activityLevel = 0;
       
-      if (hoursElapsed < dose.duration) {
-        // Enhanced decay model based on insulin type
+      if (hoursElapsed < duration && hoursElapsed >= 0) {
+        // Enhanced decay model based on insulin type and user settings
         switch (dose.type) {
           case 'rapid':
-            // Rapid acting: peaks at 1-2 hours, duration 3-5 hours
-            if (hoursElapsed <= 1.5) {
-              remainingPercentage = 1 - (hoursElapsed * 0.2); // 20% decay in first 1.5 hours
-              activityLevel = Math.min(1, hoursElapsed / 1.5); // Peak at 1.5 hours
+            // Rapid acting: peaks at 1-2 hours, uses user's duration setting
+            const rapidPeakTime = Math.min(1.5, duration * 0.375); // Peak at ~37.5% of duration
+            if (hoursElapsed <= rapidPeakTime) {
+              remainingPercentage = 1 - (hoursElapsed * (0.3 / rapidPeakTime)); // 30% decay to peak
+              activityLevel = Math.min(1, hoursElapsed / rapidPeakTime);
             } else {
-              remainingPercentage = 0.7 * Math.exp(-(hoursElapsed - 1.5) / 1.5);
+              const decayRate = 1.5 / (duration - rapidPeakTime); // Exponential decay rate
+              remainingPercentage = 0.7 * Math.exp(-(hoursElapsed - rapidPeakTime) * decayRate);
               activityLevel = remainingPercentage;
             }
             break;
             
           case 'short':
-            // Short acting: peaks at 2-4 hours, duration 5-8 hours
-            if (hoursElapsed <= 3) {
-              remainingPercentage = 1 - (hoursElapsed * 0.15);
-              activityLevel = Math.min(1, hoursElapsed / 3);
+            // Short acting: peaks at ~50% of duration, uses user's duration setting
+            const shortPeakTime = duration * 0.5;
+            if (hoursElapsed <= shortPeakTime) {
+              remainingPercentage = 1 - (hoursElapsed * (0.25 / shortPeakTime)); // 25% decay to peak
+              activityLevel = Math.min(1, hoursElapsed / shortPeakTime);
             } else {
-              remainingPercentage = 0.55 * Math.exp(-(hoursElapsed - 3) / 2.5);
+              const decayRate = 1.0 / (duration - shortPeakTime);
+              remainingPercentage = 0.75 * Math.exp(-(hoursElapsed - shortPeakTime) * decayRate);
               activityLevel = remainingPercentage;
             }
             break;
             
-          default:
-            // Linear decay for other types
-            remainingPercentage = Math.max(0, (dose.duration - hoursElapsed) / dose.duration);
+          case 'intermediate':
+          case 'long':
+            // Linear decay for longer-acting insulins
+            remainingPercentage = Math.max(0, (duration - hoursElapsed) / duration);
             activityLevel = remainingPercentage;
+            break;
+            
+          default:
+            // Default to rapid-acting behavior with user's rapid duration
+            const defaultPeakTime = Math.min(1.5, settings.rapidActingDuration * 0.375);
+            if (hoursElapsed <= defaultPeakTime) {
+              remainingPercentage = 1 - (hoursElapsed * (0.3 / defaultPeakTime));
+              activityLevel = Math.min(1, hoursElapsed / defaultPeakTime);
+            } else {
+              const decayRate = 1.5 / (settings.rapidActingDuration - defaultPeakTime);
+              remainingPercentage = 0.7 * Math.exp(-(hoursElapsed - defaultPeakTime) * decayRate);
+              activityLevel = remainingPercentage;
+            }
         }
       }
       
@@ -67,13 +100,14 @@ export function IOBTracker({ className = '' }: IOBTrackerProps) {
       
       return {
         ...dose,
+        duration, // Use calculated duration from user settings
         hoursElapsed: Math.round(hoursElapsed * 10) / 10,
         remainingInsulin: Math.round(remainingInsulin * 100) / 100,
         activityLevel: Math.round(activityLevel * 100) / 100,
         isActive: remainingInsulin > 0.1
       };
     }).filter(dose => dose.isActive);
-  }, [doses, now]);
+  }, [doses, now, settings.rapidActingDuration, settings.shortActingDuration]);
 
   // Calculate total IOB
   const totalIOB = useMemo(() => {
@@ -141,6 +175,8 @@ export function IOBTracker({ className = '' }: IOBTrackerProps) {
             <Activity className="w-12 h-12 mx-auto mb-4 opacity-50" />
             <p>No active insulin doses</p>
             <p className="text-sm">IOB tracking will appear here after insulin doses</p>
+            
+
           </div>
         </CardContent>
       </Card>
@@ -150,37 +186,42 @@ export function IOBTracker({ className = '' }: IOBTrackerProps) {
   return (
     <Card className={className}>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Droplets className="w-5 h-5" />
-          Insulin on Board (IOB)
+        <CardTitle className="flex items-center gap-2 justify-between">
+          <div className="flex items-center gap-2">
+            <Droplets className="w-5 h-5" />
+            Insulin on Board (IOB)
+          </div>
+          <div className="text-xs text-gray-500 dark:text-gray-400 font-normal">
+            Rapid: {settings.rapidActingDuration}h | Short: {settings.shortActingDuration}h
+          </div>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* IOB Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-            <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">
+        <div className="grid grid-cols-3 gap-2 sm:gap-4">
+          <div className="text-center p-2 sm:p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+            <div className="text-xl sm:text-3xl font-bold text-blue-600 dark:text-blue-400">
               {totalIOB}
             </div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">
+            <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
               Total IOB (units)
             </div>
           </div>
           
-          <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
-            <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+          <div className="text-center p-2 sm:p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
+            <div className="text-lg sm:text-2xl font-bold text-green-600 dark:text-green-400">
               {doseAnalysis.length}
             </div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">
+            <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
               Active Doses
             </div>
           </div>
           
-          <div className="text-center p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
-            <div className="text-lg font-bold text-orange-600 dark:text-orange-400">
+          <div className="text-center p-2 sm:p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
+            <div className="text-sm sm:text-lg font-bold text-orange-600 dark:text-orange-400">
               {peakActivity ? `${Math.round(peakActivity.activityLevel * 100)}%` : '0%'}
             </div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">
+            <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
               Peak Activity
             </div>
           </div>
@@ -195,20 +236,20 @@ export function IOBTracker({ className = '' }: IOBTrackerProps) {
           
           <div className="space-y-3">
             {doseAnalysis.map((dose) => (
-              <div key={dose.id} className="border rounded-lg p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
+              <div key={dose.id} className="border rounded-lg p-3 sm:p-4 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
                     <Badge className={getInsulinTypeColor(dose.type)}>
                       {dose.type.toUpperCase()}
                     </Badge>
-                    <span className="font-medium">{dose.amount} units</span>
-                    <span className="text-sm text-gray-500">
+                    <span className="font-medium text-sm sm:text-base">{dose.amount} units</span>
+                    <span className="text-xs sm:text-sm text-gray-500">
                       at {formatTime(dose.timestamp)}
                     </span>
                   </div>
                   
-                  <div className="text-right">
-                    <div className="font-semibold text-blue-600 dark:text-blue-400">
+                  <div className="text-left sm:text-right">
+                    <div className="font-semibold text-blue-600 dark:text-blue-400 text-sm sm:text-base">
                       {dose.remainingInsulin} units
                     </div>
                     <div className="text-xs text-gray-500">

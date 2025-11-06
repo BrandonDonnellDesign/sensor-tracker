@@ -17,6 +17,8 @@ import { GlucoseExportDialog } from '@/components/glucose/glucose-export-dialog'
 import { AdvancedAnalytics } from '@/components/glucose/advanced-analytics';
 import { PredictiveAnalytics } from '@/components/glucose/predictive-analytics';
 import { PatternInsights } from '@/components/glucose/pattern-insights';
+import { IOBTracker } from '@/components/insulin/iob-tracker';
+import { GlucosePredictor } from '@/components/glucose/glucose-predictor';
 import { toast } from 'sonner';
 
 interface GlucoseReading {
@@ -490,6 +492,11 @@ export default function GlucoseDataPage() {
         </div>
       </div>
 
+      {/* IOB Tracker */}
+      <div className="mb-6">
+        <IOBTracker className="bg-slate-800/30 border-slate-700/30" />
+      </div>
+
       {/* Main Content Tabs */}
       <div className="bg-slate-800/30 rounded-xl border border-slate-700/30 overflow-hidden">
         <Tabs defaultValue="chart" className="w-full">
@@ -505,10 +512,13 @@ export default function GlucoseDataPage() {
                 Analytics
               </TabsTrigger>
               <TabsTrigger value="predictions" className="data-[state=active]:bg-slate-600 data-[state=active]:text-white">
-                Predictions
+                Predictions & Safety
               </TabsTrigger>
               <TabsTrigger value="patterns" className="data-[state=active]:bg-slate-600 data-[state=active]:text-white">
                 Patterns
+              </TabsTrigger>
+              <TabsTrigger value="iob" className="data-[state=active]:bg-slate-600 data-[state=active]:text-white">
+                IOB Details
               </TabsTrigger>
               <TabsTrigger value="readings" className="data-[state=active]:bg-slate-600 data-[state=active]:text-white">
                 All Readings
@@ -545,7 +555,20 @@ export default function GlucoseDataPage() {
             <AdvancedAnalytics readings={readings} loading={loading} />
           </TabsContent>
 
-          <TabsContent value="predictions" className="p-4">
+          <TabsContent value="predictions" className="p-4 space-y-6">
+            {/* Real-time Safety Monitoring */}
+            <div className="bg-gradient-to-br from-green-900/20 to-emerald-900/20 border border-green-800/30 rounded-xl p-4">
+              <h3 className="text-lg font-semibold text-green-300 mb-4 flex items-center gap-2">
+                <RefreshCw className="w-5 h-5" />
+                Real-time Safety Monitoring
+              </h3>
+              <GlucosePredictor 
+                autoRefresh={true}
+                refreshInterval={300}
+              />
+            </div>
+            
+            {/* Advanced Predictive Analytics */}
             <PredictiveAnalytics readings={readings} loading={loading} />
           </TabsContent>
 
@@ -556,6 +579,10 @@ export default function GlucoseDataPage() {
               insulinLogs={insulinLogs}
               loading={loading} 
             />
+          </TabsContent>
+
+          <TabsContent value="iob" className="p-4">
+            <IOBTracker />
           </TabsContent>
 
           <TabsContent value="readings" className="p-4">

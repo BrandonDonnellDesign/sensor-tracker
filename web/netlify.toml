@@ -1,24 +1,38 @@
 [build]
   command = "npm run build"
-  functions = "netlify/functions"
   publish = ".next"
 
 [build.environment]
-  NETLIFY_NEXT_PLUGIN_SKIP = "true"
+  NODE_VERSION = "18"
 
+# Scheduled Functions Configuration
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
-[functions]
-  # Enable scheduled functions
-  schedule = true
-
 # Environment variables for scheduled functions
 [context.production.environment]
-  # Add your CRON_SECRET in Netlify dashboard
+  NODE_ENV = "production"
 
-# Redirects for API routes (if needed)
+# Function settings
+[functions]
+  node_bundler = "esbuild"
+
+# Redirects for API routes
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
   status = 200
+
+# Headers for security
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+# Scheduled function specific settings
+[[headers]]
+  for = "/.netlify/functions/scheduled-notifications"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"

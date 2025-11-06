@@ -15,14 +15,16 @@ import { CompactGamification } from '@/components/dashboard/compact-gamification
 import { StreamlinedQuickActions } from '@/components/dashboard/streamlined-quick-actions';
 import { DashboardSkeleton } from '@/components/dashboard/dashboard-skeleton';
 
+
 // Mobile-optimized components
 import { MobileDashboard } from '@/components/dashboard/mobile-dashboard';
 import { WelcomeFlow } from '@/components/dashboard/welcome-flow';
 
 // AI-powered components
 import { AIInsightsPanel } from '@/components/dashboard/ai-insights-panel';
-import { SmartNotificationBar } from '@/components/dashboard/smart-notification-bar';
-import { useSmartNotifications } from '@/lib/notifications/smart-notifications';
+import { RealtimeNotificationProvider } from '@/components/notifications/realtime-notification-provider';
+import { DashboardNotifications } from '@/components/dashboard/dashboard-with-notifications';
+import { useInsulinData } from '@/lib/hooks/use-insulin-data';
 
 // Community components
 import { PerformanceComparison } from '@/components/community/performance-comparison';
@@ -43,6 +45,7 @@ type Sensor = Database['public']['Tables']['sensors']['Row'] & {
 export default function DashboardPage() {
   const { user } = useAuth();
   const { userAchievements } = useGamification();
+  const { doses: insulinDoses, currentGlucose, recentReadings } = useInsulinData();
   const [sensors, setSensors] = useState<Sensor[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -50,6 +53,7 @@ export default function DashboardPage() {
   const [adminError, setAdminError] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
+  const [recentFoodLogs, setRecentFoodLogs] = useState<any[]>([]);
 
   // Check for admin access errors from middleware
   useEffect(() => {
@@ -135,13 +139,33 @@ export default function DashboardPage() {
     [user?.id]
   );
 
+  // Fetch recent food logs for notifications
+  const fetchRecentFoodLogs = useCallback(async () => {
+    if (!user?.id) return;
+    
+    try {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from('food_logs')
+        .select('id, logged_at, total_carbs_g')
+        .eq('user_id', user.id)
+        .gte('logged_at', new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString()) // Last 6 hours
+        .order('logged_at', { ascending: false });
+      
+      setRecentFoodLogs(data || []);
+    } catch (error) {
+      console.error('Error fetching recent food logs:', error);
+    }
+  }, [user?.id]);
+
   useEffect(() => {
     if (user) {
       fetchSensors();
+      fetchRecentFoodLogs();
     } else {
       setLoading(false);
     }
-  }, [user, fetchSensors]);
+  }, [user, fetchSensors, fetchRecentFoodLogs]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -245,13 +269,23 @@ export default function DashboardPage() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [fetchSensors]);
 
-  // Calculate dashboard metrics
-  const totalSensors = sensors.length;
-  const problematicSensors = sensors.filter((s) => s.is_problematic).length;
+  // Filter out expired sensors for dashboard display
+  const activeSensorsData = sensors.filter((s) => {
+    const sensorModel = s.sensor_models || { duration_days: 10 };
+    const expirationDate = new Date(s.date_added);
+    expirationDate.setDate(
+      expirationDate.getDate() + sensorModel.duration_days
+    );
+    return expirationDate > new Date(); // Only show non-expired sensors
+  });
+
+  // Calculate dashboard metrics (using only active sensors)
+  const totalSensors = activeSensorsData.length;
+  const problematicSensors = activeSensorsData.filter((s) => s.is_problematic).length;
 
 
-  // Calculate this month's sensors
-  const thisMonthSensors = sensors.filter((s) => {
+  // Calculate this month's sensors (using active sensors only)
+  const thisMonthSensors = activeSensorsData.filter((s) => {
     const sensorDate = new Date(s.date_added);
     const now = new Date();
     return (
@@ -260,7 +294,7 @@ export default function DashboardPage() {
     );
   }).length;
 
-  // Calculate last month's sensors for trend
+  // Calculate last month's sensors for trend (using all sensors for historical data)
   const lastMonthSensors = sensors.filter((s) => {
     const sensorDate = new Date(s.date_added);
     const now = new Date();
@@ -281,15 +315,8 @@ export default function DashboardPage() {
       ? ((totalSensors - problematicSensors) / totalSensors) * 100
       : 0;
 
-  // Calculate active sensors (not expired)
-  const activeSensors = sensors.filter((s) => {
-    const sensorModel = s.sensor_models || { duration_days: 10 };
-    const expirationDate = new Date(s.date_added);
-    expirationDate.setDate(
-      expirationDate.getDate() + sensorModel.duration_days
-    );
-    return expirationDate > new Date() && !s.is_problematic;
-  }).length;
+  // Calculate active sensors (not expired and not problematic)
+  const activeSensors = activeSensorsData.filter((s) => !s.is_problematic).length;
 
   // Calculate real average duration
   const calculateAverageDuration = () => {
@@ -334,15 +361,8 @@ export default function DashboardPage() {
 
   const averageDuration = calculateAverageDuration();
 
-  // Find current active sensor
-  const currentSensor = sensors.find((s) => {
-    const sensorModel = s.sensor_models || { duration_days: 10 };
-    const expirationDate = new Date(s.date_added);
-    expirationDate.setDate(
-      expirationDate.getDate() + sensorModel.duration_days
-    );
-    return expirationDate > new Date() && !s.is_problematic;
-  });
+  // Find current active sensor (from filtered active sensors)
+  const currentSensor = activeSensorsData.find((s) => !s.is_problematic);
 
   // Prepare stats for enhanced grid
   const statsData = {
@@ -355,20 +375,34 @@ export default function DashboardPage() {
     thisMonthSensors
   };
 
-  // Prepare data for AI insights
+  // Prepare data for AI insights (using active sensors)
   const { userStats } = useGamification();
   const insightData = {
-    sensors,
+    sensors: activeSensorsData,
     userAchievements: userAchievements || [],
     userStats
   };
 
-  // Get smart notifications
-  const { notifications, dismissNotification } = useSmartNotifications({
-    sensors,
+  // Prepare notification data for combined system
+  const notificationData = {
+    sensors: activeSensorsData,
     userStats,
-    currentTime: new Date()
-  });
+    insulinDoses: insulinDoses.map(dose => ({
+      id: dose.id,
+      amount: dose.amount,
+      type: dose.type,
+      timestamp: dose.timestamp,
+      duration: dose.duration
+    })),
+    ...(currentGlucose && { currentGlucose }),
+    glucoseReadings: recentReadings.map(reading => ({
+      id: reading.id,
+      value: reading.value,
+      timestamp: reading.timestamp,
+      trend: reading.trend || undefined
+    })),
+    foodLogs: recentFoodLogs
+  };
 
   // Handle welcome flow completion
   const handleWelcomeComplete = () => {
@@ -393,8 +427,9 @@ export default function DashboardPage() {
   // Mobile-optimized dashboard
   if (isMobile) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
-        <div className="p-4">
+      <RealtimeNotificationProvider>
+        <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
+          <div className="p-4">
           {/* Admin Access Error */}
           {adminError && (
             <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-4 text-center mb-6">
@@ -421,10 +456,9 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* Smart Notifications */}
-          <SmartNotificationBar 
-            notifications={notifications}
-            onDismiss={dismissNotification}
+          {/* Combined Notifications (Smart + WebSocket) */}
+          <DashboardNotifications 
+            {...notificationData}
             maxVisible={1}
           />
 
@@ -432,13 +466,15 @@ export default function DashboardPage() {
           <MobileDashboard />
         </div>
       </div>
+      </RealtimeNotificationProvider>
     );
   }
 
   // Desktop dashboard
   return (
-    <div className="min-h-screen">
-      <div>
+    <RealtimeNotificationProvider>
+      <div className="min-h-screen">
+        <div>
         {/* Admin Access Error */}
         {adminError && (
           <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-4 text-center mb-6">
@@ -465,10 +501,9 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Smart Notifications */}
-        <SmartNotificationBar 
-          notifications={notifications}
-          onDismiss={dismissNotification}
+        {/* Combined Notifications (Smart + WebSocket) */}
+        <DashboardNotifications 
+          {...notificationData}
           maxVisible={2}
         />
 
@@ -482,6 +517,8 @@ export default function DashboardPage() {
 
         {/* Enhanced Stats Grid */}
         <EnhancedStatsGrid stats={statsData} />
+
+
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
@@ -506,15 +543,15 @@ export default function DashboardPage() {
 
             {/* Activity Timeline */}
             <ActivityTimeline 
-              sensors={sensors}
+              sensors={activeSensorsData}
               userAchievements={userAchievements || []}
             />
 
             {/* Quick Insights */}
-            <QuickInsights sensors={sensors} />
+            <QuickInsights sensors={activeSensorsData} />
 
             {/* Community Tips */}
-            {sensors.length > 0 && (
+            {activeSensorsData.length > 0 && (
               <CommunityTips />
             )}
           </div>
@@ -567,7 +604,8 @@ export default function DashboardPage() {
             </div>
           </div>
         )}
+        </div>
       </div>
-    </div>
+    </RealtimeNotificationProvider>
   );
 }

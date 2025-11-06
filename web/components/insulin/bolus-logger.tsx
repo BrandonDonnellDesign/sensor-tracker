@@ -135,7 +135,7 @@ export function BolusLogger() {
               {/* Quick Unit Buttons */}
               <div>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Quick amounts:</p>
-                <div className="grid grid-cols-5 gap-2">
+                <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
                   {quickUnits.map(unit => (
                     <Button
                       key={unit}
@@ -143,7 +143,7 @@ export function BolusLogger() {
                       variant="outline"
                       size="sm"
                       onClick={() => setFormData(prev => ({ ...prev, units: unit.toString() }))}
-                      className="text-sm font-medium"
+                      className="text-sm font-medium h-10"
                     >
                       {unit}u
                     </Button>

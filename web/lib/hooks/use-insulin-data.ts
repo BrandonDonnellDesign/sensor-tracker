@@ -50,7 +50,7 @@ export function useInsulinData(): UseInsulinDataReturn {
         amount: parseFloat(dose.amount),
         type: dose.type || 'rapid',
         timestamp: new Date(dose.timestamp),
-        duration: getDurationByType(dose.type || 'rapid'),
+        duration: 0, // Will be set by IOB tracker using user settings
         mealCarbs: dose.meal_carbs ? parseFloat(dose.meal_carbs) : undefined,
         preGlucose: dose.pre_glucose ? parseFloat(dose.pre_glucose) : undefined,
         postGlucose: dose.post_glucose ? parseFloat(dose.post_glucose) : undefined,
@@ -122,7 +122,7 @@ export function useInsulinData(): UseInsulinDataReturn {
 }
 
 // Helper function to get insulin duration by type
-function getDurationByType(type: string): number {
+export function getDurationByType(type: string): number {
   switch (type) {
     case 'rapid':
       return 4; // 3-5 hours

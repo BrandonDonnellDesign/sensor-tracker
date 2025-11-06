@@ -6,7 +6,8 @@ import {
   Home, 
   Activity, 
   UtensilsCrossed,
-  Syringe
+  Syringe,
+  Package
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -35,6 +36,12 @@ const navItems = [
     icon: Syringe,
     activePattern: /^\/dashboard\/insulin/
   },
+  {
+    name: 'Tracking',
+    href: '/dashboard/replacement-tracking',
+    icon: Package,
+    activePattern: /^\/dashboard\/replacement-tracking/
+  },
 
 ];
 
@@ -54,18 +61,18 @@ export function MobileBottomNav() {
                 key={item.name}
                 href={item.href}
                 className={cn(
-                  'flex flex-col items-center justify-center px-3 py-2 rounded-xl transition-all duration-200',
-                  'min-w-[60px] min-h-[60px]',
+                  'flex flex-col items-center justify-center px-2 py-2 rounded-xl transition-all duration-200',
+                  'min-w-[64px] min-h-[64px] touch-manipulation',
                   isActive
                     ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
                     : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700'
                 )}
               >
                 <Icon className={cn(
-                  'transition-all duration-200 w-5 h-5',
+                  'transition-all duration-200 w-6 h-6',
                   isActive && 'scale-110'
                 )} />
-                <span className="text-xs font-medium mt-1">
+                <span className="text-xs font-medium mt-1 leading-tight">
                   {item.name}
                 </span>
               </Link>

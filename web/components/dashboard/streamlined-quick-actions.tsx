@@ -71,7 +71,21 @@ export function StreamlinedQuickActions({
           </Link>
         </div>
         
-        <div className='grid grid-cols-1 gap-4'>
+        <div className='grid grid-cols-2 gap-4'>
+          <Link
+            href='/dashboard/replacement-tracking'
+            className='flex flex-col items-center justify-center p-4 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-xl transition-all duration-200 group border border-blue-200 dark:border-blue-800 hover:border-blue-300 dark:hover:border-blue-700'>
+            <svg className='w-6 h-6 text-blue-600 dark:text-blue-400 group-hover:text-blue-700 dark:group-hover:text-blue-300 mb-2 transition-colors' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+              <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M9 1v6m6-6v6' />
+            </svg>
+            <span className='text-sm font-medium text-gray-900 dark:text-slate-100 mb-1'>
+              Track Shipments
+            </span>
+            <span className='text-xs text-gray-500 dark:text-slate-500'>
+              Replacements
+            </span>
+          </Link>
+          
           <Link
             href='/dashboard/analytics'
             className='flex flex-col items-center justify-center p-4 bg-gray-50 dark:bg-slate-700/50 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-xl transition-all duration-200 group border border-gray-200 dark:border-slate-600 hover:border-gray-300 dark:hover:border-slate-500'>

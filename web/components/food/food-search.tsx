@@ -1,9 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { Search, Barcode, Loader2, ShoppingCart, Plus, Heart, Camera } from 'lucide-react';
+import { Search, Barcode, Loader2, ShoppingCart, Plus, Heart, Camera, Syringe } from 'lucide-react';
 import { BarcodeScanner } from './barcode-scanner';
 import { FoodLogForm } from './food-log-form';
+import { IntegratedMealLogger } from './integrated-meal-logger';
 import { MultiFoodLogForm } from './multi-food-log-form';
 import { CustomFoodForm } from './custom-food-form';
 import { FavoritesList } from './favorites-list';
@@ -28,6 +29,7 @@ export function FoodSearch({ onFoodLogged }: FoodSearchProps) {
   const [showScanner, setShowScanner] = useState(false);
   const [searchMode, setSearchMode] = useState<SearchMode>('search');
   const [showPermissionDialog, setShowPermissionDialog] = useState(false);
+  const [useIntegratedLogger, setUseIntegratedLogger] = useState(true);
 
   const { permission, requestPermission, hasCamera, isLoading: permissionLoading, error: permissionError } = useCameraPermission();
 
@@ -123,19 +125,34 @@ export function FoodSearch({ onFoodLogged }: FoodSearchProps) {
   }
 
   if (selectedFood) {
-    return (
-      <FoodLogForm
-        food={selectedFood}
-        onCancel={() => {
-          setSelectedFood(null);
-          setSearchResults([]);
-          setSearchQuery('');
-          setBarcode('');
-        }}
-        onSuccess={onFoodLogged}
-        onAddToMeal={handleAddToMeal}
-      />
-    );
+    if (useIntegratedLogger) {
+      return (
+        <IntegratedMealLogger
+          food={selectedFood}
+          onCancel={() => {
+            setSelectedFood(null);
+            setSearchResults([]);
+            setSearchQuery('');
+            setBarcode('');
+          }}
+          onSuccess={onFoodLogged}
+        />
+      );
+    } else {
+      return (
+        <FoodLogForm
+          food={selectedFood}
+          onCancel={() => {
+            setSelectedFood(null);
+            setSearchResults([]);
+            setSearchQuery('');
+            setBarcode('');
+          }}
+          onSuccess={onFoodLogged}
+          onAddToMeal={handleAddToMeal}
+        />
+      );
+    }
   }
 
   if (searchMode === 'custom') {
@@ -192,6 +209,36 @@ export function FoodSearch({ onFoodLogged }: FoodSearchProps) {
           </div>
         </div>
       )}
+
+      {/* Logging Mode Toggle */}
+      <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-3 mb-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Syringe className="w-4 h-4 text-orange-600" />
+            <span className="text-sm font-medium text-orange-800 dark:text-orange-200">
+              Smart Meal + Insulin Logging
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="useIntegrated"
+              checked={useIntegratedLogger}
+              onChange={(e) => setUseIntegratedLogger(e.target.checked)}
+              className="rounded"
+            />
+            <label htmlFor="useIntegrated" className="text-xs text-orange-700 dark:text-orange-300">
+              Auto-calculate insulin
+            </label>
+          </div>
+        </div>
+        <p className="text-xs text-orange-700 dark:text-orange-300 mt-1">
+          {useIntegratedLogger 
+            ? 'Automatically calculates and logs insulin based on carbs and current glucose'
+            : 'Log food only without insulin calculation'
+          }
+        </p>
+      </div>
 
       {/* Mode Toggle */}
       <div className="grid grid-cols-4 gap-2">

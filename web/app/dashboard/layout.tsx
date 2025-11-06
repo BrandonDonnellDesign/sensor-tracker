@@ -3,6 +3,7 @@ import { ProtectedRoute } from '@/components/auth/protected-route';
 import { AchievementNotificationContainer } from '@/components/gamification/achievement-notification-container';
 import { ResponsiveHeader } from '@/components/navigation/responsive-header';
 import { MobileBottomNav } from '@/components/navigation/mobile-bottom-nav';
+import { ToastProvider } from '@/components/notifications/toast-provider';
 
 export default function DashboardLayout({
   children,
@@ -24,8 +25,8 @@ export default function DashboardLayout({
         
         {/* Main Content */}
         <div className="lg:pl-72 pb-20 lg:pb-0">
-          <main className="lg:py-6">
-            <div className="mx-auto max-w-7xl lg:px-6">
+          <main className="py-4 lg:py-6">
+            <div className="mx-auto max-w-7xl px-4 lg:px-6">
               {children}
             </div>
           </main>
@@ -35,6 +36,7 @@ export default function DashboardLayout({
         <MobileBottomNav />
         
         <AchievementNotificationContainer />
+        <ToastProvider />
       </div>
     </ProtectedRoute>
   );

@@ -1,7 +1,8 @@
 import { BolusLogger } from '@/components/insulin/bolus-logger';
 import { SmartCalculator } from '@/components/insulin/smart-calculator';
 import { IOBTracker } from '@/components/insulin/iob-tracker';
-import { Syringe, History, Upload } from 'lucide-react';
+import { GlucosePredictor } from '@/components/glucose/glucose-predictor';
+import { Syringe, History, Upload, Shield } from 'lucide-react';
 import Link from 'next/link';
 
 export default function InsulinPage() {
@@ -40,17 +41,35 @@ export default function InsulinPage() {
       </div>
       
       {/* Main Content */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        {/* Left Column - Calculator & Logger */}
-        <div className="space-y-6">
-          <SmartCalculator />
-        </div>
-        
-        {/* Right Column - IOB Tracker & Quick Logger */}
-        <div className="space-y-6">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 lg:gap-6">
+        {/* Mobile: IOB Tracker first for quick reference */}
+        <div className="xl:order-2 space-y-4 lg:space-y-6">
+          {/* Safety Prediction - Critical for insulin management */}
+          <div className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/10 dark:to-emerald-900/10 border border-green-200 dark:border-green-800 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Shield className="w-5 h-5 text-green-600" />
+              <h3 className="font-semibold text-green-800 dark:text-green-300">Safety Monitoring</h3>
+              <Link 
+                href="/dashboard/glucose-data" 
+                className="ml-auto text-sm text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300"
+              >
+                View Full Predictions →
+              </Link>
+            </div>
+            <GlucosePredictor 
+              autoRefresh={true}
+              refreshInterval={300}
+            />
+          </div>
+          
           <IOBTracker />
           
           <BolusLogger />
+        </div>
+        
+        {/* Mobile: Calculator second */}
+        <div className="xl:order-1 space-y-4 lg:space-y-6">
+          <SmartCalculator />
         </div>
       </div>
     </div>

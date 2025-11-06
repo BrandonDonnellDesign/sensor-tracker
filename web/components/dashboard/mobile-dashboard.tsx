@@ -68,17 +68,20 @@ export function MobileDashboard({ className }: MobileDashboardProps) {
     }
   }, [user]);
 
-  // Calculate stats
-  const totalSensors = sensors.length;
-  const problematicSensors = sensors.filter(s => s.is_problematic).length;
-  const activeSensors = sensors.filter(s => {
+  // Filter out expired sensors for mobile display
+  const activeSensorsData = sensors.filter(s => {
     const sensorModel = s.sensor_models || { duration_days: 10 };
     const expirationDate = new Date(s.date_added);
     expirationDate.setDate(expirationDate.getDate() + sensorModel.duration_days);
-    return expirationDate > new Date() && !s.is_problematic;
-  }).length;
+    return expirationDate > new Date(); // Only show non-expired sensors
+  });
 
-  const expiringSoon = sensors.filter(s => {
+  // Calculate stats (using only active sensors)
+  const totalSensors = activeSensorsData.length;
+  const problematicSensors = activeSensorsData.filter(s => s.is_problematic).length;
+  const activeSensors = activeSensorsData.filter(s => !s.is_problematic).length;
+
+  const expiringSoon = activeSensorsData.filter(s => {
     const sensorModel = s.sensor_models || { duration_days: 10 };
     const expirationDate = new Date(s.date_added);
     expirationDate.setDate(expirationDate.getDate() + sensorModel.duration_days);
@@ -86,7 +89,7 @@ export function MobileDashboard({ className }: MobileDashboardProps) {
     return daysLeft <= 2 && daysLeft > 0 && !s.is_problematic;
   }).length;
 
-  // Calculate average wear time
+  // Calculate average wear time (using all sensors for historical data)
   const calculateAverageDuration = () => {
     if (sensors.length < 2) return 0;
 
@@ -150,7 +153,7 @@ export function MobileDashboard({ className }: MobileDashboardProps) {
     return 'Unknown Model';
   };
 
-  const recentSensors = sensors.slice(0, 3);
+  const recentSensors = activeSensorsData.slice(0, 3);
 
   if (loading) {
     return (
@@ -184,6 +187,8 @@ export function MobileDashboard({ className }: MobileDashboardProps) {
           View All
         </TouchFriendlyButton>
       </div>
+
+
 
       {/* Stats Overview */}
       <div className="grid grid-cols-2 gap-3">

@@ -56,21 +56,25 @@ export function DexcomSettings({ user: _user }: DexcomSettingsProps) {
   const loadDexcomData = useCallback(async () => {
     try {
       if (!user) {
+        console.log('No user found for Dexcom settings');
         setIsLoading(false);
         return;
       }
 
       const userId = user.id;
+      console.log('Loading Dexcom data for user:', userId);
 
       const supabase = createClient();
       const { data: connectionData, error: connectionError } = await (supabase as any)
         .from('dexcom_tokens')
-        .select('id, token_expires_at, created_at')
+        .select('id, token_expires_at, created_at, is_active')
         .eq('user_id', userId)
-        .eq('is_active', true)
+        .order('created_at', { ascending: false })
+        .limit(1)
         .single();
 
       if (connectionError && connectionError.code !== 'PGRST116') {
+        console.log('Dexcom connection error:', connectionError);
         setConnection(null);
         setSyncSettings(null);
         setSyncLogs([]);
@@ -78,7 +82,27 @@ export function DexcomSettings({ user: _user }: DexcomSettingsProps) {
         return;
       }
 
-      setConnection(connectionData as unknown as DexcomConnection);
+      // Check if connection exists and is active
+      if (connectionData) {
+        console.log('Dexcom connection data:', connectionData);
+        
+        // Check if token is expired
+        const tokenExpiry = new Date(connectionData.token_expires_at);
+        const isExpired = tokenExpiry <= new Date();
+        
+        console.log('Token expiry:', tokenExpiry, 'Is expired:', isExpired, 'Is active:', connectionData.is_active);
+        
+        // Only set connection if it's active and not expired
+        if (connectionData.is_active && !isExpired) {
+          setConnection(connectionData as unknown as DexcomConnection);
+        } else {
+          console.log('Connection exists but is inactive or expired');
+          setConnection(null);
+        }
+      } else {
+        console.log('No Dexcom connection found');
+        setConnection(null);
+      }
 
       const { data: settingsData } = await (supabase as any)
         .from('dexcom_sync_settings')
@@ -223,9 +247,18 @@ export function DexcomSettings({ user: _user }: DexcomSettingsProps) {
             </div>
           )}
         </div>
-        <h3 className='text-xl font-bold text-gray-900 dark:text-slate-100 mb-3'>
-          Dexcom Integration
-        </h3>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className='text-xl font-bold text-gray-900 dark:text-slate-100'>
+            Dexcom Integration
+          </h3>
+          <button
+            onClick={loadDexcomData}
+            className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            title="Refresh connection status"
+          >
+            <RefreshCw className="w-4 h-4" />
+          </button>
+        </div>
         {connection ? (
           <div className='inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 mb-4'>
             <CheckCircle className='w-3 h-3 mr-1' />
@@ -287,6 +320,12 @@ export function DexcomSettings({ user: _user }: DexcomSettingsProps) {
               Token expires:{' '}
               {new Date(connection.token_expires_at).toLocaleDateString()}
             </p>
+            {process.env.NODE_ENV === 'development' && (
+              <div className="mt-2 p-2 bg-gray-100 dark:bg-slate-700 rounded text-xs">
+                <p>Debug: Connection ID: {connection.id}</p>
+                <p>Token valid: {new Date(connection.token_expires_at) > new Date() ? 'Yes' : 'No'}</p>
+              </div>
+            )}
           </div>
           <div className='flex gap-2 justify-center'>
             <button

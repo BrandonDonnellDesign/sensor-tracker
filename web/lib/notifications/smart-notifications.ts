@@ -36,6 +36,26 @@ export interface NotificationContext {
   } | null;
   lastLogin?: Date;
   currentTime: Date;
+  // Enhanced context for IOB and glucose alerts
+  insulinDoses?: Array<{
+    id: string;
+    amount: number;
+    type: string;
+    timestamp: Date;
+    duration: number;
+  }>;
+  currentGlucose?: number | undefined;
+  glucoseReadings?: Array<{
+    id: string;
+    value: number;
+    timestamp: Date;
+    trend?: string | undefined;
+  }>;
+  foodLogs?: Array<{
+    id: string;
+    logged_at: string;
+    total_carbs_g?: number;
+  }>;
 }
 
 export class SmartNotificationEngine {
@@ -49,6 +69,12 @@ export class SmartNotificationEngine {
     // Sensor-related notifications
     this.checkSensorReminders(context);
     this.checkSensorAlerts(context);
+    
+    // IOB Safety notifications (Phase 1A)
+    this.checkIOBSafetyWarnings(context);
+    
+    // Glucose-based alerts (Phase 1B)
+    this.checkGlucoseBasedAlerts(context);
     
     // Achievement notifications
     this.checkAchievementProgress(context);
@@ -298,6 +324,278 @@ export class SmartNotificationEngine {
     }
   }
 
+  // Phase 1A: IOB Safety Warnings
+  private checkIOBSafetyWarnings(context: NotificationContext) {
+    const { insulinDoses, currentGlucose, currentTime } = context;
+    
+    if (!insulinDoses || insulinDoses.length === 0) return;
+
+    // Calculate current IOB
+    const now = currentTime.getTime();
+    let totalIOB = 0;
+    let activeDoses = 0;
+    let recentDoses = 0; // Doses in last 2 hours
+
+    insulinDoses.forEach(dose => {
+      const hoursElapsed = (now - dose.timestamp.getTime()) / (1000 * 60 * 60);
+      
+      if (hoursElapsed < dose.duration && hoursElapsed >= 0) {
+        // Simple linear decay for notification purposes
+        const remainingPercentage = Math.max(0, (dose.duration - hoursElapsed) / dose.duration);
+        const remainingInsulin = dose.amount * remainingPercentage;
+        
+        if (remainingInsulin > 0.1) {
+          totalIOB += remainingInsulin;
+          activeDoses++;
+        }
+        
+        if (hoursElapsed < 2) {
+          recentDoses++;
+        }
+      }
+    });
+
+    // 1. Insulin Stacking Detection (multiple doses in short period)
+    if (recentDoses >= 2 && totalIOB > 3) {
+      this.addNotification({
+        id: 'insulin-stacking-warning',
+        type: 'warning',
+        priority: 'urgent',
+        title: '⚠️ Insulin Stacking Detected',
+        message: `You have ${recentDoses} recent doses with ${totalIOB.toFixed(1)}u IOB. Risk of hypoglycemia!`,
+        actionable: true,
+        action: {
+          label: 'Check IOB',
+          url: '/dashboard/insulin'
+        },
+        dismissible: true,
+        autoExpire: 2 * 60 * 60 * 1000, // 2 hours
+        conditions: {
+          triggers: ['insulin-stacking'],
+          frequency: 'on-condition'
+        },
+        confidence: 0.9,
+        metadata: { totalIOB, recentDoses, activeDoses }
+      });
+    }
+
+    // 2. High IOB with Low Glucose Warning
+    if (currentGlucose && currentGlucose < 100 && totalIOB > 2) {
+      this.addNotification({
+        id: 'high-iob-low-glucose',
+        type: 'alert',
+        priority: 'urgent',
+        title: '🚨 High IOB + Low Glucose',
+        message: `Glucose: ${currentGlucose} mg/dL with ${totalIOB.toFixed(1)}u IOB. Consider having carbs!`,
+        actionable: true,
+        action: {
+          label: 'Log Food',
+          url: '/dashboard/food'
+        },
+        dismissible: true,
+        autoExpire: 30 * 60 * 1000, // 30 minutes
+        conditions: {
+          triggers: ['high-iob-low-glucose'],
+          frequency: 'on-condition'
+        },
+        confidence: 0.95,
+        metadata: { glucose: currentGlucose, totalIOB }
+      });
+    }
+
+    // 3. Very High IOB Warning (>5 units)
+    if (totalIOB > 5) {
+      this.addNotification({
+        id: 'very-high-iob',
+        type: 'warning',
+        priority: 'high',
+        title: '⚠️ Very High IOB',
+        message: `You have ${totalIOB.toFixed(1)} units of insulin on board. Monitor glucose closely.`,
+        actionable: true,
+        action: {
+          label: 'View IOB Details',
+          url: '/dashboard/insulin'
+        },
+        dismissible: true,
+        autoExpire: 60 * 60 * 1000, // 1 hour
+        conditions: {
+          triggers: ['very-high-iob'],
+          frequency: 'on-condition'
+        },
+        confidence: 0.8,
+        metadata: { totalIOB, activeDoses }
+      });
+    }
+  }
+
+  // Phase 1B: Glucose-Based Alerts
+  private checkGlucoseBasedAlerts(context: NotificationContext) {
+    const { currentGlucose, glucoseReadings, foodLogs, insulinDoses, currentTime } = context;
+    
+    if (!currentGlucose || !glucoseReadings) return;
+
+    const now = currentTime.getTime();
+    const recentReadings = glucoseReadings
+      .filter(r => (now - r.timestamp.getTime()) < 3 * 60 * 60 * 1000) // Last 3 hours
+      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+
+    // 1. Rising Glucose Without Logged Food
+    if (recentReadings.length >= 3) {
+      const trend = this.calculateGlucoseTrend(recentReadings.slice(0, 3));
+      const recentFood = foodLogs?.filter(f => 
+        (now - new Date(f.logged_at).getTime()) < 2 * 60 * 60 * 1000 // Last 2 hours
+      ) || [];
+
+      if (trend === 'rising' && currentGlucose > 140 && recentFood.length === 0) {
+        this.addNotification({
+          id: 'rising-glucose-no-food',
+          type: 'alert',
+          priority: 'high',
+          title: '📈 Rising Glucose Detected',
+          message: `Glucose rising to ${currentGlucose} mg/dL with no recent food logged. Did you eat something?`,
+          actionable: true,
+          action: {
+            label: 'Log Food',
+            url: '/dashboard/food'
+          },
+          dismissible: true,
+          autoExpire: 60 * 60 * 1000, // 1 hour
+          conditions: {
+            triggers: ['rising-glucose-no-food'],
+            frequency: 'on-condition'
+          },
+          confidence: 0.7,
+          metadata: { glucose: currentGlucose, trend, recentFoodCount: recentFood.length }
+        });
+      }
+    }
+
+    // 2. Prolonged High Glucose
+    const highReadings = recentReadings.filter(r => r.value > 180);
+    if (highReadings.length >= 3 && currentGlucose > 200) {
+      const recentInsulin = insulinDoses?.filter(d => 
+        (now - d.timestamp.getTime()) < 2 * 60 * 60 * 1000 // Last 2 hours
+      ) || [];
+
+      if (recentInsulin.length === 0) {
+        this.addNotification({
+          id: 'prolonged-high-glucose',
+          type: 'warning',
+          priority: 'high',
+          title: '⚠️ Prolonged High Glucose',
+          message: `Glucose has been >180 mg/dL for extended period. Current: ${currentGlucose} mg/dL. Consider correction.`,
+          actionable: true,
+          action: {
+            label: 'Calculate Correction',
+            url: '/dashboard/insulin'
+          },
+          dismissible: true,
+          autoExpire: 2 * 60 * 60 * 1000, // 2 hours
+          conditions: {
+            triggers: ['prolonged-high-glucose'],
+            frequency: 'on-condition'
+          },
+          confidence: 0.85,
+          metadata: { glucose: currentGlucose, highReadingsCount: highReadings.length }
+        });
+      }
+    }
+
+    // 3. Dawn Phenomenon Detection
+    const currentHour = currentTime.getHours();
+    if (currentHour >= 5 && currentHour <= 9) { // Dawn hours
+      const morningReadings = recentReadings.filter(r => {
+        const hour = r.timestamp.getHours();
+        return hour >= 5 && hour <= 9;
+      });
+
+      if (morningReadings.length >= 2) {
+        const avgMorning = morningReadings.reduce((sum, r) => sum + r.value, 0) / morningReadings.length;
+        
+        if (avgMorning > 140 && currentGlucose > 150) {
+          this.addNotification({
+            id: 'dawn-phenomenon',
+            type: 'tip',
+            priority: 'medium',
+            title: '🌅 Dawn Phenomenon Detected',
+            message: `Morning glucose elevated (${currentGlucose} mg/dL). This is common due to natural hormone changes.`,
+            actionable: true,
+            action: {
+              label: 'Learn More',
+              url: '/dashboard/help?section=dawn-phenomenon'
+            },
+            dismissible: true,
+            autoExpire: 4 * 60 * 60 * 1000, // 4 hours
+            conditions: {
+              triggers: ['dawn-phenomenon'],
+              frequency: 'daily'
+            },
+            confidence: 0.6,
+            metadata: { glucose: currentGlucose, avgMorning, hour: currentHour }
+          });
+        }
+      }
+    }
+
+    // 4. Low Glucose with Active IOB
+    if (currentGlucose < 80) {
+      const totalIOB = this.calculateCurrentIOB(insulinDoses || [], currentTime);
+      
+      if (totalIOB > 1) {
+        this.addNotification({
+          id: 'low-glucose-active-iob',
+          type: 'alert',
+          priority: 'urgent',
+          title: '🚨 Low Glucose + Active IOB',
+          message: `Glucose: ${currentGlucose} mg/dL with ${totalIOB.toFixed(1)}u IOB. Treat low and monitor closely!`,
+          actionable: true,
+          action: {
+            label: 'Treatment Guide',
+            url: '/dashboard/help?section=hypoglycemia'
+          },
+          dismissible: true,
+          autoExpire: 15 * 60 * 1000, // 15 minutes
+          conditions: {
+            triggers: ['low-glucose-active-iob'],
+            frequency: 'on-condition'
+          },
+          confidence: 0.95,
+          metadata: { glucose: currentGlucose, totalIOB }
+        });
+      }
+    }
+  }
+
+  // Helper method to calculate glucose trend
+  private calculateGlucoseTrend(readings: Array<{ value: number; timestamp: Date }>): 'rising' | 'falling' | 'stable' {
+    if (readings.length < 2) return 'stable';
+    
+    const recent = readings[0].value;
+    const older = readings[readings.length - 1].value;
+    const change = recent - older;
+    
+    if (change > 20) return 'rising';
+    if (change < -20) return 'falling';
+    return 'stable';
+  }
+
+  // Helper method to calculate current IOB
+  private calculateCurrentIOB(doses: Array<{ amount: number; timestamp: Date; duration: number }>, currentTime: Date): number {
+    const now = currentTime.getTime();
+    let totalIOB = 0;
+
+    doses.forEach(dose => {
+      const hoursElapsed = (now - dose.timestamp.getTime()) / (1000 * 60 * 60);
+      
+      if (hoursElapsed < dose.duration && hoursElapsed >= 0) {
+        const remainingPercentage = Math.max(0, (dose.duration - hoursElapsed) / dose.duration);
+        totalIOB += dose.amount * remainingPercentage;
+      }
+    });
+
+    return Math.round(totalIOB * 100) / 100;
+  }
+
   private checkEngagementTips(context: NotificationContext) {
     const { sensors, userStats, lastLogin, currentTime } = context;
     
@@ -413,7 +711,7 @@ export class SmartNotificationEngine {
 // Singleton instance
 export const smartNotificationEngine = new SmartNotificationEngine();
 
-// Hook for using smart notifications
+// Hook for using smart notifications with enhanced context
 export function useSmartNotifications(context: NotificationContext) {
   const [notifications, setNotifications] = React.useState<SmartNotification[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -433,7 +731,15 @@ export function useSmartNotifications(context: NotificationContext) {
     };
 
     generateNotifications();
-  }, [context.sensors.length, context.userStats?.sensors_tracked, context.currentTime.getDate()]);
+  }, [
+    context.sensors.length, 
+    context.userStats?.sensors_tracked, 
+    context.currentTime.getDate(),
+    context.currentGlucose,
+    context.insulinDoses?.length,
+    context.glucoseReadings?.length,
+    context.foodLogs?.length
+  ]);
 
   const dismissNotification = React.useCallback((notificationId: string) => {
     smartNotificationEngine.dismissNotification(notificationId);
