@@ -1,8 +1,10 @@
 'use client';
 
-import { useState } from 'react';
-import { X, Plus, Tag } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { X, Plus, Tag, AlertCircle } from 'lucide-react';
 import { authenticatedFetchJson } from '@/lib/api-client';
+import { useAuth } from '@/components/providers/auth-provider';
+import { createClient } from '@/lib/supabase-client';
 
 interface AddTipModalProps {
   isOpen: boolean;
@@ -19,12 +21,41 @@ const categories = [
 ];
 
 export function AddTipModal({ isOpen, onClose, onTipAdded }: AddTipModalProps) {
+  const { user: _user } = useAuth();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [category, setCategory] = useState('general');
   const [tags, setTags] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sessionValid, setSessionValid] = useState(false);
+
+  // Check session validity when modal opens
+  useEffect(() => {
+    const checkSession = async () => {
+      if (!isOpen) return;
+      
+      const supabase = createClient();
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      if (error || !session) {
+        console.error('No valid session:', error);
+        setSessionValid(false);
+        setError('You must be logged in to post tips. Please refresh the page and try again.');
+      } else {
+        console.log('Session valid:', {
+          hasSession: !!session,
+          hasAccessToken: !!session.access_token,
+          tokenLength: session.access_token?.length,
+          userId: session.user?.id
+        });
+        setSessionValid(true);
+        setError(null);
+      }
+    };
+    
+    checkSession();
+  }, [isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,7 +72,9 @@ export function AddTipModal({ isOpen, onClose, onTipAdded }: AddTipModalProps) {
         .filter(tag => tag.length > 0)
         .slice(0, 5); // Limit to 5 tags
 
-      await authenticatedFetchJson('/api/community/tips/create', {
+      console.log('Submitting tip to API...');
+      
+      const result = await authenticatedFetchJson('/api/community/tips/create', {
         method: 'POST',
         body: JSON.stringify({
           title: title.trim(),
@@ -50,6 +83,8 @@ export function AddTipModal({ isOpen, onClose, onTipAdded }: AddTipModalProps) {
           tags: tagArray
         }),
       });
+
+      console.log('Tip created successfully:', result);
 
       // Reset form
       setTitle('');
@@ -63,7 +98,13 @@ export function AddTipModal({ isOpen, onClose, onTipAdded }: AddTipModalProps) {
 
     } catch (error) {
       console.error('Error creating tip:', error);
-      setError(error instanceof Error ? error.message : 'Failed to create tip');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create tip';
+      setError(errorMessage);
+      
+      // If it's an auth error, suggest re-logging in
+      if (errorMessage.includes('authentication') || errorMessage.includes('401')) {
+        setError('Authentication failed. Please try refreshing the page or logging in again.');
+      }
     } finally {
       setSubmitting(false);
     }
@@ -99,10 +140,28 @@ export function AddTipModal({ isOpen, onClose, onTipAdded }: AddTipModalProps) {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {/* Session Warning */}
+          {!sessionValid && (
+            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-yellow-800 dark:text-yellow-300">Authentication Required</p>
+                  <p className="text-xs text-yellow-700 dark:text-yellow-400 mt-1">
+                    Please refresh the page and log in again to post tips.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Error Message */}
           {error && (
             <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-              <p className="text-sm text-red-800 dark:text-red-300">{error}</p>
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-red-800 dark:text-red-300">{error}</p>
+              </div>
             </div>
           )}
 
@@ -211,10 +270,10 @@ export function AddTipModal({ isOpen, onClose, onTipAdded }: AddTipModalProps) {
             </button>
             <button
               type="submit"
-              disabled={!title.trim() || !content.trim() || submitting}
+              disabled={!title.trim() || !content.trim() || submitting || !sessionValid}
               className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-medium rounded-lg transition-colors disabled:cursor-not-allowed"
             >
-              {submitting ? 'Sharing...' : 'Share Tip'}
+              {submitting ? 'Sharing...' : !sessionValid ? 'Login Required' : 'Share Tip'}
             </button>
           </div>
         </form>

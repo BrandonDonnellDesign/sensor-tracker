@@ -22,6 +22,9 @@ interface UploadResult {
   skipped: number;
   errors: string[];
   duplicates: number;
+  basalImported?: number;
+  basalDuplicates?: number;
+  fileType?: string;
 }
 
 interface GlookoCSVUploadProps {
@@ -263,7 +266,14 @@ export function GlookoCSVUpload({ onUploadComplete, className }: GlookoCSVUpload
                       Import completed successfully!
                     </p>
                     <div className="text-sm text-green-700 dark:text-green-300">
-                      <p>• {result.imported} insulin doses imported</p>
+                      {(result as any).fileType === 'basal_summary' ? (
+                        <p>• {result.imported} daily basal totals imported</p>
+                      ) : (
+                        <p>• {result.imported} insulin doses imported</p>
+                      )}
+                      {(result as any).basalImported > 0 && (
+                        <p>• {(result as any).basalImported} daily basal totals imported</p>
+                      )}
                       {result.duplicates > 0 && (
                         <p>• {result.duplicates} duplicates skipped</p>
                       )}

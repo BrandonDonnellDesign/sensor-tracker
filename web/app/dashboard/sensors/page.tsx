@@ -363,57 +363,62 @@ export default function SensorsPage() {
   }
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 lg:space-y-8 pb-20 lg:pb-8">
+      {/* Header */}
+      <div className="space-y-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-slate-100">
+          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-slate-100">
             {filter === 'problematic' ? 'Problematic Sensors' : 'My Sensors'}
           </h1>
-          <p className="text-lg text-gray-600 dark:text-slate-400 mt-2">
+          <p className="text-sm lg:text-lg text-gray-600 dark:text-slate-400 mt-1 lg:mt-2">
             {filter === 'problematic' 
               ? 'Sensors that have been marked as having issues'
               : 'All your tracked CGM sensors'
             }
           </p>
         </div>
-        <div className="flex items-center space-x-3">
+        
+        {/* Action Buttons - Grid on mobile, flex on desktop */}
+        <div className="grid grid-cols-2 gap-2 lg:flex lg:flex-wrap lg:gap-3">
           <Link
             href="/dashboard/sensors/replacements"
-            className="btn-secondary flex items-center space-x-2"
+            className="btn-secondary flex items-center justify-center space-x-1 lg:space-x-2 text-xs lg:text-base px-2 lg:px-4 py-2"
             title="Track replacement sensors"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 lg:w-5 lg:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M9 1v6m6-6v6" />
             </svg>
-            <span>Track Replacements</span>
+            <span className="hidden md:inline">Replacements</span>
+            <span className="md:hidden">Replace</span>
           </Link>
           <button
             onClick={() => setShowExportDialog(true)}
-            className="btn-secondary flex items-center space-x-2"
+            className="btn-secondary flex items-center justify-center space-x-1 lg:space-x-2 text-xs lg:text-base px-2 lg:px-4 py-2"
             title="Export sensor data"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 lg:w-5 lg:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
-            <span>Export Data</span>
+            <span>Export</span>
           </button>
           <button
             onClick={() => setShowArchivedView(true)}
-            className="btn-secondary flex items-center space-x-2"
+            className="btn-secondary flex items-center justify-center space-x-1 lg:space-x-2 text-xs lg:text-base px-2 lg:px-4 py-2"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 lg:w-5 lg:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14l-1.5 9H6.5L5 8zm0 0V6a2 2 0 012-2h10a2 2 0 012 2v2" />
             </svg>
             <span>Archived</span>
           </button>
           <Link
             href="/dashboard/sensors/new"
-            className="btn-primary flex items-center space-x-2"
+            className="btn-primary flex items-center justify-center space-x-1 lg:space-x-2 text-xs lg:text-base px-2 lg:px-4 py-2"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 lg:w-5 lg:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
             </svg>
-            <span>Add New Sensor</span>
+            <span className="hidden md:inline">Add Sensor</span>
+            <span className="md:hidden">Add</span>
           </Link>
         </div>
       </div>
@@ -441,8 +446,8 @@ export default function SensorsPage() {
       )}
 
       {/* Search and Filter */}
-      <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-slate-700">
-        <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
+      <div className="bg-white dark:bg-slate-800 rounded-xl lg:rounded-2xl p-4 lg:p-6 shadow-sm border border-gray-200 dark:border-slate-700">
+        <div className="flex flex-col lg:flex-row gap-3 lg:gap-4 items-start lg:items-center">
           <div className="flex-1">
             <div className="relative">
               <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">

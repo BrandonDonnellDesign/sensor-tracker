@@ -318,22 +318,22 @@ export const AdvancedAnalytics = memo(function AdvancedAnalytics({
   }
 
   return (
-    <div className={`bg-white dark:bg-slate-800 rounded-lg p-6 border border-gray-200 dark:border-slate-700 ${className}`}>
+    <div className={`bg-white dark:bg-slate-800 rounded-lg p-4 lg:p-6 border border-gray-200 dark:border-slate-700 ${className}`}>
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center space-x-3">
-          <BarChart3 className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+        <div className="flex items-center space-x-2 lg:space-x-3">
+          <BarChart3 className="w-5 h-5 lg:w-6 lg:h-6 text-blue-600 dark:text-blue-400" />
+          <h3 className="text-base lg:text-lg font-semibold text-gray-900 dark:text-slate-100">
             Advanced Analytics
           </h3>
         </div>
         
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {/* Time Range Selector */}
           <select
             value={selectedTimeRange}
             onChange={(e) => setSelectedTimeRange(e.target.value as any)}
-            className="text-sm border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-1 bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100"
+            className="text-xs lg:text-sm border border-gray-300 dark:border-slate-600 rounded-lg px-2 lg:px-3 py-1.5 bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 flex-1 sm:flex-none min-w-[120px]"
           >
             <option value="3m">Last 3 months</option>
             <option value="6m">Last 6 months</option>
@@ -345,11 +345,11 @@ export const AdvancedAnalytics = memo(function AdvancedAnalytics({
           <select
             value={selectedMetric}
             onChange={(e) => setSelectedMetric(e.target.value as any)}
-            className="text-sm border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-1 bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100"
+            className="text-xs lg:text-sm border border-gray-300 dark:border-slate-600 rounded-lg px-2 lg:px-3 py-1.5 bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 flex-1 sm:flex-none min-w-[120px]"
           >
             <option value="success">Success Rate</option>
-            <option value="duration">Duration Analysis</option>
-            <option value="trends">Monthly Trends</option>
+            <option value="duration">Duration</option>
+            <option value="trends">Trends</option>
           </select>
         </div>
       </div>

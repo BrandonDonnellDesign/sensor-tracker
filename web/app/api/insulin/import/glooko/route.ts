@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
+import AdmZip from 'adm-zip';
+import csv from 'csv-parser';
+import { Readable } from 'stream';
 
 interface ImportResult {
   success: boolean;
@@ -7,6 +10,7 @@ interface ImportResult {
   skipped: number;
   errors: string[];
   duplicates: number;
+  merged?: number;
 }
 
 // Glooko CSV column mappings - updated for actual Glooko format
@@ -217,9 +221,20 @@ function normalizeInsulinInfo(type: string, deliveryType?: string): {
   };
 }
 
+// Helper: parse CSV content to JSON
+const parseCsv = (content: string): Promise<any[]> =>
+  new Promise((resolve, reject) => {
+    const rows: any[] = [];
+    Readable.from(content)
+      .pipe(csv())
+      .on('data', (row) => rows.push(row))
+      .on('end', () => resolve(rows))
+      .on('error', reject);
+  });
+
 export async function POST(request: NextRequest) {
   try {
-    console.log('Starting CSV import process...');
+    console.log('Starting Glooko import process...');
     
     const supabase = await createClient();
     console.log('Supabase client created');
@@ -230,7 +245,14 @@ export async function POST(request: NextRequest) {
     
     if (authError || !user) {
       console.log('Authentication failed:', authError);
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ 
+        error: 'Unauthorized',
+        success: false,
+        imported: 0,
+        skipped: 0,
+        errors: ['Unauthorized'],
+        duplicates: 0
+      }, { status: 401 });
     }
 
     const formData = await request.formData();
@@ -239,7 +261,14 @@ export async function POST(request: NextRequest) {
     
     if (!file) {
       console.log('No file provided');
-      return NextResponse.json({ error: 'No file provided' }, { status: 400 });
+      return NextResponse.json({ 
+        error: 'No file provided',
+        success: false,
+        imported: 0,
+        skipped: 0,
+        errors: ['No file provided'],
+        duplicates: 0
+      }, { status: 400 });
     }
 
     // Test if insulin_logs table exists
@@ -252,9 +281,583 @@ export async function POST(request: NextRequest) {
       console.log('Table error:', tableError);
       return NextResponse.json({ 
         error: 'Database table not ready. Please ensure migrations have been run.',
-        details: tableError.message
+        details: tableError.message,
+        success: false,
+        imported: 0,
+        skipped: 0,
+        errors: ['Database table not ready. Please ensure migrations have been run.'],
+        duplicates: 0
       }, { status: 500 });
     }
+
+    // Check if file is ZIP or CSV
+    const isZipFile = file.name.toLowerCase().endsWith('.zip') || file.type === 'application/zip';
+    
+    if (isZipFile) {
+      return await handleZipImport(file, user.id, supabase);
+    } else {
+      return await handleCsvImport(file, user.id, supabase);
+    }
+  } catch (error) {
+    console.error('Import error:', error);
+    
+    let errorMessage = 'Failed to process file';
+    if (error instanceof Error) {
+      errorMessage = error.message;
+    }
+    
+    return NextResponse.json(
+      { 
+        error: errorMessage,
+        details: error instanceof Error ? error.stack : 'Unknown error',
+        success: false,
+        imported: 0,
+        skipped: 0,
+        errors: [errorMessage],
+        duplicates: 0
+      },
+      { status: 500 }
+    );
+  }
+}
+
+async function handleZipImport(zipFile: File, userId: string, supabase: any) {
+  try {
+    // Extract ZIP
+    const arrayBuffer = await zipFile.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const zip = new AdmZip(buffer);
+    const entries = zip.getEntries();
+
+    // Find all bolus_data_* files in any folder
+    const bolusFiles = entries.filter((entry) =>
+      /bolus_data_\d+(\.[a-z0-9]+)?$/i.test(entry.entryName)
+    );
+
+    // Find all insulin_data_* files for daily basal totals
+    const insulinSummaryFiles = entries.filter((entry) =>
+      /insulin_data_\d+(\.[a-z0-9]+)?$/i.test(entry.entryName) ||
+      entry.entryName.toLowerCase().includes('insulin_data')
+    );
+
+    // Debug: Show all files in ZIP
+    console.log('All files in ZIP:', entries.map(e => e.entryName));
+    console.log('Found bolus files:', bolusFiles.map(f => f.entryName));
+    console.log('Found insulin summary files:', insulinSummaryFiles.map(f => f.entryName));
+    
+    // Check for file overlap (same file being processed twice)
+    const bolusFileNames = bolusFiles.map(f => f.entryName);
+    const summaryFileNames = insulinSummaryFiles.map(f => f.entryName);
+    const overlap = bolusFileNames.filter(name => summaryFileNames.includes(name));
+    if (overlap.length > 0) {
+      console.warn('WARNING: Files being processed as both bolus AND summary:', overlap);
+    }
+
+    if (bolusFiles.length === 0 && insulinSummaryFiles.length === 0) {
+      const available = entries.map((e) => e.entryName);
+      return NextResponse.json({
+        error: 'No bolus_data_* or insulin_data_* files found.',
+        availableFiles: available,
+        success: false,
+        imported: 0,
+        skipped: 0,
+        errors: ['No bolus_data_* or insulin_data_* files found.'],
+        duplicates: 0
+      }, { status: 404 });
+    }
+
+    // Parse all bolus_data_* files (ONLY individual doses)
+    const allRecords: any[] = [];
+    for (const file of bolusFiles) {
+      const content = file.getData().toString('utf-8');
+      const parsed = await parseCsv(content);
+      console.log(`Parsed ${parsed.length} records from BOLUS file: ${file.entryName}`);
+      
+      if (parsed.length > 0) {
+        console.log('Raw first BOLUS record:', parsed[0]);
+        
+        // Handle Glooko's non-standard CSV format where real headers are in first data row
+        const firstRecord = parsed[0];
+        const hasGlookoFormat = firstRecord && (
+          firstRecord['Name:Brandon Donnell'] === 'Timestamp' ||
+          Object.values(firstRecord).includes('Timestamp') ||
+          Object.values(firstRecord).includes('Insulin Type')
+        );
+        
+        if (hasGlookoFormat && parsed.length > 1) {
+          console.log('Detected Glooko format, restructuring data...');
+          
+          // Extract real column headers from first data row
+          const realHeaders = Object.values(firstRecord);
+          console.log('Real headers:', realHeaders);
+          
+          // Restructure all subsequent rows with proper headers
+          const restructuredRecords = parsed.slice(1).map(row => {
+            const values = Object.values(row);
+            const newRecord: any = {};
+            realHeaders.forEach((header, index) => {
+              if (header && values[index] !== undefined) {
+                newRecord[header as string] = values[index];
+              }
+            });
+            return newRecord;
+          });
+          
+          console.log('Restructured sample record:', restructuredRecords[0]);
+          allRecords.push(...restructuredRecords);
+        } else {
+          console.log('Standard CSV format detected');
+          allRecords.push(...parsed);
+        }
+      }
+    }
+
+    // Process insulin_data_* files for daily basal totals
+    const basalRecords: any[] = [];
+    for (const file of insulinSummaryFiles) {
+      const content = file.getData().toString('utf-8');
+      const parsed = await parseCsv(content);
+      console.log(`Parsed ${parsed.length} basal summary records from ${file.entryName}`);
+      
+      if (parsed.length > 0) {
+        console.log('Raw first basal record:', parsed[0]);
+        
+        // Handle Glooko's non-standard CSV format for insulin summary
+        const firstRecord = parsed[0];
+        const hasGlookoFormat = firstRecord && (
+          firstRecord['Name:Brandon Donnell'] === 'Timestamp' ||
+          Object.values(firstRecord).includes('Timestamp') ||
+          Object.values(firstRecord).includes('Total Basal (U)')
+        );
+        
+        if (hasGlookoFormat && parsed.length > 1) {
+          console.log('Detected Glooko basal summary format, restructuring data...');
+          
+          // Extract real column headers from first data row
+          const realHeaders = Object.values(firstRecord);
+          console.log('Real basal headers:', realHeaders);
+          
+          // Restructure all subsequent rows with proper headers
+          const restructuredRecords = parsed.slice(1).map(row => {
+            const values = Object.values(row);
+            const newRecord: any = {};
+            realHeaders.forEach((header, index) => {
+              if (header && values[index] !== undefined) {
+                newRecord[header as string] = values[index];
+              }
+            });
+            return newRecord;
+          });
+          
+          console.log('Restructured basal sample record:', restructuredRecords[0]);
+          basalRecords.push(...restructuredRecords);
+        } else {
+          console.log('Standard CSV format detected for basal data');
+          basalRecords.push(...parsed);
+        }
+      }
+    }
+
+    console.log(`Total records from all files: ${allRecords.length} bolus + ${basalRecords.length} basal summaries`);
+    
+    // If no records found, return detailed debug info
+    if (allRecords.length === 0 && basalRecords.length === 0) {
+      return NextResponse.json({
+        error: 'No records found in bolus_data or insulin_data files.',
+        details: 'The CSV files were empty or could not be parsed.',
+        filesProcessed: [...bolusFiles.map(f => f.entryName), ...insulinSummaryFiles.map(f => f.entryName)],
+        success: false,
+        imported: 0,
+        skipped: 0,
+        errors: ['No records found in bolus_data or insulin_data files.'],
+        duplicates: 0
+      }, { status: 400 });
+    }
+
+    // Map CSV → insulin_logs schema with more flexible column detection
+    const preparedLogs = allRecords.map((row, index) => {
+      // Try multiple possible column names for timestamp (including Glooko format)
+      const timestamp = row.Timestamp || row.DateTime || row.Time || row.Date || 
+                       row.timestamp || row.datetime || row.time || row.date || null;
+      
+      // Try multiple possible column names for insulin units (including Glooko format)
+      // EXCLUDE daily totals to prevent duplicates
+      const units = parseFloat(
+        row.Units || row.InsulinUnits || row.Dose || row.Amount || 
+        row.units || row.insulin_units || row.dose || row.amount ||
+        row['Insulin Delivered'] || row['Insulin Units'] || row['Bolus Amount'] ||
+        row['Insulin Delivered (U)'] || row['Initial Delivery (U)'] || 0
+      );
+      
+      // Safety check: Skip if this looks like a daily total summary
+      const totalBolus = parseFloat(row['Total Bolus (U)'] || 0);
+      const totalInsulin = parseFloat(row['Total Insulin (U)'] || 0);
+      const totalBasal = parseFloat(row['Total Basal (U)'] || 0);
+      
+      if (totalBolus > 0 || totalInsulin > 0 || totalBasal > 0) {
+        console.log(`Skipping record ${index} - appears to be daily summary:`, {
+          totalBolus, totalInsulin, totalBasal, units
+        });
+        return null;
+      }
+      
+      // Additional safety: Skip unusually large single doses that might be daily totals
+      if (units > 15) {
+        console.log(`Skipping record ${index} - dose too large (${units}u), likely a daily total`);
+        return null;
+      }
+      
+      // Check if this record has summary-like characteristics
+      const hasMultipleTotals = Object.keys(row).filter(key => 
+        key.toLowerCase().includes('total') && parseFloat(row[key] || 0) > 0
+      ).length > 1;
+      
+      if (hasMultipleTotals) {
+        console.log(`Skipping record ${index} - has multiple total columns, appears to be summary data`);
+        return null;
+      }
+      
+      // Debug first few records
+      if (index < 5) {
+        console.log(`Bolus Record ${index}:`, {
+          timestamp,
+          units,
+          availableColumns: Object.keys(row),
+          hasTotal: {
+            totalBolus: row['Total Bolus (U)'],
+            totalInsulin: row['Total Insulin (U)'],
+            totalBasal: row['Total Basal (U)']
+          },
+          rawValues: {
+            insulinDelivered: row['Insulin Delivered (U)'],
+            initialDelivery: row['Initial Delivery (U)'],
+            dose: row.Dose,
+            amount: row.Amount
+          }
+        });
+      }
+      
+      if (!timestamp || !units || units <= 0) {
+        if (index < 5) {
+          console.log(`Skipping record ${index}: timestamp=${timestamp}, units=${units}`);
+        }
+        return null;
+      }
+
+      // Determine insulin type from the data with more flexible detection
+      let insulinType = 'rapid'; // Default
+      let insulinName = 'Rapid-Acting';
+      const type = (
+        row.Type || row.InsulinType || row['Insulin Type'] || 
+        row.type || row.insulin_type || row['insulin type'] ||
+        row.Medication || row.Drug || row.medication || row.drug || ''
+      ).toLowerCase();
+      
+      // Handle Glooko's "Normal" status (usually means rapid-acting bolus)
+      if (type === 'normal' || type === '') {
+        insulinType = 'rapid';
+        insulinName = 'Rapid-Acting';
+      } else if (type.includes('basal') || type.includes('long') || type.includes('lantus') || type.includes('levemir')) {
+        insulinType = 'long';
+        insulinName = 'Long-Acting';
+      } else if (type.includes('short') || type.includes('regular')) {
+        insulinType = 'short';
+        insulinName = 'Short-Acting';
+      } else if (type.includes('intermediate') || type.includes('nph')) {
+        insulinType = 'intermediate';
+        insulinName = 'Intermediate';
+      } else if (type.includes('rapid') || type.includes('humalog') || type.includes('novolog') || type.includes('apidra')) {
+        insulinType = 'rapid';
+        insulinName = 'Rapid-Acting';
+      }
+
+      // Build comprehensive notes including Glooko-specific fields
+      const notesParts = [];
+      if (row.Notes || row.notes) notesParts.push(row.Notes || row.notes);
+      if (row.Description || row.description) notesParts.push(row.Description || row.description);
+      if (row.Comment || row.comment) notesParts.push(row.Comment || row.comment);
+      
+      // Add Glooko-specific context
+      const bgInput = row['Blood Glucose Input (mg/dl)'];
+      const carbsInput = row['Carbs Input (g)'];
+      const carbsRatio = row['Carbs Ratio'];
+      
+      if (bgInput && parseFloat(bgInput) > 0) notesParts.push(`BG: ${bgInput} mg/dL`);
+      if (carbsInput && parseFloat(carbsInput) > 0) notesParts.push(`Carbs: ${carbsInput}g`);
+      if (carbsRatio && parseFloat(carbsRatio) > 0) notesParts.push(`I:C Ratio: 1:${carbsRatio}`);
+      
+      // Handle timestamp parsing with fallback
+      let parsedTimestamp;
+      try {
+        parsedTimestamp = new Date(timestamp).toISOString();
+        // Check if the date is valid
+        if (parsedTimestamp === 'Invalid Date' || isNaN(new Date(timestamp).getTime())) {
+          throw new Error('Invalid timestamp');
+        }
+      } catch (e) {
+        // Use current time with offset for invalid timestamps
+        const offsetMinutes = index * 5; // 5 minutes apart
+        parsedTimestamp = new Date(Date.now() - offsetMinutes * 60 * 1000).toISOString();
+        console.log(`Using fallback timestamp for record ${index}: ${parsedTimestamp}`);
+      }
+
+      // Extract blood glucose if available
+      const bgValue = row['Blood Glucose Input (mg/dl)'];
+      const bloodGlucoseBefore = bgValue && parseFloat(bgValue) > 0 ? parseFloat(bgValue) : null;
+
+      return {
+        user_id: userId,
+        units: units,
+        insulin_type: insulinType,
+        insulin_name: row.InsulinName || row['Insulin Name'] || row.insulin_name || insulinName,
+        taken_at: parsedTimestamp,
+        delivery_type: 'bolus',
+        meal_relation: 'with_meal',
+        blood_glucose_before: bloodGlucoseBefore,
+        notes: notesParts.length > 0 ? notesParts.join('; ') : 'Imported from Glooko ZIP',
+        logged_via: 'csv_import'
+      };
+    }).filter(Boolean);
+
+    if (preparedLogs.length === 0) {
+      // Provide more detailed error information
+      const sampleColumns = allRecords.length > 0 ? Object.keys(allRecords[0]) : [];
+      return NextResponse.json({ 
+        error: 'No valid insulin records found in bolus_data files.',
+        details: `Processed ${allRecords.length} total records, but none had valid timestamp and insulin units.`,
+        sampleColumns: sampleColumns,
+        success: false,
+        imported: 0,
+        skipped: 0,
+        errors: [
+          'No valid insulin records found in bolus_data files.',
+          `Available columns: ${sampleColumns.join(', ')}`,
+          'Please ensure your export contains insulin dose data with timestamps.'
+        ],
+        duplicates: 0
+      }, { status: 400 });
+    }
+
+    // Process each log individually to handle merging with existing entries
+    let imported = 0;
+    let duplicates = 0;
+    let merged = 0;
+    const errors: string[] = [];
+
+    for (let i = 0; i < preparedLogs.length; i++) {
+      const log = preparedLogs[i];
+      if (!log) continue; // Skip null entries from filter
+      
+      try {
+        // Check for existing entries within 5 minutes
+        const logTime = new Date(log.taken_at);
+        const fiveMinutesBefore = new Date(logTime.getTime() - 5 * 60 * 1000);
+        const fiveMinutesAfter = new Date(logTime.getTime() + 5 * 60 * 1000);
+
+        const { data: existingLogs } = await supabase
+          .from('insulin_logs')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('insulin_type', log.insulin_type)
+          .gte('taken_at', fiveMinutesBefore.toISOString())
+          .lte('taken_at', fiveMinutesAfter.toISOString())
+          .order('taken_at', { ascending: true });
+
+        const existingLog = existingLogs && existingLogs.length > 0 ? existingLogs[0] : null;
+
+        if (existingLog) {
+          const doseDifference = Math.abs(existingLog.units - log.units);
+          const isManualEntry = existingLog.logged_via === 'manual' || existingLog.logged_via === 'quick_dose';
+          
+          if (isManualEntry || doseDifference > 0.1) {
+            // Merge with existing entry
+            const existingNotes = existingLog.notes || '';
+            const mergedNotes = [
+              existingNotes,
+              `Glooko data: ${log.units}u`,
+              log.notes
+            ].filter(Boolean).join(' | ');
+
+            const { error: updateError } = await supabase
+              .from('insulin_logs')
+              .update({
+                // Use the imported dose (more accurate from Glooko)
+                units: log.units,
+                insulin_name: log.insulin_name,
+                blood_glucose_before: log.blood_glucose_before || existingLog.blood_glucose_before,
+                notes: mergedNotes,
+                // Update timestamp to Glooko's more precise time
+                taken_at: log.taken_at,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', existingLog.id);
+
+            if (updateError) {
+              errors.push(`Record ${i + 1}: Failed to merge - ${updateError.message}`);
+            } else {
+              merged++;
+            }
+          } else {
+            // Exact duplicate
+            duplicates++;
+          }
+        } else {
+          // Insert new log
+          const { error: insertError } = await supabase
+            .from('insulin_logs')
+            .insert(log);
+
+          if (insertError) {
+            errors.push(`Record ${i + 1}: Failed to insert - ${insertError.message}`);
+          } else {
+            imported++;
+          }
+        }
+      } catch (error) {
+        errors.push(`Record ${i + 1}: Processing error - ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    }
+
+    // Process daily basal totals from insulin_data files
+    let basalImported = 0;
+    let basalDuplicates = 0;
+    
+    for (const basalRecord of basalRecords) {
+      try {
+        // Extract timestamp and basal amount - be very specific about basal only
+        const timestamp = basalRecord.Timestamp || basalRecord.Date || basalRecord.timestamp || basalRecord.date;
+        
+        // ONLY extract basal amount, ignore bolus totals to prevent duplicates
+        const basalAmount = parseFloat(basalRecord['Total Basal (U)'] || basalRecord['Total Basal'] || 0);
+        
+        // Debug logging to see what we're extracting
+        console.log('Basal record processing:', {
+          timestamp,
+          basalAmount,
+          totalBolus: basalRecord['Total Bolus (U)'],
+          totalInsulin: basalRecord['Total Insulin (U)'],
+          availableColumns: Object.keys(basalRecord)
+        });
+        
+        // Skip if no valid basal amount (don't import bolus totals)
+        if (!timestamp || !basalAmount || basalAmount <= 0) {
+          console.log('Skipping basal record - invalid data:', { timestamp, basalAmount });
+          continue;
+        }
+        
+        // Safety check: Make sure we're not accidentally importing a bolus total
+        const totalBolus = parseFloat(basalRecord['Total Bolus (U)'] || 0);
+        if (basalAmount === totalBolus && totalBolus > 0) {
+          console.log('WARNING: Basal amount equals bolus total, skipping to prevent duplicate:', { basalAmount, totalBolus });
+          continue;
+        }
+        
+        // Parse the date - use end of day for daily basal totals
+        let basalDate;
+        try {
+          basalDate = new Date(timestamp);
+          // Set to end of day (23:59) for daily basal totals
+          basalDate.setHours(23, 59, 0, 0);
+        } catch (e) {
+          continue; // Skip invalid dates
+        }
+        
+        // Check for existing basal entry for this day
+        const dayStart = new Date(basalDate);
+        dayStart.setHours(0, 0, 0, 0);
+        const dayEnd = new Date(basalDate);
+        dayEnd.setHours(23, 59, 59, 999);
+        
+        const { data: existingBasal } = await supabase
+          .from('insulin_logs')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('delivery_type', 'basal')
+          .gte('taken_at', dayStart.toISOString())
+          .lte('taken_at', dayEnd.toISOString())
+          .limit(1);
+        
+        if (existingBasal && existingBasal.length > 0) {
+          basalDuplicates++;
+          continue; // Skip if basal already exists for this day
+        }
+        
+        // Insert daily basal total
+        const { error: basalError } = await supabase
+          .from('insulin_logs')
+          .insert({
+            user_id: userId,
+            units: basalAmount,
+            insulin_type: 'long',
+            insulin_name: 'Basal (Daily Total)',
+            taken_at: basalDate.toISOString(),
+            delivery_type: 'basal',
+            meal_relation: null,
+            injection_site: 'pump',
+            notes: `Daily basal total from Glooko (${timestamp})`,
+            logged_via: 'csv_import'
+          });
+        
+        if (basalError) {
+          errors.push(`Basal record for ${timestamp}: Failed to insert - ${basalError.message}`);
+        } else {
+          basalImported++;
+          console.log(`Successfully imported basal: ${basalAmount}u for ${timestamp}`);
+        }
+        
+      } catch (error) {
+        errors.push(`Basal processing error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    }
+
+    return NextResponse.json({
+      message: 'ZIP import completed with smart merging',
+      totalFiles: bolusFiles.length + insulinSummaryFiles.length,
+      totalRows: preparedLogs.length,
+      basalRecords: basalRecords.length,
+      imported: imported,
+      basalImported: basalImported,
+      merged: merged,
+      success: true,
+      skipped: 0,
+      errors: errors,
+      duplicates: duplicates,
+      basalDuplicates: basalDuplicates,
+      // Debug info
+      filesProcessed: {
+        bolusFiles: bolusFiles.map(f => f.entryName),
+        insulinSummaryFiles: insulinSummaryFiles.map(f => f.entryName)
+      },
+      basalProcessingDebug: {
+        basalRecordsFound: basalRecords.length,
+        basalImported: basalImported,
+        basalDuplicates: basalDuplicates,
+        sampleBasalRecord: basalRecords.length > 0 ? basalRecords[0] : null
+      }
+    });
+
+  } catch (err: any) {
+    console.error('ZIP import error:', err);
+    return NextResponse.json({ 
+      error: err.message,
+      success: false,
+      imported: 0,
+      skipped: 0,
+      errors: [err.message],
+      duplicates: 0
+    }, { status: 500 });
+  }
+}
+
+async function handleCsvImport(file: File, userId: string, supabase: any) {
+  try {
+    // Check filename for basal summary indication
+    const isBasalFilename = file.name.toLowerCase().includes('insulin_data');
+    console.log('File analysis:', { 
+      filename: file.name, 
+      isBasalFilename,
+      size: file.size 
+    });
 
     const csvText = await file.text();
     console.log('CSV text length:', csvText.length);
@@ -264,17 +867,47 @@ export async function POST(request: NextRequest) {
     
     if (lines.length < 2) {
       return NextResponse.json({ 
-        error: 'CSV file must contain at least a header row and one data row' 
+        error: 'CSV file must contain at least a header row and one data row',
+        success: false,
+        imported: 0,
+        skipped: 0,
+        errors: ['CSV file must contain at least a header row and one data row'],
+        duplicates: 0
       }, { status: 400 });
     }
 
     // Find the actual header row (skip metadata rows)
     let headerRowIndex = 0;
     let headers: string[] = [];
+    let isBasalSummaryFile = false;
     
     for (let i = 0; i < Math.min(10, lines.length); i++) {
       const potentialHeaders = parseCSVLine(lines[i]);
       console.log(`Row ${i}:`, potentialHeaders);
+      
+      // Check if this is a basal summary file (insulin_data format)
+      const hasBasalColumn = potentialHeaders.some(h => 
+        h.toLowerCase().includes('total basal') ||
+        h.toLowerCase().includes('basal (u)') ||
+        h.toLowerCase().includes('total_basal')
+      );
+      const hasTotalBolusColumn = potentialHeaders.some(h => 
+        h.toLowerCase().includes('total bolus')
+      );
+      const hasTotalInsulinColumn = potentialHeaders.some(h => 
+        h.toLowerCase().includes('total insulin')
+      );
+      
+      // More specific detection: must have all three "Total" columns OR filename indicates basal
+      if ((hasBasalColumn && hasTotalBolusColumn && hasTotalInsulinColumn) || isBasalFilename) {
+        isBasalSummaryFile = true;
+        console.log('Detected BASAL SUMMARY file (insulin_data format)');
+        console.log('Detection method:', {
+          byHeaders: hasBasalColumn && hasTotalBolusColumn && hasTotalInsulinColumn,
+          byFilename: isBasalFilename,
+          headers: potentialHeaders
+        });
+      }
       
       // Check if this looks like a header row (contains common column names)
       const hasDateColumn = potentialHeaders.some(h => 
@@ -287,7 +920,8 @@ export async function POST(request: NextRequest) {
         h.toLowerCase().includes('medication') ||
         h.toLowerCase().includes('drug') ||
         h.toLowerCase().includes('dose') ||
-        h.toLowerCase().includes('units')
+        h.toLowerCase().includes('units') ||
+        h.toLowerCase().includes('basal')
       );
       
       if (hasDateColumn && hasInsulinColumn) {
@@ -300,7 +934,12 @@ export async function POST(request: NextRequest) {
     
     if (headers.length === 0) {
       return NextResponse.json({ 
-        error: 'Could not find valid header row in CSV. Please ensure the file contains column headers.' 
+        error: 'Could not find valid header row in CSV. Please ensure the file contains column headers.',
+        success: false,
+        imported: 0,
+        skipped: 0,
+        errors: ['Could not find valid header row in CSV. Please ensure the file contains column headers.'],
+        duplicates: 0
       }, { status: 400 });
     }
     
@@ -339,6 +978,12 @@ export async function POST(request: NextRequest) {
       carbsRatioIndex
     });
 
+    // Handle basal summary files differently
+    if (isBasalSummaryFile) {
+      console.log('Processing as BASAL SUMMARY file');
+      return await handleBasalSummaryCsv(lines, headerRowIndex, headers, userId, supabase);
+    }
+
     if (dateIndex === -1 || insulinTypeIndex === -1 || doseIndex === -1) {
       console.log('Missing required columns');
       return NextResponse.json({ 
@@ -348,7 +993,12 @@ export async function POST(request: NextRequest) {
           date: dateIndex !== -1,
           insulinType: insulinTypeIndex !== -1,
           dose: doseIndex !== -1
-        }
+        },
+        success: false,
+        imported: 0,
+        skipped: 0,
+        errors: ['Required columns not found. CSV must contain date, insulin type, and dose columns.'],
+        duplicates: 0
       }, { status: 400 });
     }
 
@@ -386,7 +1036,6 @@ export async function POST(request: NextRequest) {
         const deliveryType = deliveryTypeIndex !== -1 ? row[deliveryTypeIndex]?.trim().toLowerCase() : '';
         const bolusType = bolusTypeIndex !== -1 ? row[bolusTypeIndex]?.trim().toLowerCase() : '';
         const basalType = basalTypeIndex !== -1 ? row[basalTypeIndex]?.trim().toLowerCase() : '';
-        const injectionSite = injectionSiteIndex !== -1 ? row[injectionSiteIndex]?.trim() : '';
         const notes = notesIndex !== -1 ? row[notesIndex]?.trim() : '';
         
         // Glooko specific data
@@ -458,25 +1107,50 @@ export async function POST(request: NextRequest) {
         // Normalize insulin information
         const insulinInfo = normalizeInsulinInfo(actualInsulinType, deliveryType || bolusType || basalType || 'bolus');
 
-        // Check for duplicates (same insulin type, dose, and time within 5 minutes)
+        // Check for existing manual entries within 5 minutes to merge with
         const fiveMinutesBefore = new Date(takenAt.getTime() - 5 * 60 * 1000);
         const fiveMinutesAfter = new Date(takenAt.getTime() + 5 * 60 * 1000);
 
-        const { data: existingLog } = await supabase
+        const { data: existingLogs } = await supabase
           .from('insulin_logs')
-          .select('id')
-          .eq('user_id', user.id)
+          .select('*')
+          .eq('user_id', userId)
           .eq('insulin_type', insulinInfo.insulinType)
-          .eq('units', dose)
           .gte('taken_at', fiveMinutesBefore.toISOString())
           .lte('taken_at', fiveMinutesAfter.toISOString())
-          .single();
+          .order('taken_at', { ascending: true });
 
+        const existingLog = existingLogs && existingLogs.length > 0 ? existingLogs[0] : null;
+
+        let shouldMerge = false;
         if (existingLog) {
-          result.duplicates++;
-          continue;
+          // Check if we should merge (different doses or one is manual entry)
+          const doseDifference = Math.abs(existingLog.units - dose);
+          const isManualEntry = existingLog.logged_via === 'manual' || existingLog.logged_via === 'quick_dose';
+          
+          if (isManualEntry || doseDifference > 0.1) {
+            shouldMerge = true;
+          } else {
+            // Exact duplicate, skip
+            result.duplicates++;
+            continue;
+          }
         }
-
+        
+        // Parse blood glucose if available
+        const bgBefore = bloodGlucose && parseFloat(bloodGlucose) > 0 ? parseFloat(bloodGlucose) : null;
+        
+        // Create comprehensive notes from Glooko data
+        const glookoNotes = [];
+        if (notes) glookoNotes.push(notes);
+        if (bgBefore && bgBefore > 0) glookoNotes.push(`BG: ${bgBefore} mg/dL`);
+        if (carbs && parseFloat(carbs) > 0) glookoNotes.push(`Carbs: ${carbs}g`);
+        if (carbsRatio) glookoNotes.push(`I:C Ratio: 1:${carbsRatio}`);
+        if (initialDelivery && parseFloat(initialDelivery) > 0) glookoNotes.push(`Initial: ${initialDelivery}U`);
+        if (extendedDelivery && parseFloat(extendedDelivery) > 0) glookoNotes.push(`Extended: ${extendedDelivery}U`);
+        
+        const combinedNotes = glookoNotes.join(' | ') || null;
+        
         // Determine meal relation based on delivery type
         let mealRelation = null;
         if (insulinInfo.deliveryType === 'bolus') {
@@ -484,42 +1158,63 @@ export async function POST(request: NextRequest) {
         } else if (insulinInfo.deliveryType === 'correction') {
           mealRelation = 'correction';
         }
-        
-        // Create comprehensive notes from Glooko data
-        const glookoNotes = [];
-        if (notes) glookoNotes.push(notes);
-        if (carbs && parseFloat(carbs) > 0) glookoNotes.push(`Carbs: ${carbs}g`);
-        if (carbsRatio) glookoNotes.push(`I:C Ratio: 1:${carbsRatio}`);
-        if (initialDelivery && parseFloat(initialDelivery) > 0) glookoNotes.push(`Initial: ${initialDelivery}U`);
-        if (extendedDelivery && parseFloat(extendedDelivery) > 0) glookoNotes.push(`Extended: ${extendedDelivery}U`);
-        
-        const combinedNotes = glookoNotes.join(', ') || null;
-        
-        // Parse blood glucose if available
-        const bgBefore = bloodGlucose && parseFloat(bloodGlucose) > 0 ? parseFloat(bloodGlucose) : null;
-        
-        // Insert insulin log
-        const { error: logError } = await supabase
-          .from('insulin_logs')
-          .insert({
-            user_id: user.id,
-            insulin_type: insulinInfo.insulinType,
-            insulin_name: insulinInfo.insulinName,
-            units: dose,
-            delivery_type: insulinInfo.deliveryType,
-            meal_relation: mealRelation,
-            taken_at: takenAt.toISOString(),
-            injection_site: injectionSite || 'pump',
-            blood_glucose_before: bgBefore,
-            notes: combinedNotes,
-            logged_via: 'csv_import'
-          });
 
-        if (logError) {
-          result.skipped++;
-          result.errors.push(`Row ${i + 1}: Failed to save log entry - ${logError.message}`);
-          console.log(`Database error on row ${i + 1}:`, logError);
-          continue;
+        if (shouldMerge && existingLog) {
+          // Merge Glooko data with existing manual entry
+          const existingNotes = existingLog.notes || '';
+          const mergedNotes = [
+            existingNotes,
+            `Glooko data: ${dose}u`,
+            combinedNotes
+          ].filter(Boolean).join(' | ');
+
+          // Update existing log with merged information
+          const { error: updateError } = await supabase
+            .from('insulin_logs')
+            .update({
+              // Use the imported dose (more accurate from Glooko)
+              units: dose,
+              insulin_name: insulinInfo.insulinName,
+              blood_glucose_before: bgBefore || existingLog.blood_glucose_before,
+              notes: mergedNotes,
+              // Update timestamp to Glooko's more precise time
+              taken_at: takenAt.toISOString(),
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', existingLog.id);
+
+          if (updateError) {
+            result.skipped++;
+            result.errors.push(`Row ${i + 1}: Failed to merge with existing entry - ${updateError.message}`);
+            console.log(`Merge error on row ${i + 1}:`, updateError);
+            continue;
+          }
+
+          console.log(`Merged row ${i + 1} with existing manual entry`);
+        } else {
+          // Insert new insulin log
+          const { error: logError } = await supabase
+            .from('insulin_logs')
+            .insert({
+              user_id: userId,
+              insulin_type: insulinInfo.insulinType,
+              insulin_name: insulinInfo.insulinName,
+              units: dose,
+              taken_at: takenAt.toISOString(),
+              delivery_type: insulinInfo.deliveryType,
+              meal_relation: mealRelation,
+              injection_site: 'pump',
+              blood_glucose_before: bgBefore,
+              notes: combinedNotes || `Imported from Glooko: ${insulinInfo.insulinName}`,
+              logged_via: 'csv_import'
+            });
+
+          if (logError) {
+            result.skipped++;
+            result.errors.push(`Row ${i + 1}: Failed to save log entry - ${logError.message}`);
+            console.log(`Database error on row ${i + 1}:`, logError);
+            continue;
+          }
         }
 
         result.imported++;
@@ -537,7 +1232,7 @@ export async function POST(request: NextRequest) {
       result.errors.push(`... and ${remainingErrors} more errors`);
     }
 
-    console.log('Import completed:', result);
+    console.log('CSV import completed:', result);
     return NextResponse.json(result);
 
   } catch (error) {
@@ -562,4 +1257,136 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+async function handleBasalSummaryCsv(lines: string[], headerRowIndex: number, headers: string[], userId: string, supabase: any) {
+  console.log('Processing basal summary CSV with headers:', headers);
+  
+  const result = {
+    success: true,
+    imported: 0,
+    basalImported: 0,
+    skipped: 0,
+    errors: [] as string[],
+    duplicates: 0,
+    basalDuplicates: 0
+  };
+
+  // Find column indices for basal data
+  const timestampIndex = headers.findIndex(h => 
+    h.toLowerCase().includes('timestamp') || 
+    h.toLowerCase().includes('date')
+  );
+  const basalIndex = headers.findIndex(h => 
+    h.toLowerCase().includes('total basal')
+  );
+
+  console.log('Basal CSV column indices:', { timestampIndex, basalIndex });
+
+  if (timestampIndex === -1 || basalIndex === -1) {
+    return NextResponse.json({
+      error: 'Basal summary file missing required columns (Timestamp, Total Basal)',
+      headers: headers,
+      success: false,
+      imported: 0,
+      skipped: 0,
+      errors: ['Missing Timestamp or Total Basal columns'],
+      duplicates: 0
+    }, { status: 400 });
+  }
+
+  // Process each data row
+  for (let i = headerRowIndex + 1; i < lines.length; i++) {
+    try {
+      const row = parseCSVLine(lines[i]);
+      
+      if (row.length < headers.length) {
+        result.skipped++;
+        continue;
+      }
+
+      const timestamp = row[timestampIndex]?.trim();
+      const basalAmountStr = row[basalIndex]?.trim();
+      const basalAmount = parseFloat(basalAmountStr || '0');
+
+      console.log(`Basal row ${i}:`, { timestamp, basalAmountStr, basalAmount });
+
+      if (!timestamp || !basalAmount || basalAmount <= 0) {
+        console.log(`Skipping basal row ${i} - invalid data`);
+        result.skipped++;
+        continue;
+      }
+
+      // Parse the date - use end of day for daily basal totals
+      let basalDate;
+      try {
+        basalDate = new Date(timestamp);
+        basalDate.setHours(23, 59, 0, 0);
+      } catch (e) {
+        console.log(`Skipping basal row ${i} - invalid date:`, timestamp);
+        result.skipped++;
+        continue;
+      }
+
+      // Check for existing basal entry for this day
+      const dayStart = new Date(basalDate);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(basalDate);
+      dayEnd.setHours(23, 59, 59, 999);
+
+      const { data: existingBasal } = await supabase
+        .from('insulin_logs')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('delivery_type', 'basal')
+        .gte('taken_at', dayStart.toISOString())
+        .lte('taken_at', dayEnd.toISOString())
+        .limit(1);
+
+      if (existingBasal && existingBasal.length > 0) {
+        result.basalDuplicates++;
+        continue;
+      }
+
+      // Insert daily basal total
+      const { error: basalError } = await supabase
+        .from('insulin_logs')
+        .insert({
+          user_id: userId,
+          units: basalAmount,
+          insulin_type: 'long',
+          insulin_name: 'Basal (Daily Total)',
+          taken_at: basalDate.toISOString(),
+          delivery_type: 'basal',
+          meal_relation: null,
+          injection_site: 'pump',
+          notes: `Daily basal total from Glooko CSV (${timestamp})`,
+          logged_via: 'csv_import'
+        });
+
+      if (basalError) {
+        result.errors.push(`Basal row ${i}: Failed to insert - ${basalError.message}`);
+        result.skipped++;
+      } else {
+        result.basalImported++;
+        console.log(`Successfully imported basal: ${basalAmount}u for ${timestamp}`);
+      }
+
+    } catch (error) {
+      result.errors.push(`Basal row ${i}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      result.skipped++;
+    }
+  }
+
+  return NextResponse.json({
+    message: `Basal import completed: ${result.basalImported} basal entries imported`,
+    success: true,
+    imported: result.basalImported, // Show basal as imported count
+    basalImported: result.basalImported,
+    skipped: result.skipped,
+    errors: result.errors,
+    duplicates: result.basalDuplicates, // Show basal duplicates
+    basalDuplicates: result.basalDuplicates,
+    fileType: 'basal_summary'
+  });
 }

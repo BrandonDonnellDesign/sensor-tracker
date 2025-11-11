@@ -183,6 +183,128 @@ const faqData: FAQItem[] = [
     category: 'data',
     question: 'Can I filter analytics by tag categories?',
     answer: 'Yes! The analytics page shows breakdowns by tag categories, helping you identify patterns like "most common adhesive issues" or "environmental factors affecting sensors." This makes it easier to discuss patterns with your healthcare provider.'
+  },
+
+  // Insulin Management (NEW)
+  {
+    category: 'features',
+    question: 'How do I track my insulin doses?',
+    answer: 'Go to the Insulin Management page to log both bolus and basal insulin doses. The system automatically calculates your Insulin on Board (IOB), tracks Total Daily Insulin (TDI), and analyzes basal trends. You can import data from Glooko or log doses manually.'
+  },
+  {
+    category: 'features',
+    question: 'What is IOB and how is it calculated?',
+    answer: 'Insulin on Board (IOB) is the amount of active insulin still working in your body. The app calculates IOB based on your insulin type (rapid-acting or short-acting) and shows a real-time decay curve. This helps prevent insulin stacking and makes dosing decisions safer.'
+  },
+  {
+    category: 'features',
+    question: 'Can I import insulin data from my pump?',
+    answer: 'Yes! The app supports importing from Glooko exports, which includes data from most major insulin pumps. Go to Insulin Management > Import Data and upload your CSV file. The system automatically detects both bolus and basal insulin entries.'
+  },
+  {
+    category: 'features',
+    question: 'What are basal trends and why do they matter?',
+    answer: 'Basal trends show your background insulin patterns over time. The app calculates consistency scores, identifies outlier days, and helps you spot patterns. This is valuable for discussing basal rate adjustments with your healthcare provider.'
+  },
+  {
+    category: 'features',
+    question: 'How does voice logging work?',
+    answer: 'On the Insulin History page, you can use voice commands to log doses hands-free. Just say something like "5 units of Humalog" or "took 3 rapid acting" and the app will parse your dose and log it automatically. Perfect for when your hands are busy!'
+  },
+
+  // Food & Meal Management (NEW)
+  {
+    category: 'features',
+    question: 'How do I log meals and track carbs?',
+    answer: 'Go to Food & Meal Management to search for foods, log meals, and track carbohydrates. The app provides automatic insulin calculations based on your carb ratio and shows meal impact analysis with glucose correlations.'
+  },
+  {
+    category: 'features',
+    question: 'What happened to the Meal Planning page?',
+    answer: 'Meal Planning has been merged into the Food page for a better experience! All meal planning features are now in Food & Meal Management under the Analytics tab. You get food logging, history, and advanced analytics all in one place.'
+  },
+  {
+    category: 'features',
+    question: 'How does the app calculate my carb ratio?',
+    answer: 'The app analyzes your recent meals and insulin doses to calculate your average carb ratio. It looks for insulin doses taken within 2 hours of meals and determines the ratio automatically. This helps you dose more accurately over time.'
+  },
+  {
+    category: 'features',
+    question: 'Can I see how meals affect my glucose?',
+    answer: 'Yes! The Analytics tab in Food Management shows meal impact analysis, correlating your meals with glucose readings and insulin doses. This helps you understand which foods work best for you and optimize your meal choices.'
+  },
+
+  // Customizable Dashboard (NEW)
+  {
+    category: 'features',
+    question: 'Can I customize my dashboard layout?',
+    answer: 'Absolutely! Click "Customize Dashboard" on the main dashboard to drag and drop widgets, show/hide sections, and resize components. Your layout is saved automatically and works across all your devices.'
+  },
+  {
+    category: 'features',
+    question: 'What widgets can I add to my dashboard?',
+    answer: 'You can add widgets from all categories: Sensors (hero, stats, alerts), Insulin (IOB tracker, quick dose, TDI, basal trends), Glucose (trends), Food (recent meals), and General (AI insights, activity timeline, achievements, quick actions). Mix and match to create your perfect dashboard!'
+  },
+  {
+    category: 'features',
+    question: 'How do I reset my dashboard to default?',
+    answer: 'In the dashboard customizer, click the "Reset" button to restore the default layout. This is helpful if you want to start fresh or if your layout gets messy.'
+  },
+
+  // Advanced Features (NEW)
+  {
+    category: 'features',
+    question: 'What is the batch file upload feature?',
+    answer: 'Batch upload lets you import multiple insulin data files at once. Drag and drop up to 10 files, and the app processes them simultaneously with progress tracking. Perfect for migrating historical data or catching up after a vacation.'
+  },
+  {
+    category: 'features',
+    question: 'How does pagination work for large datasets?',
+    answer: 'The app offers three viewing modes: traditional pagination (50 entries per page), infinite scroll (mobile-optimized), and virtual scrolling (for 10,000+ entries). Choose the mode that works best for your device and data size.'
+  },
+  {
+    category: 'features',
+    question: 'Can I export my insulin and food data?',
+    answer: 'Yes! Go to Settings > Export Data to download your insulin logs, food logs, and glucose readings in CSV or JSON format. You can select date ranges and choose which data types to include.'
+  },
+  {
+    category: 'features',
+    question: 'What are smart defaults and AI suggestions?',
+    answer: 'The app learns from your patterns and suggests insulin doses based on your history. It considers time of day, recent meals, current IOB, and your typical dosing patterns to provide intelligent recommendations with confidence scores.'
+  },
+
+  // Mobile Features (NEW)
+  {
+    category: 'features',
+    question: 'Is there a mobile app?',
+    answer: 'The web app is a Progressive Web App (PWA) that works like a native app! Install it on your phone by tapping "Add to Home Screen" in your browser. You get offline access, push notifications, and an app-like experience.'
+  },
+  {
+    category: 'features',
+    question: 'How do I access all features on mobile?',
+    answer: 'Tap the hamburger menu (☰) in the top-left corner to access all pages: Dashboard, Glucose Data, Sensors, Replacement Tracking, Food, Insulin, Analytics, Community, Settings, and Help. The bottom navigation provides quick access to your most-used pages.'
+  },
+  {
+    category: 'features',
+    question: 'Does the app work offline?',
+    answer: 'Yes! Once installed as a PWA, the app caches essential features for offline use. You can view your data and the app will sync changes when you reconnect to the internet.'
+  },
+
+  // API & Integrations (NEW)
+  {
+    category: 'features',
+    question: 'Can I access my data programmatically?',
+    answer: 'Yes! Go to Settings > API Keys to generate API keys for programmatic access. The REST API lets you retrieve glucose readings, food logs, community tips, and more. View the interactive API documentation at /docs or visit Settings > API Keys to get started.'
+  },
+  {
+    category: 'features',
+    question: 'Where can I find API documentation?',
+    answer: 'Visit /docs for interactive Swagger UI documentation where you can test endpoints directly. You can also access the raw OpenAPI spec at /api/v1/docs. The documentation includes authentication guides, request/response examples, and rate limiting information.'
+  },
+  {
+    category: 'features',
+    question: 'What third-party integrations are supported?',
+    answer: 'Currently, the app supports Glooko data imports (which includes most major pumps). The API allows custom integrations with other apps and services. More direct integrations are planned for future releases.'
   }
 ];
 

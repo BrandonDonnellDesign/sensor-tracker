@@ -171,7 +171,8 @@ export async function POST(request: NextRequest) {
 
     if (logError) {
       console.error('Error updating AI moderation log:', logError);
-      return NextResponse.json({ error: 'Failed to update moderation log' }, { status: 500 });
+      // Don't fail the request - moderation log is optional
+      console.warn('⚠️ Continuing without updating moderation log (table may not exist)');
     }
 
     if (!updateResult || updateResult.length === 0) {

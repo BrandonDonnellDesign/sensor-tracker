@@ -28,9 +28,9 @@ export function MobileOptimizedCard({
   const isClickable = !!onClick;
 
   const statusColors = {
-    success: 'border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20',
-    warning: 'border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/20',
-    error: 'border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20'
+    success: 'border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-900/30 shadow-sm',
+    warning: 'border-yellow-300 dark:border-yellow-700 bg-yellow-50 dark:bg-yellow-900/30',
+    error: 'border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/30'
   };
 
   const statusDotColors = {
@@ -40,9 +40,22 @@ export function MobileOptimizedCard({
   };
 
   const badgeColors = {
-    success: 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300',
-    warning: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300',
-    error: 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300'
+    success: 'bg-green-500 text-white',
+    warning: 'bg-yellow-500 text-white',
+    error: 'bg-red-500 text-white'
+  };
+  
+  // Special badge colors based on badge text
+  const getBadgeColor = () => {
+    if (!badge) return '';
+    if (status) return badgeColors[status];
+    
+    // Custom colors for specific badge text
+    if (badge === 'Active') return 'bg-green-500 text-white';
+    if (badge === 'Inactive') return 'bg-gray-400 text-white';
+    if (badge === 'Issue') return 'bg-red-500 text-white';
+    
+    return 'bg-gray-100 dark:bg-slate-700 text-gray-800 dark:text-slate-300';
   };
 
   return (
@@ -96,7 +109,7 @@ export function MobileOptimizedCard({
           {badge && (
             <span className={cn(
               'px-2 py-1 rounded-full text-xs font-medium',
-              status ? badgeColors[status] : 'bg-gray-100 dark:bg-slate-700 text-gray-800 dark:text-slate-300'
+              getBadgeColor()
             )}>
               {badge}
             </span>

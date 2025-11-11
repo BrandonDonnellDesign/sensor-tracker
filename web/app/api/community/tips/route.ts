@@ -3,7 +3,13 @@ import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  }
 );
 
 export async function GET(request: NextRequest) {
@@ -247,19 +253,34 @@ export async function POST(request: NextRequest) {
     const authHeader = request.headers.get('authorization');
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+      return NextResponse.json({ 
+        error: 'Authentication required',
+        details: 'No authorization header provided'
+      }, { status: 401 });
     }
 
-    const token = authHeader.substring(7);
-    const userSupabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
+    const token = authHeader.substring(7).trim();
     
-    const { data: { user }, error: authError } = await userSupabase.auth.getUser(token);
-    
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Invalid authentication' }, { status: 401 });
+    // Verify the JWT token
+    let user;
+    try {
+      const { data, error: authError } = await supabase.auth.getUser(token);
+      
+      if (authError || !data.user) {
+        console.error('JWT verification error:', authError?.message);
+        return NextResponse.json({ 
+          error: 'Invalid authentication',
+          details: authError?.message || 'Token verification failed'
+        }, { status: 401 });
+      }
+      
+      user = data.user;
+    } catch (error) {
+      console.error('Unexpected auth error:', error);
+      return NextResponse.json({ 
+        error: 'Authentication failed',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      }, { status: 401 });
     }
 
     // Try to call the toggle_tip_vote function, fallback to mock response

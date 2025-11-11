@@ -8,6 +8,7 @@ import { AIInsightsPanel } from '@/components/dashboard/ai-insights-panel';
 import { FoodAnalytics } from '@/components/dashboard/food-analytics';
 import { GlucoseFoodCorrelation } from '@/components/dashboard/glucose-food-correlation';
 import { NutritionInsights } from '@/components/dashboard/nutrition-insights';
+import DawnPhenomenonAnalysis from '@/components/analytics/dawn-phenomenon-analysis';
 import { useGamification } from '@/components/providers/gamification-provider';
 import { Database } from '@/lib/database.types';
 
@@ -92,22 +93,25 @@ export default function AnalyticsPage() {
   }
 
   return (
-    <div className="min-h-screen">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 lg:py-8">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-slate-100 mb-2">
+        <div className="mb-4 lg:mb-8">
+          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-slate-100 mb-2">
             Advanced Analytics
           </h1>
-          <p className="text-gray-600 dark:text-slate-400">
+          <p className="text-sm lg:text-base text-gray-600 dark:text-slate-400">
             Discover patterns, trends, and insights from your sensor and nutrition data with AI-powered analysis.
           </p>
         </div>
 
         {/* Analytics Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-6">
           {/* Main Analytics */}
-          <div className="lg:col-span-3 space-y-8">
+          <div className="lg:col-span-3 space-y-4 lg:space-y-8">
+            {/* Dawn Phenomenon Analysis */}
+            <DawnPhenomenonAnalysis />
+            
             {/* Sensor Analytics */}
             <AdvancedAnalytics sensors={sensors} />
             
@@ -119,14 +123,14 @@ export default function AnalyticsPage() {
           </div>
 
           {/* AI Insights Sidebar */}
-          <div className="lg:col-span-1 space-y-6">
+          <div className="lg:col-span-1 space-y-4 lg:space-y-6">
             <AIInsightsPanel data={insightData} />
             
             {/* Nutrition Insights */}
             <NutritionInsights />
             
             {/* Quick Stats */}
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-gray-200 dark:border-slate-700">
+            <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-gray-200 dark:border-slate-700 shadow-sm">
               <h3 className="text-base font-semibold text-gray-900 dark:text-slate-100 mb-3">
                 Quick Stats
               </h3>

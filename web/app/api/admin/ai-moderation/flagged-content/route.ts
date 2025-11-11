@@ -87,7 +87,7 @@ export async function GET() {
       console.log('🔍 Tip IDs from AI log:', tipIds);
       console.log('🔍 Comment IDs from AI log:', commentIds);
 
-      // Fetch actual tip content (including deleted ones for admin review)
+      // Fetch actual tip content (only pending/flagged ones, not already reviewed)
       if (tipIds.length > 0) {
         const { data: tips, error: tipsError } = await (supabase as any)
           .from('community_tips')
@@ -104,7 +104,8 @@ export async function GET() {
             author_name,
             is_deleted
           `)
-          .in('id', tipIds);
+          .in('id', tipIds)
+          .in('moderation_status', ['pending', 'flagged', null]); // Only show unreviewed tips
         
         console.log('🔍 Flagged tips from log:', { 
           requestedIds: tipIds, 

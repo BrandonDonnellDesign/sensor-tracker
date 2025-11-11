@@ -244,47 +244,47 @@ export function FoodSearch({ onFoodLogged }: FoodSearchProps) {
       <div className="grid grid-cols-4 gap-2">
         <button
           onClick={() => setSearchMode('search')}
-          className={`py-2 px-2 rounded-lg transition-colors text-sm ${
+          className={`py-3 md:py-2 px-2 rounded-lg transition-colors text-sm touch-manipulation ${
             searchMode === 'search'
               ? 'bg-blue-600 text-white'
               : 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300'
           }`}
         >
           <Search className="w-4 h-4 inline mr-1" />
-          Search
+          <span className="hidden sm:inline">Search</span>
         </button>
         <button
           onClick={() => setSearchMode('favorites')}
-          className={`py-2 px-2 rounded-lg transition-colors text-sm ${
+          className={`py-3 md:py-2 px-2 rounded-lg transition-colors text-sm touch-manipulation ${
             (searchMode as string) === 'favorites'
               ? 'bg-blue-600 text-white'
               : 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300'
           }`}
         >
           <Heart className="w-4 h-4 inline mr-1" />
-          Favorites
+          <span className="hidden sm:inline">Favorites</span>
         </button>
         <button
           onClick={() => setSearchMode('barcode')}
-          className={`py-2 px-2 rounded-lg transition-colors text-sm ${
+          className={`py-3 md:py-2 px-2 rounded-lg transition-colors text-sm touch-manipulation ${
             searchMode === 'barcode'
               ? 'bg-blue-600 text-white'
               : 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300'
           }`}
         >
           <Barcode className="w-4 h-4 inline mr-1" />
-          Scan
+          <span className="hidden sm:inline">Scan</span>
         </button>
         <button
           onClick={() => setSearchMode('custom')}
-          className={`py-2 px-2 rounded-lg transition-colors text-sm ${
+          className={`py-3 md:py-2 px-2 rounded-lg transition-colors text-sm touch-manipulation ${
             (searchMode as string) === 'custom'
               ? 'bg-blue-600 text-white'
               : 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300'
           }`}
         >
           <Plus className="w-4 h-4 inline mr-1" />
-          Custom
+          <span className="hidden sm:inline">Custom</span>
         </button>
       </div>
 
@@ -300,14 +300,19 @@ export function FoodSearch({ onFoodLogged }: FoodSearchProps) {
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
               placeholder="Search for food..."
-              className="flex-1 px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100"
+              className="flex-1 px-4 py-3 md:py-2 text-base md:text-sm border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 placeholder-gray-500 dark:placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400 transition-colors touch-manipulation"
+              autoComplete="off"
+              autoCapitalize="off"
+              autoCorrect="off"
+              spellCheck="false"
             />
             <button
               onClick={handleSearch}
               disabled={isSearching}
-              className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50"
+              className="px-4 md:px-6 py-3 md:py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50 touch-manipulation min-w-[60px] flex items-center justify-center"
             >
-              {isSearching ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Search'}
+              {isSearching ? <Loader2 className="w-5 h-5 animate-spin" /> : <span className="hidden md:inline">Search</span>}
+              {isSearching ? null : <Search className="w-5 h-5 md:hidden" />}
             </button>
           </div>
 
@@ -424,7 +429,7 @@ export function FoodSearch({ onFoodLogged }: FoodSearchProps) {
               <button
                 onClick={handleStartScanner}
                 disabled={!hasCamera || permissionLoading}
-                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-6 py-4 md:py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation text-base md:text-sm font-medium"
               >
                 {permissionLoading ? (
                   <>
@@ -449,12 +454,15 @@ export function FoodSearch({ onFoodLogged }: FoodSearchProps) {
                   onChange={(e) => setBarcode(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleBarcodeSearch(barcode)}
                   placeholder="Enter barcode..."
-                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  className="flex-1 px-4 py-3 md:py-2 text-base md:text-sm border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 placeholder-gray-500 dark:placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400 transition-colors touch-manipulation"
+                  autoComplete="off"
                 />
                 <button
                   onClick={() => handleBarcodeSearch(barcode)}
                   disabled={!barcode || isSearching}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50"
+                  className="px-4 py-3 md:py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50 touch-manipulation min-w-[80px]"
                 >
                   Lookup
                 </button>

@@ -266,7 +266,7 @@ export function MultiFoodLogForm({ items, onCancel, onSuccess, onAddMore }: Mult
         <select
           value={mealType}
           onChange={(e) => setMealType(e.target.value)}
-          className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700"
+          className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400 transition-colors"
         >
           <option value="breakfast">Breakfast</option>
           <option value="lunch">Lunch</option>
@@ -285,7 +285,7 @@ export function MultiFoodLogForm({ items, onCancel, onSuccess, onAddMore }: Mult
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           rows={3}
-          className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700"
+          className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 placeholder-gray-500 dark:placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400 transition-colors resize-none"
           placeholder="Add any notes about this meal..."
         />
       </div>

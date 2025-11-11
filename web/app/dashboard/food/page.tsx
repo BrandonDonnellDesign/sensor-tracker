@@ -1,56 +1,290 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/components/providers/auth-provider';
+import { useSearchParams } from 'next/navigation';
 import { FoodSearch } from '@/components/food/food-search';
 import { FoodLogList } from '@/components/food/food-log-list';
-import { UtensilsCrossed, Plus } from 'lucide-react';
+import { MealImpactAnalyzer } from '@/components/food/meal-impact-analyzer';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent } from '@/components/ui/card';
+import { createClient } from '@/lib/supabase-client';
+import { UtensilsCrossed, Plus, History, BarChart3, Activity, Target, TrendingUp } from 'lucide-react';
+
+interface FoodLog {
+  id: string;
+  logged_at: string;
+  product_name?: string | null;
+  custom_food_name?: string | null;
+  total_carbs_g?: number | null;
+  total_calories?: number | null;
+  meal_type?: string | null;
+  created_at: string;
+}
+
+interface InsulinLog {
+  id: string;
+  taken_at: string;
+  units: number;
+  insulin_type: string;
+  delivery_type?: string;
+  user_id: string;
+}
+
+interface GlucoseReading {
+  id: string;
+  system_time: string;
+  value: number;
+  trend?: string | null;
+}
 
 export default function FoodPage() {
   const { user } = useAuth();
+  const searchParams = useSearchParams();
   const [showLogForm, setShowLogForm] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [activeTab, setActiveTab] = useState('log');
+  const [loading, setLoading] = useState(true);
+  const [foodLogs, setFoodLogs] = useState<FoodLog[]>([]);
+  const [insulinLogs, setInsulinLogs] = useState<InsulinLog[]>([]);
+  const [glucoseReadings, setGlucoseReadings] = useState<GlucoseReading[]>([]);
+  const [_currentGlucose, setCurrentGlucose] = useState<number | null>(null);
+
+  const supabase = createClient();
+
+  // Handle tab from URL parameter
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab && ['log', 'history', 'analytics'].includes(tab)) {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (user?.id) {
+      loadData();
+    }
+  }, [user, refreshKey]);
+
+  const loadData = async () => {
+    if (!user?.id) return;
+
+    setLoading(true);
+    try {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      const [foodResponse, insulinResponse, glucoseResponse] = await Promise.all([
+        supabase
+          .from('food_logs')
+          .select('*')
+          .eq('user_id', user.id)
+          .gte('logged_at', thirtyDaysAgo.toISOString())
+          .order('logged_at', { ascending: false }),
+        
+        supabase
+          .from('insulin_logs')
+          .select('*')
+          .eq('user_id', user.id)
+          .gte('taken_at', thirtyDaysAgo.toISOString())
+          .order('taken_at', { ascending: false }),
+        
+        supabase
+          .from('glucose_readings')
+          .select('*')
+          .eq('user_id', user.id)
+          .gte('system_time', thirtyDaysAgo.toISOString())
+          .order('system_time', { ascending: false })
+          .limit(100)
+      ]);
+
+      if (foodResponse.data) setFoodLogs(foodResponse.data);
+      if (insulinResponse.data) setInsulinLogs(insulinResponse.data);
+      if (glucoseResponse.data) {
+        setGlucoseReadings(glucoseResponse.data);
+        if (glucoseResponse.data.length > 0) {
+          setCurrentGlucose(glucoseResponse.data[0].value);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleFoodLogged = () => {
     setShowLogForm(false);
     setRefreshKey(prev => prev + 1);
   };
 
+  // Calculate today's statistics
+  const todayStats = {
+    totalCarbs: foodLogs
+      .filter(log => {
+        const logDate = new Date(log.logged_at);
+        const today = new Date();
+        return logDate.toDateString() === today.toDateString();
+      })
+      .reduce((sum, log) => sum + (log.total_carbs_g || 0), 0),
+    
+    totalInsulin: insulinLogs
+      .filter(log => {
+        const logDate = new Date(log.taken_at);
+        const today = new Date();
+        return logDate.toDateString() === today.toDateString();
+      })
+      .reduce((sum, log) => sum + log.units, 0),
+    
+    mealsToday: foodLogs.filter(log => {
+      const logDate = new Date(log.logged_at);
+      const today = new Date();
+      return logDate.toDateString() === today.toDateString();
+    }).length
+  };
+
+  // Calculate average carb ratio
+  const averageCarbRatio = (() => {
+    const recentMeals = foodLogs.slice(0, 10);
+    const ratios = recentMeals
+      .map(meal => {
+        const mealTime = new Date(meal.logged_at);
+        const relatedInsulin = insulinLogs.find(insulin => {
+          const insulinTime = new Date(insulin.taken_at);
+          const timeDiff = Math.abs(mealTime.getTime() - insulinTime.getTime());
+          return timeDiff <= 2 * 60 * 60 * 1000;
+        });
+
+        if (relatedInsulin && (meal.total_carbs_g || 0) > 0) {
+          return (meal.total_carbs_g || 0) / relatedInsulin.units;
+        }
+        return null;
+      })
+      .filter((ratio): ratio is number => ratio !== null);
+
+    return ratios.length > 0 ? 
+      Math.round(ratios.reduce((a, b) => a + b, 0) / ratios.length) : null;
+  })();
+
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen pb-20 lg:pb-8">
       {/* Header */}
       <div className="mb-4 lg:mb-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl lg:text-3xl font-bold mb-2 text-white flex items-center gap-3">
               <UtensilsCrossed className="w-6 lg:w-8 h-6 lg:h-8" />
-              <span className="hidden sm:inline">Smart Food + Insulin Log</span>
+              <span className="hidden sm:inline">Food & Meal Management</span>
               <span className="sm:hidden">Food Log</span>
             </h1>
             <p className="text-slate-400 text-sm lg:text-base">
-              Track meals with automatic insulin calculation and dosing
+              Track meals, analyze impact, and optimize insulin dosing
             </p>
           </div>
           <button
-            onClick={() => setShowLogForm(!showLogForm)}
+            onClick={() => {
+              setShowLogForm(!showLogForm);
+              setActiveTab('log');
+            }}
             className="px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg transition-all inline-flex items-center shadow-lg font-medium"
           >
             <Plus className="w-5 h-5 mr-2" />
             <span className="hidden sm:inline">Log Food</span>
-            <span className="sm:hidden">Add Food</span>
+            <span className="sm:hidden">Add</span>
           </button>
         </div>
       </div>
 
-      {/* Log Food Form */}
-      {showLogForm && (
-        <div className="mb-4 lg:mb-6 bg-[#1e293b] rounded-lg shadow-lg border border-slate-700/30 p-4 lg:p-6">
-          <FoodSearch onFoodLogged={handleFoodLogged} />
-        </div>
-      )}
+      {/* Today's Summary Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-6">
+        <Card className="bg-slate-800/50 border-slate-700">
+          <CardContent className="p-3 lg:p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <UtensilsCrossed className="w-4 h-4 text-blue-400" />
+              <span className="text-xs text-slate-400">Meals Today</span>
+            </div>
+            <p className="text-xl lg:text-2xl font-bold text-white">{todayStats.mealsToday}</p>
+          </CardContent>
+        </Card>
 
-      {/* Food Log History */}
-      {user?.id && <FoodLogList key={refreshKey} userId={user.id} />}
+        <Card className="bg-slate-800/50 border-slate-700">
+          <CardContent className="p-3 lg:p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Target className="w-4 h-4 text-green-400" />
+              <span className="text-xs text-slate-400">Total Carbs</span>
+            </div>
+            <p className="text-xl lg:text-2xl font-bold text-white">{todayStats.totalCarbs.toFixed(0)}g</p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-slate-800/50 border-slate-700">
+          <CardContent className="p-3 lg:p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Activity className="w-4 h-4 text-purple-400" />
+              <span className="text-xs text-slate-400">Total Insulin</span>
+            </div>
+            <p className="text-xl lg:text-2xl font-bold text-white">{todayStats.totalInsulin.toFixed(1)}u</p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-slate-800/50 border-slate-700">
+          <CardContent className="p-3 lg:p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <TrendingUp className="w-4 h-4 text-orange-400" />
+              <span className="text-xs text-slate-400">Carb Ratio</span>
+            </div>
+            <p className="text-xl lg:text-2xl font-bold text-white">
+              {averageCarbRatio ? `1:${averageCarbRatio}` : 'N/A'}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList className="grid w-full grid-cols-3 bg-slate-800/50 border border-slate-700">
+          <TabsTrigger value="log" className="flex items-center gap-2">
+            <Plus className="w-4 h-4" />
+            <span className="hidden sm:inline">Log Food</span>
+            <span className="sm:hidden">Log</span>
+          </TabsTrigger>
+          <TabsTrigger value="history" className="flex items-center gap-2">
+            <History className="w-4 h-4" />
+            <span className="hidden sm:inline">History</span>
+            <span className="sm:hidden">History</span>
+          </TabsTrigger>
+          <TabsTrigger value="analytics" className="flex items-center gap-2">
+            <BarChart3 className="w-4 h-4" />
+            <span className="hidden sm:inline">Analytics</span>
+            <span className="sm:hidden">Stats</span>
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="log" className="space-y-4">
+          <div className="bg-[#1e293b] rounded-lg shadow-lg border border-slate-700/30 p-4 lg:p-6">
+            <FoodSearch onFoodLogged={handleFoodLogged} />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="history" className="space-y-4">
+          {user?.id && <FoodLogList key={refreshKey} userId={user.id} />}
+        </TabsContent>
+
+        <TabsContent value="analytics" className="space-y-4">
+          {!loading && (
+            <MealImpactAnalyzer
+              foodLogs={foodLogs}
+              insulinLogs={insulinLogs}
+              glucoseReadings={glucoseReadings}
+            />
+          )}
+          {loading && (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

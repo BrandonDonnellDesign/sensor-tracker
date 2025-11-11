@@ -21,15 +21,16 @@ export async function POST(
     }
 
     const token = authHeader.substring(7);
-    const userSupabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
     
-    const { data: { user }, error: authError } = await userSupabase.auth.getUser(token);
+    // Use service role key to verify the JWT token
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     
     if (authError || !user) {
-      return NextResponse.json({ error: 'Invalid authentication' }, { status: 401 });
+      console.error('Authentication error:', authError);
+      return NextResponse.json({ 
+        error: 'Invalid authentication',
+        details: authError?.message 
+      }, { status: 401 });
     }
 
     // Verify the tip exists
@@ -83,12 +84,9 @@ export async function GET(
     }
 
     const token = authHeader.substring(7);
-    const userSupabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
     
-    const { data: { user }, error: authError } = await userSupabase.auth.getUser(token);
+    // Use service role key to verify the JWT token
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     
     if (authError || !user) {
       return NextResponse.json({ bookmarked: false });

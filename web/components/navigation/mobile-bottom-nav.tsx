@@ -6,14 +6,14 @@ import {
   Home, 
   Activity, 
   UtensilsCrossed,
-  Syringe,
-  Package
+  BarChart3,
+  Syringe
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   {
-    name: 'Dashboard',
+    name: 'Home',
     href: '/dashboard',
     icon: Home,
     activePattern: /^\/dashboard$/
@@ -37,12 +37,11 @@ const navItems = [
     activePattern: /^\/dashboard\/insulin/
   },
   {
-    name: 'Tracking',
-    href: '/dashboard/replacement-tracking',
-    icon: Package,
-    activePattern: /^\/dashboard\/replacement-tracking/
+    name: 'Analytics',
+    href: '/dashboard/analytics',
+    icon: BarChart3,
+    activePattern: /^\/dashboard\/analytics/
   },
-
 ];
 
 export function MobileBottomNav() {

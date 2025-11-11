@@ -1,15 +1,14 @@
 {
-  "name": "CGM Sensor Tracker",
-  "short_name": "CGM Tracker",
-  "description": "Track and manage your CGM sensors with AI insights",
-  "start_url": "/dashboard",
+  "name": "Insulin Management System",
+  "short_name": "InsulinTracker",
+  "description": "Comprehensive diabetes management with insulin tracking, IOB calculations, and analytics",
+  "start_url": "/dashboard/insulin",
   "display": "standalone",
-  "background_color": "#ffffff",
+  "background_color": "#0f172a",
   "theme_color": "#3b82f6",
   "orientation": "portrait-primary",
-  "scope": "/",
-  "categories": ["health", "medical", "productivity"],
-  "lang": "en",
+  "categories": ["health", "medical", "lifestyle"],
+  "lang": "en-US",
   "icons": [
     {
       "src": "/icons/icon-72x72.png",
@@ -62,25 +61,37 @@
   ],
   "shortcuts": [
     {
-      "name": "Add New Sensor",
-      "short_name": "Add Sensor",
-      "description": "Quickly add a new CGM sensor",
-      "url": "/dashboard/sensors/new",
+      "name": "Quick Dose",
+      "short_name": "Dose",
+      "description": "Log insulin dose quickly",
+      "url": "/dashboard/insulin?action=quick-dose",
       "icons": [
         {
-          "src": "/icons/add-sensor-96x96.png",
+          "src": "/icons/syringe-96x96.png",
           "sizes": "96x96"
         }
       ]
     },
     {
-      "name": "View Analytics",
-      "short_name": "Analytics",
-      "description": "View sensor performance analytics",
-      "url": "/dashboard/analytics",
+      "name": "IOB Check",
+      "short_name": "IOB",
+      "description": "Check insulin on board",
+      "url": "/dashboard/insulin?action=iob",
       "icons": [
         {
-          "src": "/icons/analytics-96x96.png",
+          "src": "/icons/droplet-96x96.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Import Data",
+      "short_name": "Import",
+      "description": "Import insulin data",
+      "url": "/dashboard/insulin/import",
+      "icons": [
+        {
+          "src": "/icons/upload-96x96.png",
           "sizes": "96x96"
         }
       ]
@@ -88,18 +99,30 @@
   ],
   "screenshots": [
     {
+      "src": "/screenshots/dashboard-desktop.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Insulin Dashboard - Desktop View"
+    },
+    {
       "src": "/screenshots/dashboard-mobile.png",
       "sizes": "390x844",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "Dashboard view on mobile"
-    },
-    {
-      "src": "/screenshots/sensors-mobile.png",
-      "sizes": "390x844",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "Sensor list on mobile"
+      "label": "Insulin Dashboard - Mobile View"
     }
-  ]
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false,
+  "scope": "/",
+  "id": "insulin-management-system",
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
+  "edge_side_panel": {
+    "preferred_width": 400
+  },
+  "handle_links": "preferred",
+  "capture_links": "existing-client-navigate"
 }

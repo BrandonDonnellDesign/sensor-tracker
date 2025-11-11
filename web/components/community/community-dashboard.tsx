@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { CommunityTips } from './community-tips';
 import { ActivityFeed } from './activity-feed';
-import { Leaderboard } from './leaderboard';
 import { NotificationSystem } from './notification-system';
 import { 
   Users, 
@@ -11,9 +10,6 @@ import {
   MessageCircle, 
   Lightbulb, 
   Award,
-  Target,
-  Zap,
-  BarChart3,
   Clock
 } from 'lucide-react';
 import { authenticatedFetch } from '@/lib/api-client';
@@ -34,13 +30,6 @@ interface CommunityStats {
     count: number;
     percentage: number;
   }>;
-  userStats?: {
-    rank: number;
-    totalContributions: number;
-    weeklyStreak: number;
-    level: number;
-    nextLevelProgress: number;
-  };
 }
 
 interface CommunityDashboardProps {
@@ -48,10 +37,10 @@ interface CommunityDashboardProps {
 }
 
 export function CommunityDashboard({ className = '' }: CommunityDashboardProps) {
-  const { user } = useAuth();
+  const { user: _user } = useAuth();
   const [stats, setStats] = useState<CommunityStats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'tips' | 'activity' | 'leaderboard'>('tips');
+  const [activeTab, setActiveTab] = useState<'tips' | 'activity'>('tips');
 
   useEffect(() => {
     fetchCommunityStats();
@@ -208,55 +197,7 @@ export function CommunityDashboard({ className = '' }: CommunityDashboardProps) 
         </div>
       )}
 
-      {/* User Progress Card (if logged in) */}
-      {user && stats?.userStats && (
-        <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl p-6 text-white">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="text-lg font-semibold">Your Progress</h3>
-              <p className="text-blue-100">Keep up the great work!</p>
-            </div>
-            <div className="text-right">
-              <div className="text-2xl font-bold">#{stats.userStats.rank}</div>
-              <div className="text-sm text-blue-100">Community Rank</div>
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-white/10 rounded-lg p-3">
-              <div className="flex items-center space-x-2 mb-1">
-                <Target className="w-4 h-4" />
-                <span className="text-sm">Level {stats.userStats.level}</span>
-              </div>
-              <div className="w-full bg-white/20 rounded-full h-2">
-                <div 
-                  className="bg-white rounded-full h-2 transition-all duration-300"
-                  style={{ width: `${stats.userStats.nextLevelProgress}%` }}
-                ></div>
-              </div>
-              <div className="text-xs text-blue-100 mt-1">
-                {stats.userStats.nextLevelProgress}% to next level
-              </div>
-            </div>
-            
-            <div className="bg-white/10 rounded-lg p-3">
-              <div className="flex items-center space-x-2 mb-1">
-                <Zap className="w-4 h-4" />
-                <span className="text-sm">Streak</span>
-              </div>
-              <div className="text-xl font-bold">{stats.userStats.weeklyStreak} days</div>
-            </div>
-            
-            <div className="bg-white/10 rounded-lg p-3">
-              <div className="flex items-center space-x-2 mb-1">
-                <BarChart3 className="w-4 h-4" />
-                <span className="text-sm">Contributions</span>
-              </div>
-              <div className="text-xl font-bold">{stats.userStats.totalContributions}</div>
-            </div>
-          </div>
-        </div>
-      )}
+
 
       {/* Category Distribution */}
       {stats?.topCategories && (
@@ -307,8 +248,7 @@ export function CommunityDashboard({ className = '' }: CommunityDashboardProps) 
           <nav className="flex space-x-8 px-6">
             {[
               { key: 'tips', label: 'Community Tips', icon: Lightbulb },
-              { key: 'activity', label: 'Recent Activity', icon: Clock },
-              { key: 'leaderboard', label: 'Leaderboard', icon: Award }
+              { key: 'activity', label: 'Recent Activity', icon: Clock }
             ].map(({ key, label, icon: Icon }) => (
               <button
                 key={key}
@@ -333,25 +273,7 @@ export function CommunityDashboard({ className = '' }: CommunityDashboardProps) 
           )}
           
           {activeTab === 'activity' && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2">
-                <ActivityFeed showHeader={false} limit={15} />
-              </div>
-              <div>
-                <Leaderboard limit={5} />
-              </div>
-            </div>
-          )}
-          
-          {activeTab === 'leaderboard' && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2">
-                <Leaderboard limit={20} />
-              </div>
-              <div>
-                <ActivityFeed showHeader={false} limit={10} />
-              </div>
-            </div>
+            <ActivityFeed showHeader={false} limit={15} />
           )}
         </div>
       </div>

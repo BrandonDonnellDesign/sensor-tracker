@@ -1,0 +1,13 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/sensor-expiration-check",
+      "schedule": "0 */6 * * *"
+    }
+  ],
+  "functions": {
+    "app/api/cron/sensor-expiration-check/route.ts": {
+      "maxDuration": 60
+    }
+  }
+}

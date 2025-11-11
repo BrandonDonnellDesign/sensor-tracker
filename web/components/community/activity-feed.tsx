@@ -243,7 +243,7 @@ export function ActivityFeed({ className = '', limit = 10, showHeader = true }: 
                           {activity.metadata.category}
                         </span>
                       )}
-                      {activity.metadata.count && (
+                      {activity.metadata.count && activity.metadata.count > 0 && (
                         <span className="text-xs text-gray-500 dark:text-slate-400">
                           {activity.metadata.count} interactions
                         </span>

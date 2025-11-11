@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { verifyApiKey } from '@/lib/api-auth';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  }
 );
 
 // Helper function to get user display name
@@ -50,8 +57,12 @@ async function getUserDisplayName(userId: string): Promise<string> {
 }
 
 export async function POST(request: NextRequest) {
+  console.log('=== POST /api/community/tips/create called ===');
+  
   try {
+    console.log('Parsing request body...');
     const body = await request.json();
+    console.log('Body parsed:', { title: body.title, category: body.category });
     const { title, content, category, tags } = body;
 
     // Validate required fields
@@ -72,23 +83,106 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid category' }, { status: 400 });
     }
 
-    // Get user from Authorization header
-    const authHeader = request.headers.get('authorization');
+    // Check for API key authentication first
+    const apiKeyHeader = request.headers.get('x-api-key');
+    let user;
+    let userId: string;
     
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
-    }
+    if (apiKeyHeader) {
+      console.log('Using API key authentication');
+      // API Key authentication
+      const apiKey = await verifyApiKey(apiKeyHeader);
+      
+      if (!apiKey) {
+        return NextResponse.json({ 
+          error: 'Invalid API key',
+          details: 'API key is invalid or expired'
+        }, { status: 401 });
+      }
+      
+      // Get user from API key
+      const { data: apiKeyData } = await supabase
+        .from('api_keys')
+        .select('user_id')
+        .eq('id', apiKey.id)
+        .single();
+      
+      if (!apiKeyData?.user_id) {
+        return NextResponse.json({ 
+          error: 'Invalid API key',
+          details: 'No user associated with API key'
+        }, { status: 401 });
+      }
+      
+      userId = apiKeyData.user_id;
+      
+      // Get user details
+      const { data: { user: apiUser }, error: userError } = await supabase.auth.admin.getUserById(userId);
+      if (userError || !apiUser) {
+        return NextResponse.json({ 
+          error: 'User not found',
+          details: 'Could not find user for API key'
+        }, { status: 401 });
+      }
+      
+      user = apiUser;
+    } else {
+      console.log('Using JWT authentication');
+      // JWT Bearer token authentication
+      const authHeader = request.headers.get('authorization');
+      
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return NextResponse.json({ 
+          error: 'Authentication required',
+          details: 'Provide either X-API-Key header or Authorization: Bearer token'
+        }, { status: 401 });
+      }
 
-    const token = authHeader.substring(7);
-    const userSupabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
-    
-    const { data: { user }, error: authError } = await userSupabase.auth.getUser(token);
-    
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Invalid authentication' }, { status: 401 });
+      const token = authHeader.substring(7).trim();
+      
+      // Validate token format (JWT should have 3 parts separated by dots)
+      const tokenParts = token.split('.');
+      if (!token || tokenParts.length !== 3) {
+        console.error('Malformed JWT token:', {
+          hasToken: !!token,
+          tokenLength: token?.length,
+          tokenParts: tokenParts.length,
+          firstChars: token?.substring(0, 20)
+        });
+        return NextResponse.json({ 
+          error: 'Invalid token format',
+          details: `JWT token is malformed (has ${tokenParts.length} parts, expected 3)`
+        }, { status: 401 });
+      }
+      
+      // Verify the JWT token
+      try {
+        const { data, error: authError } = await supabase.auth.getUser(token);
+        
+        if (authError) {
+          console.error('JWT verification error:', authError.message);
+          return NextResponse.json({ 
+            error: 'Invalid authentication',
+            details: 'Token verification failed: ' + authError.message
+          }, { status: 401 });
+        }
+        
+        if (!data.user) {
+          return NextResponse.json({ 
+            error: 'Invalid authentication',
+            details: 'No user found for token'
+          }, { status: 401 });
+        }
+        
+        user = data.user;
+        userId = user.id;
+      } catch (error) {
+        console.error('Unexpected auth error:', error);
+        return NextResponse.json({ 
+          error: 'Authentication failed',
+          details: error instanceof Error ? error.message : 'Unknown error'
+        }, { status: 401 });
+      }
     }
 
     // Validate and clean tags
@@ -217,6 +311,18 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Error creating tip:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    
+    console.error('Full error details:', {
+      message: errorMessage,
+      stack: errorStack,
+      error
+    });
+    
+    return NextResponse.json({ 
+      error: 'Internal server error',
+      details: errorMessage
+    }, { status: 500 });
   }
 }

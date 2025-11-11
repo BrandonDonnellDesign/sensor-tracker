@@ -265,12 +265,12 @@ export function FoodLogForm({ food, onCancel, onSuccess, onAddToMeal }: FoodLogF
             onChange={(e) => setServingSize(Number(e.target.value))}
             min="0.1"
             step="0.1"
-            className="flex-1 px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700"
+            className="flex-1 px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 placeholder-gray-500 dark:placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400 transition-colors"
           />
           <select
             value={servingUnit}
             onChange={(e) => setServingUnit(e.target.value)}
-            className="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700"
+            className="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400 transition-colors"
           >
             {(() => {
               const foodName = (food.name || food.product_name || '').toLowerCase();
@@ -381,7 +381,7 @@ export function FoodLogForm({ food, onCancel, onSuccess, onAddToMeal }: FoodLogF
           <select
             value={mealType}
             onChange={(e) => setMealType(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700"
+            className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400 transition-colors"
           >
             <option value="breakfast">Breakfast</option>
             <option value="lunch">Lunch</option>
@@ -398,7 +398,7 @@ export function FoodLogForm({ food, onCancel, onSuccess, onAddToMeal }: FoodLogF
             type="date"
             value={loggedDate}
             onChange={(e) => setLoggedDate(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700"
+            className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400 transition-colors"
           />
         </div>
         <div>
@@ -409,7 +409,7 @@ export function FoodLogForm({ food, onCancel, onSuccess, onAddToMeal }: FoodLogF
             type="time"
             value={loggedTime}
             onChange={(e) => setLoggedTime(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700"
+            className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400 transition-colors"
           />
         </div>
       </div>
@@ -423,7 +423,7 @@ export function FoodLogForm({ food, onCancel, onSuccess, onAddToMeal }: FoodLogF
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           rows={3}
-          className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700"
+          className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 placeholder-gray-500 dark:placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400 transition-colors resize-none"
           placeholder="Add any notes about this meal..."
         />
       </div>

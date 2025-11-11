@@ -9,9 +9,10 @@ import { TimezoneSettings } from '@/components/settings/timezone-settings';
 import { ExportSettings } from '@/components/settings/export-settings';
 import { ProfileSettings } from '@/components/settings/profile-settings';
 import { CgmIntegrations } from '@/components/settings/cgm-integrations';
+import { InsulinCalculatorSettings } from '@/components/settings/insulin-calculator-settings';
 import { ApiKeyManager } from '@/components/api/api-key-manager';
 import { ApiShortcutCard } from '@/components/api/api-shortcut-card';
-import { User, Bell, Settings, Link, BarChart3, Key } from 'lucide-react';
+import { User, Bell, Settings, Link, BarChart3, Key, Calculator } from 'lucide-react';
 
 import { Profile } from '@/types/profile';
 import { dateTimeFormatter } from '@/utils/date-formatter';
@@ -26,7 +27,7 @@ export default function SettingsPage() {
   useEffect(() => {
     // Check for URL parameters to set initial tab
     const tab = searchParams.get('tab');
-    if (tab && ['profile', 'notifications', 'preferences', 'integrations', 'export', 'api'].includes(tab)) {
+    if (tab && ['profile', 'notifications', 'preferences', 'calculator', 'integrations', 'export', 'api'].includes(tab)) {
       setActiveTab(tab);
     }
 
@@ -179,6 +180,7 @@ export default function SettingsPage() {
     { id: 'profile', label: 'Profile', icon: User },
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'preferences', label: 'Preferences', icon: Settings },
+    { id: 'calculator', label: 'Insulin Calculator', icon: Calculator },
     { id: 'integrations', label: 'Integrations', icon: Link },
     { id: 'api', label: 'API Keys', icon: Key },
     { id: 'export', label: 'Export Data', icon: BarChart3 },
@@ -193,18 +195,18 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-6 space-y-8">
+    <div className="max-w-4xl mx-auto space-y-8">
       {/* Header */}
-      <div className="pb-6 border-b border-gray-200 dark:border-slate-700">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-slate-100">Settings</h1>
-        <p className="mt-2 text-gray-600 dark:text-slate-400">
+      <div className="px-4 lg:px-6 pb-6 border-b border-gray-200 dark:border-slate-700">
+        <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-slate-100">Settings</h1>
+        <p className="mt-2 text-sm lg:text-base text-gray-600 dark:text-slate-400">
           Manage your account preferences and data settings
         </p>
       </div>
 
       {/* Quick Actions */}
       {activeTab === 'profile' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+        <div className="px-4 lg:px-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
           <button
             onClick={() => setActiveTab('api')}
             className="p-4 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg hover:border-blue-300 dark:hover:border-blue-600 transition-colors text-left group"
@@ -236,6 +238,21 @@ export default function SettingsPage() {
           </button>
 
           <button
+            onClick={() => setActiveTab('calculator')}
+            className="p-4 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg hover:border-blue-300 dark:hover:border-blue-600 transition-colors text-left group"
+          >
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg group-hover:bg-orange-200 dark:group-hover:bg-orange-900/50 transition-colors">
+                <Calculator className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+              </div>
+              <div>
+                <h3 className="font-medium text-gray-900 dark:text-slate-100">Insulin Calculator</h3>
+                <p className="text-sm text-gray-600 dark:text-slate-400">Configure dosing parameters</p>
+              </div>
+            </div>
+          </button>
+
+          <button
             onClick={() => setActiveTab('export')}
             className="p-4 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg hover:border-blue-300 dark:hover:border-blue-600 transition-colors text-left group"
           >
@@ -253,27 +270,28 @@ export default function SettingsPage() {
       )}
 
       {/* Tab Navigation */}
-      <div className="border-b border-gray-200 dark:border-slate-700">
-        <nav className="-mb-px flex space-x-8">
+      <div className="border-b border-gray-200 dark:border-slate-700 overflow-x-auto -mx-4 lg:-mx-6 px-4 lg:px-6">
+        <nav className="-mb-px flex space-x-3 lg:space-x-8">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap flex items-center ${
+              className={`py-3 px-1 border-b-2 font-medium text-xs lg:text-sm whitespace-nowrap flex items-center flex-shrink-0 ${
                 activeTab === tab.id
                   ? 'border-blue-500 text-blue-600 dark:text-blue-400'
                   : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300 hover:border-gray-300'
               }`}
             >
-              <tab.icon className="w-4 h-4 mr-2" />
-              {tab.label}
+              <tab.icon className="w-4 h-4 mr-1.5 lg:mr-2" />
+              <span className="hidden sm:inline">{tab.label}</span>
+              <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
             </button>
           ))}
         </nav>
       </div>
 
       {/* Tab Content */}
-      <div className="mt-8">
+      <div className="px-4 lg:px-6 mt-8">
         {activeTab === 'profile' && (
           <div className="space-y-8">
             <ProfileSettings 
@@ -302,6 +320,9 @@ export default function SettingsPage() {
             onUpdate={updateProfile} 
           />
         )}
+        {activeTab === 'calculator' && (
+          <InsulinCalculatorSettings />
+        )}
         {activeTab === 'integrations' && (
           <CgmIntegrations />
         )}
@@ -312,10 +333,10 @@ export default function SettingsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-lg font-medium text-blue-900 dark:text-blue-100">
-                    API Documentation
+                    📚 API Documentation
                   </h3>
                   <p className="text-blue-700 dark:text-blue-300 text-sm">
-                    Explore interactive API docs and test endpoints
+                    Interactive Swagger UI - Test endpoints, view schemas, and explore the API
                   </p>
                 </div>
                 <a
@@ -325,7 +346,7 @@ export default function SettingsPage() {
                   className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >
                   <Settings className="w-4 h-4 mr-2" />
-                  Open Docs
+                  Open Swagger UI
                 </a>
               </div>
             </div>

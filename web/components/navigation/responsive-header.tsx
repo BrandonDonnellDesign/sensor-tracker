@@ -14,7 +14,12 @@ import {
   Activity,
   UtensilsCrossed,
   Syringe,
-  BarChart3
+  BarChart3,
+  TrendingUp,
+  Package,
+  Users,
+  HelpCircle,
+  Home
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -167,7 +172,68 @@ export function ResponsiveHeader({
             </div>
 
             {/* Menu Items */}
-            <div className="p-4 space-y-2">
+            <div className="p-4 space-y-1 overflow-y-auto max-h-[calc(100vh-200px)]">
+              {/* Primary Navigation */}
+              <div className="text-xs font-semibold text-gray-500 dark:text-slate-500 uppercase tracking-wider px-3 py-2">
+                Main
+              </div>
+              
+              <TouchFriendlyButton
+                variant="ghost"
+                size="lg"
+                fullWidth
+                icon={<Home />}
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  window.location.href = '/dashboard';
+                }}
+                className="justify-start"
+              >
+                Dashboard
+              </TouchFriendlyButton>
+
+              <TouchFriendlyButton
+                variant="ghost"
+                size="lg"
+                fullWidth
+                icon={<TrendingUp />}
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  window.location.href = '/dashboard/glucose-data';
+                }}
+                className="justify-start"
+              >
+                Glucose Data
+              </TouchFriendlyButton>
+
+              <TouchFriendlyButton
+                variant="ghost"
+                size="lg"
+                fullWidth
+                icon={<Activity />}
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  window.location.href = '/dashboard/sensors';
+                }}
+                className="justify-start"
+              >
+                My Sensors
+              </TouchFriendlyButton>
+
+              <TouchFriendlyButton
+                variant="ghost"
+                size="lg"
+                fullWidth
+                icon={<Package />}
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  window.location.href = '/dashboard/replacement-tracking';
+                }}
+                className="justify-start"
+              >
+                Replacement Tracking
+              </TouchFriendlyButton>
+
               <TouchFriendlyButton
                 variant="ghost"
                 size="lg"
@@ -179,7 +245,7 @@ export function ResponsiveHeader({
                 }}
                 className="justify-start"
               >
-                Food Log
+                Food & Insulin
               </TouchFriendlyButton>
 
               <TouchFriendlyButton
@@ -193,10 +259,8 @@ export function ResponsiveHeader({
                 }}
                 className="justify-start"
               >
-                Insulin Logging
+                Insulin Management
               </TouchFriendlyButton>
-
-
 
               <TouchFriendlyButton
                 variant="ghost"
@@ -216,6 +280,28 @@ export function ResponsiveHeader({
                 variant="ghost"
                 size="lg"
                 fullWidth
+                icon={<Users />}
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  window.location.href = '/dashboard/community';
+                }}
+                className="justify-start"
+              >
+                Community
+              </TouchFriendlyButton>
+
+              {/* Divider */}
+              <div className="border-t border-gray-200 dark:border-slate-700 my-3" />
+
+              {/* Secondary Navigation */}
+              <div className="text-xs font-semibold text-gray-500 dark:text-slate-500 uppercase tracking-wider px-3 py-2">
+                More
+              </div>
+
+              <TouchFriendlyButton
+                variant="ghost"
+                size="lg"
+                fullWidth
                 icon={<Settings />}
                 onClick={() => {
                   setIsMenuOpen(false);
@@ -224,6 +310,20 @@ export function ResponsiveHeader({
                 className="justify-start"
               >
                 Settings
+              </TouchFriendlyButton>
+
+              <TouchFriendlyButton
+                variant="ghost"
+                size="lg"
+                fullWidth
+                icon={<HelpCircle />}
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  window.location.href = '/dashboard/help';
+                }}
+                className="justify-start"
+              >
+                Help & FAQ
               </TouchFriendlyButton>
 
               {showSearch && (
@@ -239,6 +339,9 @@ export function ResponsiveHeader({
                   Search
                 </TouchFriendlyButton>
               )}
+
+              {/* Divider */}
+              <div className="border-t border-gray-200 dark:border-slate-700 my-3" />
 
               <TouchFriendlyButton
                 variant="ghost"

@@ -1,0 +1,58 @@
+/* Custom Swagger UI styling */
+
+/* Target the schemes wrapper and server container */
+.swagger-ui .schemes.wrapper,
+.swagger-ui .schemes-server-container,
+.swagger-ui .schemes-server-container > div {
+  background-color: transparent !important;
+  background: transparent !important;
+}
+
+/* Server selection dropdown */
+.swagger-ui .servers,
+.swagger-ui .servers > label,
+.swagger-ui .servers > label > select,
+.swagger-ui select#servers {
+  background-color: #f7f7f7 !important;
+  background-image: none !important;
+}
+
+.swagger-ui .servers-title {
+  color: #3b4151 !important;
+  font-weight: 600 !important;
+  margin-bottom: 8px !important;
+}
+
+.swagger-ui select#servers {
+  border: 1px solid #d9d9d9 !important;
+  color: #3b4151 !important;
+  padding: 8px 12px !important;
+  border-radius: 4px !important;
+  font-size: 14px !important;
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  .swagger-ui .schemes.wrapper,
+  .swagger-ui .schemes-server-container,
+  .swagger-ui .schemes-server-container > div {
+    filter: invert(1) hue-rotate(180deg) !important;
+  }
+  
+  .swagger-ui .servers,
+  .swagger-ui .servers > label,
+  .swagger-ui .servers > label > select,
+  .swagger-ui select#servers {
+    background-color: #374151 !important;
+    background-image: none !important;
+  }
+  
+  .swagger-ui .servers-title {
+    color: #e5e7eb !important;
+  }
+  
+  .swagger-ui select#servers {
+    border-color: #4b5563 !important;
+    color: #e5e7eb !important;
+  }
+}

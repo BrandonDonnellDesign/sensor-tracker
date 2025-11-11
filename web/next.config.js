@@ -122,21 +122,61 @@ const nextConfig = {
           },
         ],
       },
+      // No caching for API routes
       {
         source: '/api/(.*)',
         headers: [
           {
             key: 'Cache-Control',
-            value: 'no-store, max-age=0',
+            value: 'no-store, no-cache, must-revalidate, max-age=0',
+          },
+          {
+            key: 'Pragma',
+            value: 'no-cache',
+          },
+          {
+            key: 'Expires',
+            value: '0',
           },
         ],
       },
+      // No caching for dashboard pages (dynamic content)
+      {
+        source: '/dashboard/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-store, no-cache, must-revalidate, max-age=0',
+          },
+        ],
+      },
+      // No caching for admin pages
+      {
+        source: '/admin/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-store, no-cache, must-revalidate, max-age=0',
+          },
+        ],
+      },
+      // Cache static assets
       {
         source: '/_next/static/(.*)',
         headers: [
           {
             key: 'Cache-Control',
             value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+      // Cache images
+      {
+        source: '/_next/image(.*)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=86400, stale-while-revalidate=604800',
           },
         ],
       },

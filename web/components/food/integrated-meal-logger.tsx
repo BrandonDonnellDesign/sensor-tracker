@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -31,9 +31,35 @@ export function IntegratedMealLogger({ food, onCancel, onSuccess }: IntegratedMe
   const { currentGlucose, doses: recentDoses } = useInsulinData();
   const { settings } = useCalculatorSettings();
   
+  // Smart defaults based on food type
+  const getSmartDefaults = () => {
+    const foodName = (food.name || food.product_name || '').toLowerCase();
+    const brand = (food.brand || '').toLowerCase();
+    
+    // Energy drinks and similar beverages default to servings
+    const energyDrinkKeywords = ['energy drink', 'energy', 'monster', 'red bull', 'rockstar', 'bang', 'reign', 'celsius', 'ghost', 'prime energy', 'gfuel', 'g fuel'];
+    const isEnergyDrink = energyDrinkKeywords.some(keyword => foodName.includes(keyword) || brand.includes(keyword));
+    
+    // Fast food chains and restaurant items default to servings
+    const fastFoodBrands = ['mcdonald', 'burger king', 'kfc', 'taco bell', 'subway', 'pizza hut', 'domino', 'wendy', 'chick-fil-a', 'chipotle', 'starbucks'];
+    const isFastFood = fastFoodBrands.some(brand_name => brand.includes(brand_name) || foodName.includes(brand_name));
+    
+    // Items that are typically measured in servings
+    const servingKeywords = ['large', 'medium', 'small', 'cup', 'bottle', 'can', 'piece', 'slice', 'sandwich', 'burger', 'fries'];
+    const isServingItem = servingKeywords.some(keyword => foodName.includes(keyword));
+    
+    if (isEnergyDrink || isFastFood || isServingItem) {
+      return { size: 1, unit: 'serving' };
+    }
+    
+    return { size: 100, unit: 'g' };
+  };
+  
+  const smartDefaults = getSmartDefaults();
+  
   // Food logging state
-  const [servingSize, setServingSize] = useState(100);
-  const [servingUnit, setServingUnit] = useState('g');
+  const [servingSize, setServingSize] = useState(smartDefaults.size);
+  const [servingUnit, setServingUnit] = useState(smartDefaults.unit);
   const [mealType, setMealType] = useState<string>('snack');
   const [notes, setNotes] = useState('');
   const [loggedTime, setLoggedTime] = useState(new Date().toTimeString().slice(0, 5));
@@ -240,23 +266,69 @@ export function IntegratedMealLogger({ food, onCancel, onSuccess }: IntegratedMe
 
       if (logError) throw logError;
 
-      // 3. Log insulin if enabled and dose > 0
-      if (includeInsulin && insulinCalculation.adjustedDose > 0) {
-        const insulinResponse = await fetch('/api/insulin/bolus', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            units: insulinCalculation.adjustedDose,
-            injection_site: 'omnipod',
-            notes: `Meal bolus: ${food.name || food.product_name} (${totalCarbs}g carbs)${useManualGlucose ? ' - manual glucose' : ''}`,
-            taken_at: loggedAtString,
-          }),
-        });
+      // 3. Log insulin if dose was taken
+      if (insulinCalculation.adjustedDose && insulinCalculation.adjustedDose > 0) {
+        const mealNotes = `Meal bolus: ${food.name || food.product_name} (${totalCarbs}g carbs)${useManualGlucose ? ' - manual glucose' : ''}`;
+        
+        // Check for existing Glooko import within 5 minutes to merge with
+        const loggedTime = new Date(loggedAtString);
+        const fiveMinutesBefore = new Date(loggedTime.getTime() - 5 * 60 * 1000);
+        const fiveMinutesAfter = new Date(loggedTime.getTime() + 5 * 60 * 1000);
 
-        if (!insulinResponse.ok) {
-          throw new Error('Failed to log insulin dose');
+        const { data: existingImport } = await supabase
+          .from('insulin_logs')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('insulin_type', 'rapid')
+          .eq('logged_via', 'csv_import')
+          .gte('taken_at', fiveMinutesBefore.toISOString())
+          .lte('taken_at', fiveMinutesAfter.toISOString())
+          .order('taken_at', { ascending: true })
+          .limit(1)
+          .single();
+
+        if (existingImport) {
+          // Merge with existing Glooko import
+          const existingNotes = existingImport.notes || '';
+          const mergedNotes = [existingNotes, mealNotes].filter(Boolean).join(' | ');
+
+          const { error: updateError } = await supabase
+            .from('insulin_logs')
+            .update({
+              // Keep Glooko dose but add meal context
+              meal_relation: 'with_meal',
+              injection_site: 'omnipod', // Update injection site from meal logger
+              notes: mergedNotes,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', existingImport.id);
+
+          if (updateError) {
+            console.error('Failed to merge with existing Glooko import:', updateError);
+            // Fall back to creating new entry
+          } else {
+            console.log('Successfully merged meal context with existing Glooko import');
+          }
+        } else {
+          // No existing import found, create new insulin log
+          const { error: insulinError } = await supabase
+            .from('insulin_logs')
+            .insert([{
+              user_id: user.id,
+              units: insulinCalculation.adjustedDose,
+              insulin_type: 'rapid',
+              taken_at: loggedAtString,
+              delivery_type: 'bolus',
+              meal_relation: 'with_meal',
+              injection_site: 'omnipod',
+              notes: mealNotes,
+              logged_via: 'meal_logger'
+            }]);
+
+          if (insulinError) {
+            console.error('Failed to log insulin dose:', insulinError);
+            // Don't throw error - meal was logged successfully
+          }
         }
       }
 
@@ -323,18 +395,19 @@ export function IntegratedMealLogger({ food, onCancel, onSuccess }: IntegratedMe
           Serving Size
         </Label>
         <div className="flex gap-2">
-          <Input
+          <input
             type="number"
             value={servingSize}
             onChange={(e) => setServingSize(Number(e.target.value))}
             min="0.1"
             step="0.1"
-            className="flex-1"
+            inputMode="decimal"
+            className="flex-1 px-3 py-3 md:py-2 text-base md:text-sm border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 placeholder-gray-500 dark:placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400 transition-colors touch-manipulation"
           />
           <select
             value={servingUnit}
             onChange={(e) => setServingUnit(e.target.value)}
-            className="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700"
+            className="px-4 py-3 md:py-2 text-base md:text-sm border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400 transition-colors touch-manipulation"
           >
             <option value="g">grams (g)</option>
             <option value="oz">ounces (oz)</option>
@@ -433,13 +506,14 @@ export function IntegratedMealLogger({ food, onCancel, onSuccess }: IntegratedMe
                 <Label className="text-sm font-medium text-gray-700 dark:text-slate-300 mb-2 block">
                   Target Glucose
                 </Label>
-                <Input
+                <input
                   type="number"
                   min="80"
                   max="140"
                   value={targetGlucose}
                   onChange={(e) => setTargetGlucose(Number(e.target.value))}
-                  className="bg-white dark:bg-gray-800 h-12 text-lg"
+                  inputMode="numeric"
+                  className="w-full px-4 py-3 md:py-2 text-base md:text-sm border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400 transition-colors touch-manipulation"
                 />
               </div>
               
@@ -447,7 +521,7 @@ export function IntegratedMealLogger({ food, onCancel, onSuccess }: IntegratedMe
                 <Label className="text-sm font-medium text-gray-700 dark:text-slate-300 mb-2 block">
                   Manual Glucose
                 </Label>
-                <Input
+                <input
                   type="number"
                   min="40"
                   max="400"
@@ -457,7 +531,8 @@ export function IntegratedMealLogger({ food, onCancel, onSuccess }: IntegratedMe
                     setUseManualGlucose(!!e.target.value);
                   }}
                   placeholder="Optional override"
-                  className="bg-white dark:bg-gray-800 h-12 text-lg"
+                  inputMode="numeric"
+                  className="w-full px-4 py-3 md:py-2 text-base md:text-sm border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 placeholder-gray-500 dark:placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400 transition-colors touch-manipulation"
                 />
               </div>
             </div>
@@ -526,7 +601,7 @@ export function IntegratedMealLogger({ food, onCancel, onSuccess }: IntegratedMe
           <select
             value={mealType}
             onChange={(e) => setMealType(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700"
+            className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400 transition-colors"
           >
             <option value="breakfast">Breakfast</option>
             <option value="lunch">Lunch</option>
@@ -538,20 +613,22 @@ export function IntegratedMealLogger({ food, onCancel, onSuccess }: IntegratedMe
           <Label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
             Date
           </Label>
-          <Input
+          <input
             type="date"
             value={loggedDate}
             onChange={(e) => setLoggedDate(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400 transition-colors"
           />
         </div>
         <div>
           <Label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
             Time
           </Label>
-          <Input
+          <input
             type="time"
             value={loggedTime}
             onChange={(e) => setLoggedTime(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400 transition-colors"
           />
         </div>
       </div>
@@ -565,7 +642,7 @@ export function IntegratedMealLogger({ food, onCancel, onSuccess }: IntegratedMe
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           rows={3}
-          className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700"
+          className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 placeholder-gray-500 dark:placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400 transition-colors resize-none"
           placeholder="Add any notes about this meal..."
         />
       </div>

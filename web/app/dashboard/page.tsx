@@ -10,7 +10,6 @@ import { useGamification } from '@/components/providers/gamification-provider';
 import { HeroSection } from '@/components/dashboard/hero-section';
 import { EnhancedStatsGrid } from '@/components/dashboard/enhanced-stats-grid';
 import { ActivityTimeline } from '@/components/dashboard/activity-timeline';
-import { QuickInsights } from '@/components/dashboard/quick-insights';
 import { CompactGamification } from '@/components/dashboard/compact-gamification';
 import { StreamlinedQuickActions } from '@/components/dashboard/streamlined-quick-actions';
 import { DashboardSkeleton } from '@/components/dashboard/dashboard-skeleton';
@@ -25,10 +24,18 @@ import { AIInsightsPanel } from '@/components/dashboard/ai-insights-panel';
 import { RealtimeNotificationProvider } from '@/components/notifications/realtime-notification-provider';
 import { DashboardNotifications } from '@/components/dashboard/dashboard-with-notifications';
 import { useInsulinData } from '@/lib/hooks/use-insulin-data';
+import SensorExpirationAlerts from '@/components/notifications/sensor-expiration-alerts';
 
-// Community components
-import { PerformanceComparison } from '@/components/community/performance-comparison';
-import { CommunityTips } from '@/components/community/community-tips';
+// Insulin components
+import { IOBTracker } from '@/components/insulin/iob-tracker';
+import { TDIDashboard } from '@/components/insulin/tdi-dashboard';
+import { BasalTrends } from '@/components/insulin/basal-trends';
+import { QuickDoseLogger } from '@/components/insulin/quick-dose-logger';
+
+// Customizable Dashboard
+import { UnifiedDashboardCustomizer } from '@/components/dashboard/unified-dashboard-customizer';
+import { useDashboardWidgets } from '@/lib/hooks/use-dashboard-widgets';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 
 
 
@@ -54,6 +61,9 @@ export default function DashboardPage() {
   const [isMobile, setIsMobile] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
   const [recentFoodLogs, setRecentFoodLogs] = useState<any[]>([]);
+  
+  // Customizable dashboard widgets
+  const { widgets, updateWidgets, isWidgetEnabled } = useDashboardWidgets();
 
   // Check for admin access errors from middleware
   useEffect(() => {
@@ -318,49 +328,6 @@ export default function DashboardPage() {
   // Calculate active sensors (not expired and not problematic)
   const activeSensors = activeSensorsData.filter((s) => !s.is_problematic).length;
 
-  // Calculate real average duration
-  const calculateAverageDuration = () => {
-    if (sensors.length < 2) return 0;
-
-    const durations: number[] = [];
-    const sortedSensors = [...sensors].sort((a, b) => 
-      new Date(a.date_added).getTime() - new Date(b.date_added).getTime()
-    );
-
-    // Calculate actual durations between consecutive sensors
-    for (let i = 0; i < sortedSensors.length - 1; i++) {
-      const currentSensor = sortedSensors[i];
-      const nextSensor = sortedSensors[i + 1];
-      
-      const startDate = new Date(currentSensor.date_added);
-      const endDate = new Date(nextSensor.date_added);
-      const duration = Math.floor((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-      
-      // Only include reasonable durations (1-30 days)
-      if (duration >= 1 && duration <= 30) {
-        durations.push(duration);
-      }
-    }
-
-    // Add problematic sensor durations (estimate based on when they failed)
-    sensors.forEach(sensor => {
-      if (sensor.is_problematic) {
-        const daysSinceAdded = Math.floor(
-          (Date.now() - new Date(sensor.date_added).getTime()) / (1000 * 60 * 60 * 24)
-        );
-        if (daysSinceAdded <= 14) {
-          durations.push(daysSinceAdded);
-        }
-      }
-    });
-
-    return durations.length > 0 
-      ? durations.reduce((a, b) => a + b, 0) / durations.length 
-      : 0;
-  };
-
-  const averageDuration = calculateAverageDuration();
-
   // Find current active sensor (from filtered active sensors)
   const currentSensor = activeSensorsData.find((s) => !s.is_problematic);
 
@@ -456,6 +423,12 @@ export default function DashboardPage() {
             </div>
           )}
 
+          {/* Sensor Expiration Alerts */}
+          <SensorExpirationAlerts 
+            sensors={sensors}
+            className="mb-4"
+          />
+
           {/* Combined Notifications (Smart + WebSocket) */}
           <DashboardNotifications 
             {...notificationData}
@@ -501,14 +474,24 @@ export default function DashboardPage() {
           </div>
         )}
 
+
+
         {/* Combined Notifications (Smart + WebSocket) */}
         <DashboardNotifications 
           {...notificationData}
           maxVisible={2}
         />
 
+        {/* Dashboard Customizer - Small button in corner */}
+        <div className="flex justify-end mb-4">
+          <UnifiedDashboardCustomizer 
+            widgets={widgets}
+            onWidgetsChange={updateWidgets}
+          />
+        </div>
+
         {/* Hero Section */}
-        {currentSensor && (
+        {isWidgetEnabled('hero') && currentSensor && (
           <HeroSection 
             currentSensor={currentSensor}
             totalSensors={totalSensors}
@@ -516,57 +499,94 @@ export default function DashboardPage() {
         )}
 
         {/* Enhanced Stats Grid */}
-        <EnhancedStatsGrid stats={statsData} />
+        {isWidgetEnabled('stats') && (
+          <EnhancedStatsGrid stats={statsData} />
+        )}
 
+        {/* Sensor Alerts */}
+        {isWidgetEnabled('sensor-alerts') && (
+          <div className="mb-6">
+            <SensorExpirationAlerts sensors={activeSensorsData} />
+          </div>
+        )}
 
-
-        {/* Main Content Grid */}
+        {/* Main Content Grid - Original 2-column layout */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
           {/* Left Column - Activity & Insights */}
           <div className="lg:col-span-2 space-y-4">
             {/* AI Insights Panel */}
-            {sensors.length > 0 && (
+            {isWidgetEnabled('ai-insights') && sensors.length > 0 && (
               <AIInsightsPanel data={insightData} />
             )}
 
-            {/* Community Performance Comparison */}
-            {sensors.length >= 1 && userStats && (
-              <PerformanceComparison 
-                userStats={{
-                  successRate: successRate,
-                  averageDuration: averageDuration,
-                  totalSensors: totalSensors,
-                  currentStreak: userStats.current_streak || 0
-                }}
+            {/* Activity Timeline */}
+            {isWidgetEnabled('activity-timeline') && (
+              <ActivityTimeline 
+                sensors={activeSensorsData}
+                userAchievements={userAchievements || []}
               />
             )}
 
-            {/* Activity Timeline */}
-            <ActivityTimeline 
-              sensors={activeSensorsData}
-              userAchievements={userAchievements || []}
-            />
+            {/* TDI Dashboard (if enabled) */}
+            {isWidgetEnabled('tdi') && (
+              <TDIDashboard />
+            )}
 
-            {/* Quick Insights */}
-            <QuickInsights sensors={activeSensorsData} />
+            {/* Basal Trends (if enabled) */}
+            {isWidgetEnabled('basal-trends') && (
+              <BasalTrends />
+            )}
 
-            {/* Community Tips */}
-            {activeSensorsData.length > 0 && (
-              <CommunityTips />
+            {/* Glucose Chart (if enabled) */}
+            {isWidgetEnabled('glucose-chart') && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Glucose Trends</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-gray-500 text-sm">Glucose chart - Coming soon</p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Food Summary (if enabled) */}
+            {isWidgetEnabled('food-summary') && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Recent Meals</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-gray-500 text-sm">Food summary - Coming soon</p>
+                </CardContent>
+              </Card>
             )}
           </div>
 
           {/* Right Column - Actions & Gamification */}
           <div className="space-y-4">
+            {/* IOB Tracker */}
+            {isWidgetEnabled('iob-tracker') && (
+              <IOBTracker showDetails />
+            )}
+
+            {/* Quick Dose Logger (if enabled) */}
+            {isWidgetEnabled('quick-dose') && (
+              <QuickDoseLogger onDoseLogged={fetchRecentFoodLogs} />
+            )}
+
             {/* Compact Gamification */}
-            <CompactGamification />
+            {isWidgetEnabled('gamification') && (
+              <CompactGamification />
+            )}
 
             {/* Streamlined Quick Actions */}
-            <StreamlinedQuickActions 
-              onRefresh={() => fetchSensors(true)}
-              isRefreshing={refreshing}
-              problematicCount={problematicSensors}
-            />
+            {isWidgetEnabled('quick-actions') && (
+              <StreamlinedQuickActions 
+                onRefresh={() => fetchSensors(true)}
+                isRefreshing={refreshing}
+                problematicCount={problematicSensors}
+              />
+            )}
           </div>
         </div>
 

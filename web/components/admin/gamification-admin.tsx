@@ -15,7 +15,9 @@ import {
   X,
   UserPlus,
   UserMinus,
+  Flame,
 } from 'lucide-react';
+import { StreakAdjuster } from './streak-adjuster';
 
 import {
   getAchievements,
@@ -35,7 +37,7 @@ import {
 export function GamificationAdminClient() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'achievements' | 'users'
+    'overview' | 'achievements' | 'users' | 'streak'
   >('overview');
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [userStats, setUserStats] = useState<UserStats[]>([]);
@@ -344,6 +346,16 @@ export function GamificationAdminClient() {
               }`}>
               <Users className='w-4 h-4' />
               <span>Users</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('streak')}
+              className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === 'streak'
+                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-300'
+              }`}>
+              <Flame className='w-4 h-4' />
+              <span>Streak Adjuster</span>
             </button>
           </nav>
         </div>
@@ -765,6 +777,12 @@ export function GamificationAdminClient() {
                   </p>
                 </div>
               )}
+            </div>
+          )}
+
+          {activeTab === 'streak' && (
+            <div className='p-6'>
+              <StreakAdjuster />
             </div>
           )}
         </div>

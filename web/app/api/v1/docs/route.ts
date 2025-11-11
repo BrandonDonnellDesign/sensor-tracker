@@ -12,9 +12,42 @@ export async function GET(request: NextRequest) {
   const openApiSpec = {
     openapi: '3.0.0',
     info: {
-      title: 'CGM Tracker Community API',
+      title: 'CGM Tracker API',
       version: '1.0.0',
-      description: 'Public API for accessing CGM Tracker community content',
+      description: `
+# CGM Tracker API Documentation
+
+Public API for accessing CGM Tracker features including community content, glucose data, food logging, and more.
+
+## Authentication
+
+This API supports two authentication methods:
+
+1. **API Key** (Recommended for external integrations)
+   - Include in header: \`X-API-Key: sk_your_api_key\`
+   - Generate keys in your account settings
+
+2. **JWT Bearer Token** (For web/mobile apps)
+   - Include in header: \`Authorization: Bearer your_jwt_token\`
+   - Obtained through Supabase authentication
+
+## Rate Limiting
+
+- Default: 100 requests per hour per API key
+- Rate limit info included in response headers and meta object
+- Exceeding limits returns \`429 Too Many Requests\`
+
+## Endpoint Status
+
+- ✅ **Implemented**: Community, Glucose, Food, Analytics, Health Metrics, User Profile endpoints
+- ⚠️ **Placeholder**: Insulin, Sensor endpoints (return empty data)
+- 🚧 **Coming Soon**: Full insulin tracking and sensor management
+
+## Base URL
+
+Production: \`https://cgmtracker.netlify.app/api/v1\`
+Development: \`http://localhost:3000/api/v1\`
+      `,
       contact: {
         name: 'CGM Tracker Support',
         email: 'support@cgmtracker.com'
@@ -25,6 +58,10 @@ export async function GET(request: NextRequest) {
       }
     },
     servers: [
+      {
+        url: 'http://localhost:3000/api/v1',
+        description: 'Development server (local)'
+      },
       {
         url: 'https://cgmtracker.netlify.app/api/v1',
         description: 'Production server'
@@ -58,6 +95,14 @@ export async function GET(request: NextRequest) {
       {
         name: 'Insulin Tracking',
         description: '💉 Insulin dose logging, types, and administration tracking'
+      },
+      {
+        name: 'Health Metrics',
+        description: '❤️ Health metrics tracking including weight, HbA1c, blood pressure, and more'
+      },
+      {
+        name: 'User Profile',
+        description: '👤 User profile management and account statistics'
       }
     ],
     security: [
@@ -384,7 +429,7 @@ export async function GET(request: NextRequest) {
               in: 'query',
               schema: { 
                 type: 'string',
-                enum: ['created_at', 'updated_at', 'upvotes', 'view_count', 'comment_count'],
+                enum: ['created_at', 'updated_at', 'upvotes', 'view_count'],
                 default: 'created_at'
               },
               description: 'Sort field'
@@ -414,13 +459,23 @@ export async function GET(request: NextRequest) {
                   }
                 }
               }
+            },
+            '401': {
+              description: 'Authentication failed',
+              content: {
+                'application/json': {
+                  schema: { $ref: '#/components/schemas/Error' }
+                }
+              }
             }
           }
-        },
+        }
+      },
+      '/community/tips/create': {
         post: {
           tags: ['Community'],
           summary: 'Create community tip',
-          description: 'Create a new community tip to share with other users',
+          description: 'Create a new community tip to share with other users. Requires authentication with API key or JWT token.',
           security: [{ ApiKeyAuth: [] }, { BearerAuth: [] }],
           requestBody: {
             required: true,
@@ -456,6 +511,18 @@ export async function GET(request: NextRequest) {
                     }
                   },
                   required: ['title', 'content', 'category']
+                },
+                examples: {
+                  basic: {
+                    summary: 'Basic tip example',
+                    value: {
+                      title: 'Best sensor placement for accuracy',
+                      content: 'I found that placing the sensor on the back of my arm gives the most accurate readings...',
+                      category: 'sensor-placement',
+                      tags: ['accuracy', 'placement'],
+                      is_anonymous: false
+                    }
+                  }
                 }
               }
             }
@@ -470,6 +537,31 @@ export async function GET(request: NextRequest) {
                     properties: {
                       data: { $ref: '#/components/schemas/Tip' },
                       meta: { $ref: '#/components/schemas/ApiMeta' }
+                    }
+                  }
+                }
+              }
+            },
+            '400': {
+              description: 'Validation error - missing required fields or invalid category',
+              content: {
+                'application/json': {
+                  schema: { $ref: '#/components/schemas/Error' }
+                }
+              }
+            },
+            '401': {
+              description: 'Authentication failed - API key not linked to user account',
+              content: {
+                'application/json': {
+                  schema: { $ref: '#/components/schemas/Error' },
+                  examples: {
+                    noUser: {
+                      summary: 'API key not linked to user',
+                      value: {
+                        error: 'authentication_failed',
+                        message: 'Unable to determine user ID'
+                      }
                     }
                   }
                 }
@@ -1064,15 +1156,15 @@ export async function GET(request: NextRequest) {
       '/sensors': {
         get: {
           tags: ['Sensor Management'],
-          summary: 'List user sensors',
-          description: 'Get user\'s CGM sensors with optional status filtering',
+          summary: 'List user sensors (Placeholder)',
+          description: '⚠️ PLACEHOLDER ENDPOINT - Returns empty data. Sensor management will be available after database migration.',
           security: [{ ApiKeyAuth: [] }, { BearerAuth: [] }],
           parameters: [
             {
               name: 'status',
               in: 'query',
               schema: { type: 'string', enum: ['active', 'expired', 'removed', 'failed'] },
-              description: 'Filter by sensor status'
+              description: 'Filter by sensor status (not yet implemented)'
             },
             {
               name: 'limit',
@@ -1087,7 +1179,7 @@ export async function GET(request: NextRequest) {
           ],
           responses: {
             '200': {
-              description: 'List of sensors with statistics',
+              description: 'Placeholder response with empty data',
               content: {
                 'application/json': {
                   schema: {
@@ -1095,21 +1187,38 @@ export async function GET(request: NextRequest) {
                     properties: {
                       data: {
                         type: 'array',
-                        items: { $ref: '#/components/schemas/Sensor' }
+                        items: { $ref: '#/components/schemas/Sensor' },
+                        description: 'Empty array (placeholder)'
                       },
                       stats: {
                         type: 'object',
                         properties: {
-                          total: { type: 'integer' },
-                          active: { type: 'integer' },
-                          expired: { type: 'integer' },
-                          removed: { type: 'integer' },
-                          failed: { type: 'integer' }
+                          total: { type: 'integer', example: 0 },
+                          active: { type: 'integer', example: 0 },
+                          expired: { type: 'integer', example: 0 },
+                          removed: { type: 'integer', example: 0 },
+                          failed: { type: 'integer', example: 0 }
                         }
                       },
-                      pagination: { $ref: '#/components/schemas/Pagination' }
+                      pagination: { $ref: '#/components/schemas/Pagination' },
+                      meta: {
+                        type: 'object',
+                        properties: {
+                          responseTime: { type: 'string' },
+                          apiVersion: { type: 'string' },
+                          note: { type: 'string', example: 'Sensor management will be available after database migration' }
+                        }
+                      }
                     }
                   }
+                }
+              }
+            },
+            '401': {
+              description: 'Authentication failed - API key must be linked to user account',
+              content: {
+                'application/json': {
+                  schema: { $ref: '#/components/schemas/Error' }
                 }
               }
             }
@@ -1117,8 +1226,8 @@ export async function GET(request: NextRequest) {
         },
         post: {
           tags: ['Sensor Management'],
-          summary: 'Add new sensor',
-          description: 'Register a new CGM sensor',
+          summary: 'Add new sensor (Not Implemented)',
+          description: '⚠️ NOT IMPLEMENTED - Returns 501. Sensor management will be available after database migration.',
           security: [{ ApiKeyAuth: [] }, { BearerAuth: [] }],
           requestBody: {
             required: true,
@@ -1140,16 +1249,25 @@ export async function GET(request: NextRequest) {
             }
           },
           responses: {
-            '201': {
-              description: 'Sensor created successfully',
+            '501': {
+              description: 'Not implemented - feature coming soon',
               content: {
                 'application/json': {
                   schema: {
                     type: 'object',
                     properties: {
-                      data: { $ref: '#/components/schemas/Sensor' }
+                      error: { type: 'string', example: 'not_implemented' },
+                      message: { type: 'string', example: 'Sensor management will be available after database migration' }
                     }
                   }
+                }
+              }
+            },
+            '401': {
+              description: 'Authentication failed',
+              content: {
+                'application/json': {
+                  schema: { $ref: '#/components/schemas/Error' }
                 }
               }
             }
@@ -1160,27 +1278,27 @@ export async function GET(request: NextRequest) {
       '/insulin/doses': {
         get: {
           tags: ['Insulin Tracking'],
-          summary: 'Get insulin doses',
-          description: 'Retrieve insulin dose history with optional filtering',
+          summary: 'Get insulin doses (Placeholder)',
+          description: '⚠️ PLACEHOLDER ENDPOINT - Returns empty data. Insulin tracking will be available after database migration. Currently returns empty array with statistics structure.',
           security: [{ ApiKeyAuth: [] }, { BearerAuth: [] }],
           parameters: [
             {
               name: 'start_date',
               in: 'query',
               schema: { type: 'string', format: 'date-time' },
-              description: 'Start date for filtering'
+              description: 'Start date for filtering (not yet implemented)'
             },
             {
               name: 'end_date',
               in: 'query',
               schema: { type: 'string', format: 'date-time' },
-              description: 'End date for filtering'
+              description: 'End date for filtering (not yet implemented)'
             },
             {
               name: 'dose_type',
               in: 'query',
               schema: { type: 'string', enum: ['basal', 'bolus', 'correction'] },
-              description: 'Filter by dose type'
+              description: 'Filter by dose type (not yet implemented)'
             },
             {
               name: 'limit',
@@ -1195,7 +1313,7 @@ export async function GET(request: NextRequest) {
           ],
           responses: {
             '200': {
-              description: 'List of insulin doses with statistics',
+              description: 'Placeholder response with empty data',
               content: {
                 'application/json': {
                   schema: {
@@ -1203,26 +1321,43 @@ export async function GET(request: NextRequest) {
                     properties: {
                       data: {
                         type: 'array',
-                        items: { $ref: '#/components/schemas/InsulinDose' }
+                        items: { $ref: '#/components/schemas/InsulinDose' },
+                        description: 'Empty array (placeholder)'
                       },
                       stats: {
                         type: 'object',
                         properties: {
-                          total: { type: 'integer' },
-                          totalUnits: { type: 'number' },
+                          total: { type: 'integer', example: 0 },
+                          totalUnits: { type: 'number', example: 0 },
                           byType: {
                             type: 'object',
                             properties: {
-                              basal: { type: 'number' },
-                              bolus: { type: 'number' },
-                              correction: { type: 'number' }
+                              basal: { type: 'number', example: 0 },
+                              bolus: { type: 'number', example: 0 },
+                              correction: { type: 'number', example: 0 }
                             }
                           }
                         }
                       },
-                      pagination: { $ref: '#/components/schemas/Pagination' }
+                      pagination: { $ref: '#/components/schemas/Pagination' },
+                      meta: {
+                        type: 'object',
+                        properties: {
+                          responseTime: { type: 'string' },
+                          apiVersion: { type: 'string' },
+                          note: { type: 'string', example: 'Insulin tracking will be available after database migration' }
+                        }
+                      }
                     }
                   }
+                }
+              }
+            },
+            '401': {
+              description: 'Authentication failed',
+              content: {
+                'application/json': {
+                  schema: { $ref: '#/components/schemas/Error' }
                 }
               }
             }
@@ -1230,8 +1365,8 @@ export async function GET(request: NextRequest) {
         },
         post: {
           tags: ['Insulin Tracking'],
-          summary: 'Log insulin dose',
-          description: 'Record a new insulin dose administration',
+          summary: 'Log insulin dose (Not Implemented)',
+          description: '⚠️ NOT IMPLEMENTED - Returns 501. Insulin dose logging will be available after database migration.',
           security: [{ ApiKeyAuth: [] }, { BearerAuth: [] }],
           requestBody: {
             required: true,
@@ -1256,16 +1391,25 @@ export async function GET(request: NextRequest) {
             }
           },
           responses: {
-            '201': {
-              description: 'Insulin dose logged successfully',
+            '501': {
+              description: 'Not implemented - feature coming soon',
               content: {
                 'application/json': {
                   schema: {
                     type: 'object',
                     properties: {
-                      data: { $ref: '#/components/schemas/InsulinDose' }
+                      error: { type: 'string', example: 'not_implemented' },
+                      message: { type: 'string', example: 'Insulin tracking will be available after database migration' }
                     }
                   }
+                }
+              }
+            },
+            '401': {
+              description: 'Authentication failed',
+              content: {
+                'application/json': {
+                  schema: { $ref: '#/components/schemas/Error' }
                 }
               }
             }
@@ -1277,7 +1421,7 @@ export async function GET(request: NextRequest) {
         post: {
           tags: ['Community'],
           summary: 'Vote on community tip',
-          description: 'Cast an upvote or downvote on a community tip',
+          description: 'Cast an upvote or downvote on a community tip. Changes existing vote if already voted.',
           security: [{ ApiKeyAuth: [] }, { BearerAuth: [] }],
           parameters: [
             {
@@ -1297,11 +1441,21 @@ export async function GET(request: NextRequest) {
                   properties: {
                     vote_type: {
                       type: 'string',
-                      enum: ['upvote', 'downvote'],
-                      description: 'Type of vote to cast'
+                      enum: ['up', 'down'],
+                      description: 'Type of vote to cast (up or down)'
                     }
                   },
                   required: ['vote_type']
+                },
+                examples: {
+                  upvote: {
+                    summary: 'Upvote a tip',
+                    value: { vote_type: 'up' }
+                  },
+                  downvote: {
+                    summary: 'Downvote a tip',
+                    value: { vote_type: 'down' }
+                  }
                 }
               }
             }
@@ -1334,6 +1488,22 @@ export async function GET(request: NextRequest) {
                   }
                 }
               }
+            },
+            '401': {
+              description: 'Authentication failed',
+              content: {
+                'application/json': {
+                  schema: { $ref: '#/components/schemas/Error' }
+                }
+              }
+            },
+            '404': {
+              description: 'Tip not found',
+              content: {
+                'application/json': {
+                  schema: { $ref: '#/components/schemas/Error' }
+                }
+              }
             }
           }
         },
@@ -1353,6 +1523,9 @@ export async function GET(request: NextRequest) {
           responses: {
             '200': {
               description: 'Vote removed successfully'
+            },
+            '401': {
+              description: 'Authentication failed'
             }
           }
         }
@@ -1687,6 +1860,586 @@ export async function GET(request: NextRequest) {
                       }
                     }
                   }
+                }
+              }
+            }
+          }
+        }
+      },
+      // Health Metrics API
+      '/health/metrics': {
+        get: {
+          tags: ['Health Metrics'],
+          summary: 'Get health metrics',
+          description: 'Retrieve health metrics with optional filtering by type and date range',
+          security: [{ ApiKeyAuth: [] }, { BearerAuth: [] }],
+          parameters: [
+            {
+              name: 'type',
+              in: 'query',
+              schema: { 
+                type: 'string',
+                enum: ['weight', 'hba1c', 'blood_pressure_systolic', 'blood_pressure_diastolic', 'heart_rate', 'temperature']
+              },
+              description: 'Filter by metric type'
+            },
+            {
+              name: 'start_date',
+              in: 'query',
+              schema: { type: 'string', format: 'date-time' },
+              description: 'Start date for filtering'
+            },
+            {
+              name: 'end_date',
+              in: 'query',
+              schema: { type: 'string', format: 'date-time' },
+              description: 'End date for filtering'
+            },
+            {
+              name: 'limit',
+              in: 'query',
+              schema: { type: 'integer', default: 100, maximum: 500 },
+              description: 'Maximum number of metrics to return'
+            }
+          ],
+          responses: {
+            '200': {
+              description: 'List of health metrics',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      data: {
+                        type: 'array',
+                        items: {
+                          type: 'object',
+                          properties: {
+                            id: { type: 'string', format: 'uuid' },
+                            user_id: { type: 'string', format: 'uuid' },
+                            metric_type: { type: 'string' },
+                            value: { type: 'number' },
+                            unit: { type: 'string', nullable: true },
+                            recorded_at: { type: 'string', format: 'date-time' },
+                            notes: { type: 'string', nullable: true },
+                            created_at: { type: 'string', format: 'date-time' }
+                          }
+                        }
+                      },
+                      meta: {
+                        type: 'object',
+                        properties: {
+                          responseTime: { type: 'string' },
+                          apiVersion: { type: 'string' },
+                          count: { type: 'integer' }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            '401': {
+              description: 'Authentication failed',
+              content: {
+                'application/json': {
+                  schema: { $ref: '#/components/schemas/Error' }
+                }
+              }
+            }
+          }
+        },
+        post: {
+          tags: ['Health Metrics'],
+          summary: 'Add health metric',
+          description: 'Record a new health metric (weight, HbA1c, blood pressure, etc.)',
+          security: [{ ApiKeyAuth: [] }, { BearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    metric_type: {
+                      type: 'string',
+                      enum: ['weight', 'hba1c', 'blood_pressure_systolic', 'blood_pressure_diastolic', 'heart_rate', 'temperature'],
+                      description: 'Type of health metric'
+                    },
+                    value: {
+                      type: 'number',
+                      description: 'Metric value'
+                    },
+                    unit: {
+                      type: 'string',
+                      description: 'Unit of measurement (e.g., kg, %, mmHg, bpm, °C)',
+                      nullable: true
+                    },
+                    recorded_at: {
+                      type: 'string',
+                      format: 'date-time',
+                      description: 'When the metric was recorded (defaults to now)'
+                    },
+                    notes: {
+                      type: 'string',
+                      description: 'Optional notes about the metric',
+                      nullable: true
+                    }
+                  },
+                  required: ['metric_type', 'value']
+                },
+                examples: {
+                  weight: {
+                    summary: 'Weight measurement',
+                    value: {
+                      metric_type: 'weight',
+                      value: 75.5,
+                      unit: 'kg',
+                      recorded_at: '2024-01-15T08:00:00Z'
+                    }
+                  },
+                  hba1c: {
+                    summary: 'HbA1c measurement',
+                    value: {
+                      metric_type: 'hba1c',
+                      value: 6.5,
+                      unit: '%',
+                      recorded_at: '2024-01-15T10:30:00Z',
+                      notes: 'Lab test result'
+                    }
+                  },
+                  bloodPressure: {
+                    summary: 'Blood pressure measurement',
+                    value: {
+                      metric_type: 'blood_pressure_systolic',
+                      value: 120,
+                      unit: 'mmHg',
+                      recorded_at: '2024-01-15T09:00:00Z'
+                    }
+                  }
+                }
+              }
+            }
+          },
+          responses: {
+            '201': {
+              description: 'Health metric created successfully',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      data: {
+                        type: 'object',
+                        properties: {
+                          id: { type: 'string', format: 'uuid' },
+                          user_id: { type: 'string', format: 'uuid' },
+                          metric_type: { type: 'string' },
+                          value: { type: 'number' },
+                          unit: { type: 'string', nullable: true },
+                          recorded_at: { type: 'string', format: 'date-time' },
+                          notes: { type: 'string', nullable: true },
+                          created_at: { type: 'string', format: 'date-time' }
+                        }
+                      },
+                      meta: {
+                        type: 'object',
+                        properties: {
+                          responseTime: { type: 'string' },
+                          apiVersion: { type: 'string' }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            '400': {
+              description: 'Validation error',
+              content: {
+                'application/json': {
+                  schema: { $ref: '#/components/schemas/Error' }
+                }
+              }
+            },
+            '401': {
+              description: 'Authentication failed',
+              content: {
+                'application/json': {
+                  schema: { $ref: '#/components/schemas/Error' }
+                }
+              }
+            }
+          }
+        }
+      },
+      // User Profile API
+      '/user/profile': {
+        get: {
+          tags: ['User Profile'],
+          summary: 'Get user profile',
+          description: 'Retrieve user profile information with account statistics',
+          security: [{ ApiKeyAuth: [] }, { BearerAuth: [] }],
+          responses: {
+            '200': {
+              description: 'User profile with statistics',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      data: {
+                        type: 'object',
+                        properties: {
+                          profile: {
+                            type: 'object',
+                            properties: {
+                              id: { type: 'string', format: 'uuid' },
+                              email: { type: 'string', format: 'email' },
+                              full_name: { type: 'string', nullable: true },
+                              avatar_url: { type: 'string', nullable: true },
+                              created_at: { type: 'string', format: 'date-time' },
+                              updated_at: { type: 'string', format: 'date-time' }
+                            }
+                          },
+                          stats: {
+                            type: 'object',
+                            properties: {
+                              api_keys: { type: 'integer', description: 'Number of active API keys' },
+                              glucose_readings: { type: 'integer', description: 'Total glucose readings' },
+                              food_logs: { type: 'integer', description: 'Total food logs' },
+                              community_tips: { type: 'integer', description: 'Total community tips created' }
+                            }
+                          }
+                        }
+                      },
+                      meta: {
+                        type: 'object',
+                        properties: {
+                          responseTime: { type: 'string' },
+                          apiVersion: { type: 'string' }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            '401': {
+              description: 'Authentication failed',
+              content: {
+                'application/json': {
+                  schema: { $ref: '#/components/schemas/Error' }
+                }
+              }
+            },
+            '404': {
+              description: 'Profile not found',
+              content: {
+                'application/json': {
+                  schema: { $ref: '#/components/schemas/Error' }
+                }
+              }
+            }
+          }
+        },
+        put: {
+          tags: ['User Profile'],
+          summary: 'Update user profile',
+          description: 'Update user profile information (name and avatar)',
+          security: [{ ApiKeyAuth: [] }, { BearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    full_name: {
+                      type: 'string',
+                      description: 'User\'s full name',
+                      nullable: true
+                    },
+                    avatar_url: {
+                      type: 'string',
+                      description: 'URL to user\'s avatar image',
+                      nullable: true
+                    }
+                  }
+                },
+                examples: {
+                  updateName: {
+                    summary: 'Update name',
+                    value: {
+                      full_name: 'John Doe'
+                    }
+                  },
+                  updateBoth: {
+                    summary: 'Update name and avatar',
+                    value: {
+                      full_name: 'John Doe',
+                      avatar_url: 'https://example.com/avatar.jpg'
+                    }
+                  }
+                }
+              }
+            }
+          },
+          responses: {
+            '200': {
+              description: 'Profile updated successfully',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      data: {
+                        type: 'object',
+                        properties: {
+                          id: { type: 'string', format: 'uuid' },
+                          email: { type: 'string', format: 'email' },
+                          full_name: { type: 'string', nullable: true },
+                          avatar_url: { type: 'string', nullable: true },
+                          updated_at: { type: 'string', format: 'date-time' }
+                        }
+                      },
+                      meta: {
+                        type: 'object',
+                        properties: {
+                          responseTime: { type: 'string' },
+                          apiVersion: { type: 'string' }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            '401': {
+              description: 'Authentication failed',
+              content: {
+                'application/json': {
+                  schema: { $ref: '#/components/schemas/Error' }
+                }
+              }
+            }
+          }
+        }
+      },
+      // Food Items API
+      '/food/items': {
+        get: {
+          tags: ['Food Logging'],
+          summary: 'List food items',
+          description: 'Search and list food items from the database, including custom foods',
+          security: [{ ApiKeyAuth: [] }, { BearerAuth: [] }],
+          parameters: [
+            {
+              name: 'search',
+              in: 'query',
+              schema: { type: 'string' },
+              description: 'Search term for food name or brand'
+            },
+            {
+              name: 'limit',
+              in: 'query',
+              schema: { type: 'integer', default: 50, maximum: 100 },
+              description: 'Maximum number of items to return'
+            },
+            {
+              name: 'page',
+              in: 'query',
+              schema: { type: 'integer', default: 1 },
+              description: 'Page number for pagination'
+            },
+            {
+              name: 'include_custom',
+              in: 'query',
+              schema: { type: 'boolean', default: true },
+              description: 'Include user\'s custom food items'
+            }
+          ],
+          responses: {
+            '200': {
+              description: 'List of food items',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      data: {
+                        type: 'array',
+                        items: { $ref: '#/components/schemas/FoodItem' }
+                      },
+                      pagination: { $ref: '#/components/schemas/Pagination' },
+                      meta: {
+                        type: 'object',
+                        properties: {
+                          responseTime: { type: 'string' },
+                          apiVersion: { type: 'string' }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            '401': {
+              description: 'Authentication failed',
+              content: {
+                'application/json': {
+                  schema: { $ref: '#/components/schemas/Error' }
+                }
+              }
+            }
+          }
+        },
+        post: {
+          tags: ['Food Logging'],
+          summary: 'Create custom food item',
+          description: 'Create a new custom food item in the database',
+          security: [{ ApiKeyAuth: [] }, { BearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    name: {
+                      type: 'string',
+                      description: 'Name of the food item'
+                    },
+                    brand: {
+                      type: 'string',
+                      description: 'Brand name (optional)',
+                      nullable: true
+                    },
+                    barcode: {
+                      type: 'string',
+                      description: 'Barcode/UPC (optional)',
+                      nullable: true
+                    },
+                    serving_size: {
+                      type: 'number',
+                      default: 100,
+                      description: 'Serving size'
+                    },
+                    serving_unit: {
+                      type: 'string',
+                      default: 'g',
+                      description: 'Serving unit (g, ml, oz, etc.)'
+                    },
+                    calories: {
+                      type: 'number',
+                      description: 'Calories per serving'
+                    },
+                    carbs_g: {
+                      type: 'number',
+                      description: 'Carbohydrates in grams'
+                    },
+                    protein_g: {
+                      type: 'number',
+                      default: 0,
+                      description: 'Protein in grams'
+                    },
+                    fat_g: {
+                      type: 'number',
+                      default: 0,
+                      description: 'Fat in grams'
+                    },
+                    fiber_g: {
+                      type: 'number',
+                      description: 'Fiber in grams (optional)',
+                      nullable: true
+                    },
+                    sugar_g: {
+                      type: 'number',
+                      description: 'Sugar in grams (optional)',
+                      nullable: true
+                    },
+                    sodium_mg: {
+                      type: 'number',
+                      description: 'Sodium in milligrams (optional)',
+                      nullable: true
+                    },
+                    is_public: {
+                      type: 'boolean',
+                      default: false,
+                      description: 'Make this food item public for other users'
+                    }
+                  },
+                  required: ['name', 'calories', 'carbs_g']
+                },
+                examples: {
+                  basic: {
+                    summary: 'Basic food item',
+                    value: {
+                      name: 'Homemade Pasta',
+                      serving_size: 100,
+                      serving_unit: 'g',
+                      calories: 150,
+                      carbs_g: 30,
+                      protein_g: 5,
+                      fat_g: 1
+                    }
+                  },
+                  detailed: {
+                    summary: 'Detailed food item',
+                    value: {
+                      name: 'Organic Granola',
+                      brand: 'Nature Valley',
+                      barcode: '016000275287',
+                      serving_size: 50,
+                      serving_unit: 'g',
+                      calories: 220,
+                      carbs_g: 35,
+                      protein_g: 5,
+                      fat_g: 8,
+                      fiber_g: 4,
+                      sugar_g: 12,
+                      sodium_mg: 150,
+                      is_public: true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          responses: {
+            '201': {
+              description: 'Food item created successfully',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      data: { $ref: '#/components/schemas/FoodItem' },
+                      meta: {
+                        type: 'object',
+                        properties: {
+                          responseTime: { type: 'string' },
+                          apiVersion: { type: 'string' }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            '400': {
+              description: 'Validation error',
+              content: {
+                'application/json': {
+                  schema: { $ref: '#/components/schemas/Error' }
+                }
+              }
+            },
+            '401': {
+              description: 'Authentication failed',
+              content: {
+                'application/json': {
+                  schema: { $ref: '#/components/schemas/Error' }
                 }
               }
             }

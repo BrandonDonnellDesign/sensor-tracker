@@ -1,45 +1,41 @@
-const CACHE_NAME = 'cgm-tracker-v1';
-const STATIC_CACHE = 'cgm-static-v1';
-const DYNAMIC_CACHE = 'cgm-dynamic-v1';
+// Service Worker for Insulin Management System
+const CACHE_NAME = 'insulin-tracker-v1';
+const STATIC_CACHE = 'insulin-static-v1';
+const DYNAMIC_CACHE = 'insulin-dynamic-v1';
 
-// Assets to cache immediately
-const STATIC_ASSETS = [
+// Files to cache for offline functionality
+const STATIC_FILES = [
   '/',
-  '/dashboard',
-  '/dashboard/sensors',
-  '/dashboard/analytics',
+  '/dashboard/insulin',
+  '/dashboard/insulin/import',
   '/manifest.json',
-  // Add critical CSS and JS files
-  '/_next/static/css/app/layout.css',
-  '/_next/static/chunks/webpack.js',
-  // Fonts
-  'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap'
+  // Add your CSS and JS files here
 ];
 
-// API routes to cache
+// API endpoints to cache
 const API_CACHE_PATTERNS = [
-  /^\/api\/sensors/,
-  /^\/api\/analytics/,
-  /^\/api\/user/
+  /^\/api\/insulin\/logs/,
+  /^\/api\/insulin\/stats/,
 ];
 
-// Install event - cache static assets
+// Install event - cache static files
 self.addEventListener('install', (event) => {
   console.log('Service Worker: Installing...');
   
   event.waitUntil(
     caches.open(STATIC_CACHE)
       .then((cache) => {
-        console.log('Service Worker: Caching static assets');
-        return cache.addAll(STATIC_ASSETS);
+        console.log('Service Worker: Caching static files');
+        return cache.addAll(STATIC_FILES);
+      })
+      .then(() => {
+        console.log('Service Worker: Static files cached');
+        return self.skipWaiting();
       })
       .catch((error) => {
-        console.error('Service Worker: Failed to cache static assets', error);
+        console.error('Service Worker: Error caching static files', error);
       })
   );
-  
-  // Force activation of new service worker
-  self.skipWaiting();
 });
 
 // Activate event - clean up old caches
@@ -59,7 +55,7 @@ self.addEventListener('activate', (event) => {
         );
       })
       .then(() => {
-        // Take control of all pages
+        console.log('Service Worker: Activated');
         return self.clients.claim();
       })
   );
@@ -69,270 +65,217 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
-  
+
   // Skip non-GET requests
   if (request.method !== 'GET') {
     return;
   }
-  
-  // Skip chrome-extension and other non-http requests
-  if (!url.protocol.startsWith('http')) {
+
+  // Handle API requests
+  if (url.pathname.startsWith('/api/')) {
+    event.respondWith(handleApiRequest(request));
     return;
   }
-  
-  event.respondWith(
-    handleFetch(request)
-  );
+
+  // Handle static files and pages
+  event.respondWith(handleStaticRequest(request));
 });
 
-async function handleFetch(request) {
+// Handle API requests with network-first strategy
+async function handleApiRequest(request) {
   const url = new URL(request.url);
   
   try {
-    // Strategy 1: Static assets - Cache First
-    if (STATIC_ASSETS.some(asset => url.pathname.includes(asset)) || 
-        url.pathname.includes('/_next/static/')) {
-      return await cacheFirst(request, STATIC_CACHE);
-    }
-    
-    // Strategy 2: API calls - Network First with cache fallback
-    if (url.pathname.startsWith('/api/') || 
-        API_CACHE_PATTERNS.some(pattern => pattern.test(url.pathname))) {
-      return await networkFirst(request, DYNAMIC_CACHE);
-    }
-    
-    // Strategy 3: Pages - Stale While Revalidate
-    if (url.pathname.startsWith('/dashboard')) {
-      return await staleWhileRevalidate(request, DYNAMIC_CACHE);
-    }
-    
-    // Strategy 4: Everything else - Network First
-    return await networkFirst(request, DYNAMIC_CACHE);
-    
-  } catch (error) {
-    console.error('Service Worker: Fetch failed', error);
-    
-    // Return offline fallback for pages
-    if (request.destination === 'document') {
-      return await getOfflineFallback();
-    }
-    
-    // Return cached version if available
-    const cachedResponse = await caches.match(request);
-    if (cachedResponse) {
-      return cachedResponse;
-    }
-    
-    // Return network error
-    return new Response('Network error', { 
-      status: 408, 
-      statusText: 'Network timeout' 
-    });
-  }
-}
-
-// Cache strategies
-async function cacheFirst(request, cacheName) {
-  const cachedResponse = await caches.match(request);
-  if (cachedResponse) {
-    return cachedResponse;
-  }
-  
-  const networkResponse = await fetch(request);
-  if (networkResponse.ok) {
-    const cache = await caches.open(cacheName);
-    cache.put(request, networkResponse.clone());
-  }
-  
-  return networkResponse;
-}
-
-async function networkFirst(request, cacheName) {
-  try {
+    // Try network first for API requests
     const networkResponse = await fetch(request);
     
-    if (networkResponse.ok) {
-      const cache = await caches.open(cacheName);
+    // Cache successful responses for offline access
+    if (networkResponse.ok && shouldCacheApiRequest(url.pathname)) {
+      const cache = await caches.open(DYNAMIC_CACHE);
       cache.put(request, networkResponse.clone());
     }
     
     return networkResponse;
   } catch (error) {
+    console.log('Service Worker: Network failed, trying cache for API request');
+    
+    // Fallback to cache if network fails
     const cachedResponse = await caches.match(request);
     if (cachedResponse) {
       return cachedResponse;
     }
+    
+    // Return offline response for critical API endpoints
+    if (url.pathname.includes('/api/insulin/')) {
+      return new Response(
+        JSON.stringify({
+          error: 'Offline',
+          message: 'This data is not available offline',
+          offline: true
+        }),
+        {
+          status: 503,
+          headers: { 'Content-Type': 'application/json' }
+        }
+      );
+    }
+    
     throw error;
   }
 }
 
-async function staleWhileRevalidate(request, cacheName) {
-  const cachedResponse = await caches.match(request);
-  
-  const networkResponsePromise = fetch(request)
-    .then(async (networkResponse) => {
-      if (networkResponse.ok) {
-        const cache = await caches.open(cacheName);
-        cache.put(request, networkResponse.clone());
+// Handle static requests with cache-first strategy
+async function handleStaticRequest(request) {
+  try {
+    // Try cache first for static files
+    const cachedResponse = await caches.match(request);
+    if (cachedResponse) {
+      return cachedResponse;
+    }
+    
+    // Fallback to network
+    const networkResponse = await fetch(request);
+    
+    // Cache successful responses
+    if (networkResponse.ok) {
+      const cache = await caches.open(DYNAMIC_CACHE);
+      cache.put(request, networkResponse.clone());
+    }
+    
+    return networkResponse;
+  } catch (error) {
+    console.log('Service Worker: Both cache and network failed');
+    
+    // Return offline page for navigation requests
+    if (request.mode === 'navigate') {
+      const offlineResponse = await caches.match('/offline.html');
+      if (offlineResponse) {
+        return offlineResponse;
       }
-      return networkResponse;
-    })
-    .catch(() => null);
-  
-  return cachedResponse || await networkResponsePromise;
-}
-
-async function getOfflineFallback() {
-  const cache = await caches.open(STATIC_CACHE);
-  const fallback = await cache.match('/dashboard');
-  
-  if (fallback) {
-    return fallback;
+    }
+    
+    throw error;
   }
-  
-  return new Response(`
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <title>CGM Tracker - Offline</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <style>
-          body { 
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            min-height: 100vh; 
-            margin: 0;
-            background: #f8fafc;
-            color: #334155;
-          }
-          .offline-container {
-            text-align: center;
-            padding: 2rem;
-            max-width: 400px;
-          }
-          .offline-icon {
-            font-size: 4rem;
-            margin-bottom: 1rem;
-          }
-          h1 { margin: 0 0 1rem 0; }
-          p { margin: 0 0 2rem 0; color: #64748b; }
-          button {
-            background: #3b82f6;
-            color: white;
-            border: none;
-            padding: 0.75rem 1.5rem;
-            border-radius: 0.5rem;
-            cursor: pointer;
-            font-size: 1rem;
-          }
-          button:hover { background: #2563eb; }
-        </style>
-      </head>
-      <body>
-        <div class="offline-container">
-          <div class="offline-icon">📱</div>
-          <h1>You're Offline</h1>
-          <p>CGM Tracker is available offline with limited functionality. Your data will sync when you're back online.</p>
-          <button onclick="window.location.reload()">Try Again</button>
-        </div>
-      </body>
-    </html>
-  `, {
-    headers: { 'Content-Type': 'text/html' }
-  });
 }
 
-// Background sync for offline actions
+// Check if API request should be cached
+function shouldCacheApiRequest(pathname) {
+  return API_CACHE_PATTERNS.some(pattern => pattern.test(pathname));
+}
+
+// Background sync for offline insulin logging
 self.addEventListener('sync', (event) => {
   console.log('Service Worker: Background sync triggered', event.tag);
   
-  if (event.tag === 'sync-sensors') {
-    event.waitUntil(syncOfflineSensors());
+  if (event.tag === 'insulin-log-sync') {
+    event.waitUntil(syncInsulinLogs());
   }
 });
 
-async function syncOfflineSensors() {
+// Sync offline insulin logs when connection is restored
+async function syncInsulinLogs() {
   try {
-    // Get offline sensor data from IndexedDB
-    const offlineData = await getOfflineData();
+    // Get offline logs from IndexedDB
+    const offlineLogs = await getOfflineInsulinLogs();
     
-    if (offlineData.length > 0) {
-      // Sync with server
-      for (const sensorData of offlineData) {
-        await fetch('/api/sensors', {
+    for (const log of offlineLogs) {
+      try {
+        const response = await fetch('/api/insulin/logs', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(sensorData)
+          body: JSON.stringify(log.data)
         });
+        
+        if (response.ok) {
+          // Remove successfully synced log
+          await removeOfflineInsulinLog(log.id);
+          console.log('Service Worker: Synced offline insulin log', log.id);
+        }
+      } catch (error) {
+        console.error('Service Worker: Failed to sync insulin log', log.id, error);
       }
-      
-      // Clear offline data after successful sync
-      await clearOfflineData();
-      
-      // Notify user of successful sync
-      self.registration.showNotification('CGM Tracker', {
-        body: `${offlineData.length} sensor(s) synced successfully`,
-        icon: '/icons/icon-192x192.png',
-        badge: '/icons/badge-72x72.png'
-      });
     }
   } catch (error) {
-    console.error('Service Worker: Sync failed', error);
+    console.error('Service Worker: Background sync failed', error);
   }
-}
-
-// Placeholder functions for IndexedDB operations
-async function getOfflineData() {
-  // TODO: Implement IndexedDB operations
-  return [];
-}
-
-async function clearOfflineData() {
-  // TODO: Implement IndexedDB operations
 }
 
 // Push notification handling
 self.addEventListener('push', (event) => {
-  if (!event.data) return;
-  
-  const data = event.data.json();
+  console.log('Service Worker: Push notification received');
   
   const options = {
-    body: data.body,
+    body: 'Check your insulin on board (IOB)',
     icon: '/icons/icon-192x192.png',
     badge: '/icons/badge-72x72.png',
-    vibrate: [200, 100, 200],
-    data: data.data,
-    actions: data.actions || []
+    tag: 'iob-reminder',
+    requireInteraction: true,
+    actions: [
+      {
+        action: 'check-iob',
+        title: 'Check IOB',
+        icon: '/icons/droplet-96x96.png'
+      },
+      {
+        action: 'log-dose',
+        title: 'Log Dose',
+        icon: '/icons/syringe-96x96.png'
+      }
+    ],
+    data: {
+      url: '/dashboard/insulin'
+    }
   };
   
+  if (event.data) {
+    const payload = event.data.json();
+    options.body = payload.body || options.body;
+    options.data = { ...options.data, ...payload.data };
+  }
+  
   event.waitUntil(
-    self.registration.showNotification(data.title, options)
+    self.registration.showNotification('Insulin Tracker', options)
   );
 });
 
-// Notification click handling
+// Handle notification clicks
 self.addEventListener('notificationclick', (event) => {
+  console.log('Service Worker: Notification clicked', event.action);
+  
   event.notification.close();
   
-  const urlToOpen = event.notification.data?.url || '/dashboard';
+  const urlToOpen = event.action === 'log-dose' 
+    ? '/dashboard/insulin?action=quick-dose'
+    : event.notification.data?.url || '/dashboard/insulin';
   
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true })
       .then((clientList) => {
         // Check if app is already open
         for (const client of clientList) {
-          if (client.url.includes(urlToOpen) && 'focus' in client) {
-            return client.focus();
+          if (client.url.includes('/dashboard') && 'focus' in client) {
+            client.focus();
+            client.navigate(urlToOpen);
+            return;
           }
         }
         
-        // Open new window
+        // Open new window if app is not open
         if (clients.openWindow) {
           return clients.openWindow(urlToOpen);
         }
       })
   );
 });
+
+// Placeholder functions for IndexedDB operations
+// These would need to be implemented with actual IndexedDB code
+async function getOfflineInsulinLogs() {
+  // Implementation would use IndexedDB to get offline logs
+  return [];
+}
+
+async function removeOfflineInsulinLog(id) {
+  // Implementation would use IndexedDB to remove synced log
+  console.log('Removing offline log:', id);
+}

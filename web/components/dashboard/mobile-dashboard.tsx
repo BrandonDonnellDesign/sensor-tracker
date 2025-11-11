@@ -18,6 +18,8 @@ import {
   Zap,
   RefreshCw
 } from 'lucide-react';
+import { IOBTracker } from '@/components/insulin/iob-tracker';
+import { QuickDoseLogger } from '@/components/insulin/quick-dose-logger';
 
 interface MobileDashboardProps {
   className?: string;
@@ -154,6 +156,13 @@ export function MobileDashboard({ className }: MobileDashboardProps) {
   };
 
   const recentSensors = activeSensorsData.slice(0, 3);
+  
+  // Find the current active sensor (most recent non-problematic, non-expired sensor)
+  // Sort by date_added descending to get the most recent first
+  const sortedActiveSensors = [...activeSensorsData].sort((a, b) => 
+    new Date(b.date_added).getTime() - new Date(a.date_added).getTime()
+  );
+  const currentActiveSensor = sortedActiveSensors.find(s => !s.is_problematic);
 
   if (loading) {
     return (
@@ -188,7 +197,25 @@ export function MobileDashboard({ className }: MobileDashboardProps) {
         </TouchFriendlyButton>
       </div>
 
+      {/* Insulin Quick Actions */}
+      <div className="grid grid-cols-2 gap-3">
+        <QuickDoseLogger onDoseLogged={() => window.location.reload()} />
+        
+        <TouchFriendlyButton
+          variant="outline"
+          size="lg"
+          fullWidth
+          icon={<Activity />}
+          onClick={() => window.location.href = '/dashboard/food'}
+        >
+          Log Meal
+        </TouchFriendlyButton>
+      </div>
 
+
+
+      {/* IOB Tracker */}
+      <IOBTracker className="mb-4" />
 
       {/* Stats Overview */}
       <div className="grid grid-cols-2 gap-3">
@@ -264,8 +291,8 @@ export function MobileDashboard({ className }: MobileDashboardProps) {
                 title={getSensorModelName(sensor)}
                 subtitle={getTimeUntilExpiration(sensor)}
                 icon={<Activity className="w-5 h-5 text-blue-600" />}
-                status={getSensorStatus(sensor)}
-                badge={activeSensors > 0 && getSensorStatus(sensor) === 'success' ? 'Active' : 
+                status={currentActiveSensor?.id === sensor.id ? 'success' : getSensorStatus(sensor)}
+                badge={currentActiveSensor?.id === sensor.id ? 'Active' : 
                        sensor.is_problematic ? 'Issue' : 'Inactive'}
                 onClick={() => window.location.href = `/dashboard/sensors/${sensor.id}`}
               >

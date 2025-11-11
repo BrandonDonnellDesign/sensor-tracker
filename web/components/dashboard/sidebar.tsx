@@ -54,13 +54,7 @@ const primaryNavigation = [
     icon: Activity,
     description: 'Manage your sensors',
   },
-  {
-    name: 'Insulin Tracking',
-    href: '/dashboard/insulin',
-    icon: Syringe,
-    description: 'Doses & calculator',
-    badge: 'NEW',
-  },
+
   {
     name: 'Replacement Tracking',
     href: '/dashboard/replacement-tracking',
@@ -69,17 +63,30 @@ const primaryNavigation = [
     badge: 'NEW',
   },
   {
-    name: 'Food Log',
+    name: 'Food & Insulin',
     href: '/dashboard/food',
     icon: UtensilsCrossed,
-    description: 'Meals + insulin calc',
+    description: 'Meals + insulin tracking',
     badge: 'SMART',
+  },
+  {
+    name: 'Insulin Management',
+    href: '/dashboard/insulin',
+    icon: Syringe,
+    description: 'IOB tracking & doses',
+    badge: 'NEW',
   },
   {
     name: 'Analytics',
     href: '/dashboard/analytics',
     icon: BarChart3,
     description: 'Performance data',
+  },
+  {
+    name: 'Community',
+    href: '/dashboard/community',
+    icon: Users,
+    description: 'Connect & compare',
   },
 ];
 
