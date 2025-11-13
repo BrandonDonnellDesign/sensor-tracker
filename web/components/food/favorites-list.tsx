@@ -6,10 +6,11 @@ import { useAuth } from '@/components/providers/auth-provider';
 
 interface FavoritesListProps {
   onSelectFood: (food: any) => void;
+  onAddToMeal?: (food: any) => void;
   onRefresh?: () => void;
 }
 
-export function FavoritesList({ onSelectFood, onRefresh }: FavoritesListProps) {
+export function FavoritesList({ onSelectFood, onAddToMeal, onRefresh }: FavoritesListProps) {
   const { user } = useAuth();
   const [favorites, setFavorites] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -242,12 +243,23 @@ export function FavoritesList({ onSelectFood, onRefresh }: FavoritesListProps) {
                   </div>
                 </div>
 
-                <button
-                  onClick={() => handleSelectFood(favorite)}
-                  className="w-full mt-3 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors"
-                >
-                  Log This Food
-                </button>
+                <div className="flex gap-2 mt-3">
+                  <button
+                    onClick={() => handleSelectFood(favorite)}
+                    className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors"
+                  >
+                    Log This Food
+                  </button>
+                  {onAddToMeal && (
+                    <button
+                      onClick={() => onAddToMeal(favorite.food)}
+                      className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg transition-colors whitespace-nowrap"
+                      title="Add to meal cart"
+                    >
+                      + Meal
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>

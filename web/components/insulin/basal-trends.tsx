@@ -248,7 +248,6 @@ export function BasalTrends({ className = '' }: BasalTrendsProps) {
                     const data = props.payload as BasalTrendData;
                     return (
                       <circle
-                        key={`dot-${props.index}`}
                         cx={props.cx}
                         cy={props.cy}
                         r={data?.isOutlier ? 6 : 4}

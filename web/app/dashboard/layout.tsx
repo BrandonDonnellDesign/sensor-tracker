@@ -4,6 +4,7 @@ import { AchievementNotificationContainer } from '@/components/gamification/achi
 import { ResponsiveHeader } from '@/components/navigation/responsive-header';
 import { MobileBottomNav } from '@/components/navigation/mobile-bottom-nav';
 import { ToastProvider } from '@/components/notifications/toast-provider';
+import { SensorBotChat } from '@/components/ai/sensorbot-chat';
 
 // Disable caching for dashboard pages (dynamic content)
 export const dynamic = 'force-dynamic';
@@ -41,6 +42,7 @@ export default function DashboardLayout({
         
         <AchievementNotificationContainer />
         <ToastProvider />
+        <SensorBotChat />
       </div>
     </ProtectedRoute>
   );

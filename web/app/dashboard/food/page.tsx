@@ -20,6 +20,10 @@ interface FoodLog {
   total_calories?: number | null;
   meal_type?: string | null;
   created_at: string;
+  food_items?: {
+    product_name?: string | null | undefined;
+    brand?: string | null | undefined;
+  } | null;
 }
 
 interface InsulinLog {
@@ -43,12 +47,13 @@ export default function FoodPage() {
   const searchParams = useSearchParams();
   const [showLogForm, setShowLogForm] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [activeTab, setActiveTab] = useState('log');
+  const [activeTab, setActiveTab] = useState('history');
   const [loading, setLoading] = useState(true);
   const [foodLogs, setFoodLogs] = useState<FoodLog[]>([]);
   const [insulinLogs, setInsulinLogs] = useState<InsulinLog[]>([]);
   const [glucoseReadings, setGlucoseReadings] = useState<GlucoseReading[]>([]);
   const [_currentGlucose, setCurrentGlucose] = useState<number | null>(null);
+  const [carbRatio, setCarbRatio] = useState<number | null>(null);
 
   const supabase = createClient();
 
@@ -63,8 +68,30 @@ export default function FoodPage() {
   useEffect(() => {
     if (user?.id) {
       loadData();
+      loadSettings();
     }
   }, [user, refreshKey]);
+
+  const loadSettings = async () => {
+    if (!user?.id) return;
+
+    try {
+      const { data } = await supabase
+        .from('user_calculator_settings' as any)
+        .select('insulin_to_carb')
+        .eq('user_id', user.id)
+        .single();
+
+      if (data) {
+        const settings = data as any;
+        if (settings.insulin_to_carb) {
+          setCarbRatio(parseFloat(settings.insulin_to_carb));
+        }
+      }
+    } catch (error) {
+      console.error('Error loading settings:', error);
+    }
+  };
 
   const loadData = async () => {
     if (!user?.id) return;
@@ -77,7 +104,13 @@ export default function FoodPage() {
       const [foodResponse, insulinResponse, glucoseResponse] = await Promise.all([
         supabase
           .from('food_logs')
-          .select('*')
+          .select(`
+            *,
+            food_items (
+              product_name,
+              brand
+            )
+          `)
           .eq('user_id', user.id)
           .gte('logged_at', thirtyDaysAgo.toISOString())
           .order('logged_at', { ascending: false }),
@@ -143,28 +176,8 @@ export default function FoodPage() {
     }).length
   };
 
-  // Calculate average carb ratio
-  const averageCarbRatio = (() => {
-    const recentMeals = foodLogs.slice(0, 10);
-    const ratios = recentMeals
-      .map(meal => {
-        const mealTime = new Date(meal.logged_at);
-        const relatedInsulin = insulinLogs.find(insulin => {
-          const insulinTime = new Date(insulin.taken_at);
-          const timeDiff = Math.abs(mealTime.getTime() - insulinTime.getTime());
-          return timeDiff <= 2 * 60 * 60 * 1000;
-        });
-
-        if (relatedInsulin && (meal.total_carbs_g || 0) > 0) {
-          return (meal.total_carbs_g || 0) / relatedInsulin.units;
-        }
-        return null;
-      })
-      .filter((ratio): ratio is number => ratio !== null);
-
-    return ratios.length > 0 ? 
-      Math.round(ratios.reduce((a, b) => a + b, 0) / ratios.length) : null;
-  })();
+  // Use configured carb ratio from settings
+  const displayCarbRatio = carbRatio;
 
   return (
     <div className="min-h-screen pb-20 lg:pb-8">
@@ -234,7 +247,7 @@ export default function FoodPage() {
               <span className="text-xs text-slate-400">Carb Ratio</span>
             </div>
             <p className="text-xl lg:text-2xl font-bold text-white">
-              {averageCarbRatio ? `1:${averageCarbRatio}` : 'N/A'}
+              {displayCarbRatio ? `1:${displayCarbRatio}` : 'N/A'}
             </p>
           </CardContent>
         </Card>

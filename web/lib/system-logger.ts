@@ -25,6 +25,7 @@ export type LogCategory =
   | 'database' 
   | 'ocr' 
   | 'dexcom' 
+  | 'myfitnesspal'
   | 'notifications'
   | 'auth'
   | 'api'

@@ -29,7 +29,8 @@ import {
   deleteRoadmapItem,
   isRoadmapAdmin,
   subscribeToRoadmapChanges,
-  type DatabaseRoadmapItem
+  type DatabaseRoadmapItem,
+  type FeatureUpdate
 } from '@/lib/roadmap-service';
 
 const statusOptions = [
@@ -69,7 +70,7 @@ const iconOptions = [
 ];
 
 interface EditingItem extends Omit<Partial<DatabaseRoadmapItem>, 'features' | 'tags'> {
-  features?: string[];
+  features?: FeatureUpdate[];
   tags?: string[];
 }
 
@@ -83,6 +84,7 @@ export function RoadmapAdmin() {
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showCompleted, setShowCompleted] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -149,7 +151,7 @@ export function RoadmapAdmin() {
       target_date: null,
       icon_name: 'Target',
       sort_order: items.length + 1,
-      features: [''],
+      features: [{ text: '', isCompleted: false }],
       tags: ['']
     });
     setShowAddForm(true);
@@ -177,7 +179,7 @@ export function RoadmapAdmin() {
           target_date: editingItem.target_date || null,
           icon_name: editingItem.icon_name || 'Target',
           sort_order: editingItem.sort_order || items.length + 1,
-          features: editingItem.features?.filter(f => f.trim()) || [],
+          features: editingItem.features?.filter(f => f.text.trim()) || [],
           tags: editingItem.tags?.filter(t => t.trim()) || []
         });
 
@@ -202,7 +204,7 @@ export function RoadmapAdmin() {
           target_date: editingItem.target_date || null,
           icon_name: editingItem.icon_name || 'Target',
           sort_order: editingItem.sort_order || items.length + 1,
-          features: editingItem.features?.filter(f => f.trim()) || [],
+          features: editingItem.features?.filter(f => f.text.trim()).map(f => f.text) || [],
           tags: editingItem.tags?.filter(t => t.trim()) || []
         });
 
@@ -232,7 +234,11 @@ export function RoadmapAdmin() {
       target_date: item.target_date || null,
       icon_name: item.icon_name,
       sort_order: item.sort_order,
-      features: item.features?.map(f => f.feature_text) || [''],
+      features: item.features?.map(f => ({ 
+        id: f.id, 
+        text: f.feature_text, 
+        isCompleted: f.is_completed 
+      })) || [{ text: '', isCompleted: false }],
       tags: item.tags?.map(t => t.tag_name) || ['']
     });
     setEditingItemId(item.item_id);
@@ -267,14 +273,21 @@ export function RoadmapAdmin() {
   const addFeature = () => {
     setEditingItem(prev => prev ? {
       ...prev,
-      features: [...(prev.features || []), '']
+      features: [...(prev.features || []), { text: '', isCompleted: false }]
     } : null);
   };
 
   const updateFeature = (index: number, value: string) => {
     setEditingItem(prev => prev ? {
       ...prev,
-      features: prev.features?.map((f, i) => i === index ? value : f) || []
+      features: prev.features?.map((f, i) => i === index ? { ...f, text: value } : f) || []
+    } : null);
+  };
+
+  const toggleFeatureInEdit = (index: number) => {
+    setEditingItem(prev => prev ? {
+      ...prev,
+      features: prev.features?.map((f, i) => i === index ? { ...f, isCompleted: !f.isCompleted } : f) || []
     } : null);
   };
 
@@ -347,9 +360,12 @@ export function RoadmapAdmin() {
     return 'Unscheduled';
   };
 
+  // Filter items based on showCompleted toggle
+  const filteredItems = showCompleted ? items : items.filter(item => item.status !== 'completed');
+
   // Group items by quarter and sort groups chronologically, then sort items by sort_order
   const groupedItems: Record<string, DatabaseRoadmapItem[]> = {};
-  items.forEach(item => {
+  filteredItems.forEach(item => {
     const q = getQuarterLabel(item) || 'Unscheduled';
     if (!groupedItems[q]) groupedItems[q] = [];
     groupedItems[q].push(item);
@@ -404,20 +420,32 @@ export function RoadmapAdmin() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100">
-            Roadmap Items ({items.length})
+            Roadmap Items ({filteredItems.length}{!showCompleted && ` of ${items.length}`})
           </h2>
           <p className="text-gray-600 dark:text-slate-400">
             Manage roadmap items, update progress, and track development
           </p>
         </div>
         
-        <button
-          onClick={handleAddItem}
-          className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Add Item</span>
-        </button>
+        <div className="flex items-center space-x-3">
+          <label className="flex items-center space-x-2 text-sm text-gray-700 dark:text-slate-300">
+            <input
+              type="checkbox"
+              checked={showCompleted}
+              onChange={(e) => setShowCompleted(e.target.checked)}
+              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+            />
+            <span>Show Completed</span>
+          </label>
+          
+          <button
+            onClick={handleAddItem}
+            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Add Item</span>
+          </button>
+        </div>
       </div>
 
       {/* Add/Edit Form Modal */}
@@ -599,11 +627,18 @@ export function RoadmapAdmin() {
                   {editingItem.features?.map((feature, index) => (
                     <div key={index} className="flex items-center space-x-2">
                       <input
+                        type="checkbox"
+                        checked={feature.isCompleted}
+                        onChange={() => toggleFeatureInEdit(index)}
+                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        title="Mark as completed"
+                      />
+                      <input
                         type="text"
-                        value={feature}
+                        value={feature.text}
                         onChange={(e) => updateFeature(index, e.target.value)}
                         placeholder="Feature description"
-                        className="flex-1 px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100"
+                        className={`flex-1 px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 ${feature.isCompleted ? 'line-through opacity-60' : ''}`}
                       />
                       <button
                         onClick={() => removeFeature(index)}

@@ -108,32 +108,49 @@ export async function fetchRoadmapItems(): Promise<DatabaseRoadmapItem[]> {
     if (!items) return [];
 
     // Fetch dependencies separately (due to Supabase join limitations)
+    // Skip if table doesn't exist
     const itemsWithDependencies = await Promise.all(
       items.map(async (item: any) => {
-        const { data: deps } = await (supabase as any)
-          .from('roadmap_dependencies')
-          .select(`
-            depends_on:roadmap_items!roadmap_dependencies_depends_on_id_fkey(
-              id,
-              item_id,
-              title,
-              status
-            )
-          `)
-          .eq('item_id', item.id);
+        try {
+          const { data: deps, error: depsError } = await (supabase as any)
+            .from('roadmap_dependencies')
+            .select(`
+              depends_on:roadmap_items!roadmap_dependencies_depends_on_id_fkey(
+                id,
+                item_id,
+                title,
+                status
+              )
+            `)
+            .eq('item_id', item.id);
 
-        // Defensive: if deps is not an array, set dependencies to undefined
-        let dependencies: any[] | undefined = undefined;
-        if (Array.isArray(deps)) {
-          dependencies = deps
-            .map(d => d.depends_on)
-            .filter(dep => dep && typeof (dep as any).id === 'string' && typeof (dep as any).title === 'string') as unknown as DatabaseRoadmapItem[];
+          // If table doesn't exist or error, skip dependencies
+          if (depsError) {
+            return {
+              ...item,
+              dependencies: undefined
+            } as DatabaseRoadmapItem;
+          }
+
+          // Defensive: if deps is not an array, set dependencies to undefined
+          let dependencies: any[] | undefined = undefined;
+          if (Array.isArray(deps)) {
+            dependencies = deps
+              .map(d => d.depends_on)
+              .filter(dep => dep && typeof (dep as any).id === 'string' && typeof (dep as any).title === 'string') as unknown as DatabaseRoadmapItem[];
+          }
+
+          return {
+            ...item,
+            dependencies
+          } as DatabaseRoadmapItem;
+        } catch (err) {
+          // If dependencies table doesn't exist, just return item without dependencies
+          return {
+            ...item,
+            dependencies: undefined
+          } as DatabaseRoadmapItem;
         }
-
-        return {
-          ...item,
-          dependencies
-        } as DatabaseRoadmapItem;
       })
     );
 
@@ -322,15 +339,22 @@ export async function updateRoadmapStatus(
 /**
  * Update existing roadmap item (admin only)
  */
+export interface FeatureUpdate {
+  id?: string;
+  text: string;
+  isCompleted?: boolean;
+}
+
 export async function updateRoadmapItem(
   itemId: string,
   updates: Partial<Omit<DatabaseRoadmapItem, 'id' | 'created_at' | 'updated_at' | 'features' | 'tags' | 'dependencies' | 'icon'>> & {
-    features?: string[];
+    features?: string[] | FeatureUpdate[];
     tags?: string[];
   }
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const supabase = createClient();
+    
     // Get the current item
     const { data: currentItem, error: fetchError } = await (supabase as any)
       .from('roadmap_items')
@@ -339,7 +363,8 @@ export async function updateRoadmapItem(
       .single();
 
     if (fetchError || !currentItem) {
-      return { success: false, error: 'Item not found' };
+      console.error('Item not found:', itemId, fetchError);
+      return { success: false, error: `Item not found: ${itemId}` };
     }
 
     // Update the main item
@@ -369,28 +394,81 @@ export async function updateRoadmapItem(
 
     // Update features if provided
     if (updates.features !== undefined) {
-      // Delete existing features
-      await (supabase as any)
-        .from('roadmap_features')
-        .delete()
-        .eq('roadmap_item_id', currentItem.id);
-
-      // Insert new features
-      if (updates.features.length > 0) {
-        const features = updates.features
-          .filter(f => f.trim())
-          .map((feature, index) => ({
-            roadmap_item_id: currentItem.id,
-            feature_text: feature,
-            sort_order: index + 1
-          }));
-
-        const { error: featuresError } = await (supabase as any)
+      // Check if features are FeatureUpdate objects or strings
+      const isFeatureUpdateArray = updates.features.length > 0 && typeof updates.features[0] === 'object';
+      
+      if (isFeatureUpdateArray) {
+        // Handle FeatureUpdate objects (with completion status)
+        const featureUpdates = updates.features as FeatureUpdate[];
+        
+        // Get existing features
+        const { data: existingFeatures } = await (supabase as any)
           .from('roadmap_features')
-          .insert(features);
+          .select('id')
+          .eq('roadmap_item_id', currentItem.id);
+        
+        const existingIds = new Set((existingFeatures || []).map((f: any) => f.id));
+        const updatedIds = new Set(featureUpdates.filter(f => f.id).map(f => f.id));
+        
+        // Delete features that are no longer in the list
+        const idsToDelete = Array.from(existingIds).filter((id): id is string => typeof id === 'string' && !updatedIds.has(id));
+        if (idsToDelete.length > 0) {
+          await (supabase as any)
+            .from('roadmap_features')
+            .delete()
+            .in('id', idsToDelete);
+        }
+        
+        // Update or insert features
+        for (let index = 0; index < featureUpdates.length; index++) {
+          const feature = featureUpdates[index];
+          if (!feature.text.trim()) continue;
+          
+          if (feature.id && existingIds.has(feature.id)) {
+            // Update existing feature
+            await (supabase as any)
+              .from('roadmap_features')
+              .update({
+                feature_text: feature.text,
+                is_completed: feature.isCompleted || false,
+                sort_order: index + 1
+              })
+              .eq('id', feature.id);
+          } else {
+            // Insert new feature
+            await (supabase as any)
+              .from('roadmap_features')
+              .insert({
+                roadmap_item_id: currentItem.id,
+                feature_text: feature.text,
+                is_completed: feature.isCompleted || false,
+                sort_order: index + 1
+              });
+          }
+        }
+      } else {
+        // Handle string array (legacy support)
+        await (supabase as any)
+          .from('roadmap_features')
+          .delete()
+          .eq('roadmap_item_id', currentItem.id);
 
-        if (featuresError) {
-          console.error('Error updating features:', featuresError);
+        if (updates.features.length > 0) {
+          const features = (updates.features as string[])
+            .filter(f => f.trim())
+            .map((feature, index) => ({
+              roadmap_item_id: currentItem.id,
+              feature_text: feature,
+              sort_order: index + 1
+            }));
+
+          const { error: featuresError } = await (supabase as any)
+            .from('roadmap_features')
+            .insert(features);
+
+          if (featuresError) {
+            console.error('Error updating features:', featuresError);
+          }
         }
       }
     }
@@ -425,7 +503,7 @@ export async function updateRoadmapItem(
     return { success: true };
   } catch (error) {
     console.error('Error in updateRoadmapItem:', error);
-    return { success: false, error: 'Failed to update roadmap item' };
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to update roadmap item' };
   }
 }
 
@@ -561,6 +639,32 @@ export function subscribeToRoadmapChanges(
   return () => {
     supabase.removeChannel(subscription);
   };
+}
+
+/**
+ * Toggle feature completion status
+ */
+export async function toggleFeatureCompletion(
+  featureId: string,
+  isCompleted: boolean
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = createClient();
+    const { error } = await (supabase as any)
+      .from('roadmap_features')
+      .update({ is_completed: isCompleted })
+      .eq('id', featureId);
+
+    if (error) {
+      console.error('Error toggling feature completion:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error in toggleFeatureCompletion:', error);
+    return { success: false, error: 'Failed to toggle feature completion' };
+  }
 }
 
 /**

@@ -1,0 +1,8 @@
+{
+  "name": "netlify-functions",
+  "version": "1.0.0",
+  "description": "Netlify scheduled functions for diabetes tracker",
+  "dependencies": {
+    "@netlify/functions": "^2.4.0"
+  }
+}

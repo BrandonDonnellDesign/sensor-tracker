@@ -1,8 +1,3 @@
-const OFF = require('openfoodfacts-nodejs');
-
-// Use US-specific client for barcode lookups
-const client = new OFF({ country: 'us' });
-
 export interface FoodItem {
   id: string;
   name: string;
@@ -32,6 +27,18 @@ export async function searchProducts(query: string): Promise<FoodItem[]> {
       query
     )}&page_size=20&json=true&sort_by=popularity`;
     const response = await fetch(url);
+    
+    if (!response.ok) {
+      console.error('OpenFoodFacts API error:', response.status, response.statusText);
+      return [];
+    }
+
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      console.error('OpenFoodFacts returned non-JSON response');
+      return [];
+    }
+
     const result = await response.json();
 
     if (!result.products || result.products.length === 0) {
@@ -60,7 +67,21 @@ export async function getProductByBarcode(
   barcode: string
 ): Promise<FoodItem | null> {
   try {
-    const result = await client.getProduct(barcode);
+    const url = `https://world.openfoodfacts.org/api/v2/product/${barcode}.json`;
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      console.error('OpenFoodFacts barcode API error:', response.status, response.statusText);
+      return null;
+    }
+
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      console.error('OpenFoodFacts barcode returned non-JSON response');
+      return null;
+    }
+
+    const result = await response.json();
 
     if (!result.product || result.status === 0) {
       return null;

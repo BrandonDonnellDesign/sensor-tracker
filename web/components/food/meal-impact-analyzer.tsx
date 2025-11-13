@@ -23,6 +23,10 @@ interface FoodLog {
   created_at: string;
   custom_calories?: number | null;
   custom_carbs_g?: number | null;
+  food_items?: {
+    product_name?: string | null | undefined;
+    brand?: string | null | undefined;
+  } | null;
 }
 
 interface InsulinLog {
@@ -258,7 +262,10 @@ export function MealImpactAnalyzer({ foodLogs, insulinLogs, glucoseReadings }: M
               {mealAnalysis.map((meal) => {
                 if (!meal) return null;
                 
-                const foodName = meal.foodLog.product_name || meal.foodLog.custom_food_name || 'Unknown Food';
+                const foodName = meal.foodLog.product_name || 
+                  meal.foodLog.custom_food_name || 
+                  meal.foodLog.food_items?.product_name ||
+                  (meal.foodLog.meal_type ? `${meal.foodLog.meal_type} meal` : 'Meal');
                 const mealTime = new Date(meal.foodLog.logged_at);
                 
                 return (

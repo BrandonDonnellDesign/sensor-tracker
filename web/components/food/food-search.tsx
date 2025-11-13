@@ -9,10 +9,12 @@ import { MultiFoodLogForm } from './multi-food-log-form';
 import { CustomFoodForm } from './custom-food-form';
 import { FavoritesList } from './favorites-list';
 import { FavoriteButton } from './favorite-button';
+import { MyCustomFoods } from './my-custom-foods';
 import { CameraPermissionDialog } from '@/components/ui/camera-permission-dialog';
 import { useCameraPermission } from '@/lib/hooks/use-camera-permission';
 
-type SearchMode = 'search' | 'barcode' | 'custom' | 'favorites';
+type SearchMode = 'search' | 'barcode' | 'custom' | 'favorites' | 'manage';
+type SearchModeValue = SearchMode;
 
 interface FoodSearchProps {
   onFoodLogged: () => void;
@@ -27,7 +29,7 @@ export function FoodSearch({ onFoodLogged }: FoodSearchProps) {
   const [showMealReview, setShowMealReview] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
-  const [searchMode, setSearchMode] = useState<SearchMode>('search');
+  const [searchMode, setSearchMode] = useState<SearchModeValue>('search');
   const [showPermissionDialog, setShowPermissionDialog] = useState(false);
   const [useIntegratedLogger, setUseIntegratedLogger] = useState(true);
 
@@ -183,10 +185,30 @@ export function FoodSearch({ onFoodLogged }: FoodSearchProps) {
             setSelectedFood(food);
             setSearchMode('search');
           }}
+          onAddToMeal={handleAddToMeal}
         />
       </div>
     );
   }
+
+  if (searchMode === 'manage') {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => setSearchMode('search')}
+            className="text-blue-600 hover:text-blue-700 text-sm"
+          >
+            ← Back to Search
+          </button>
+        </div>
+        <MyCustomFoods onAddToMeal={handleAddToMeal} />
+      </div>
+    );
+  }
+
+  // Type assertion to fix TypeScript narrowing issue
+  const currentMode = searchMode as SearchMode;
 
   return (
     <div className="space-y-4">
@@ -241,11 +263,11 @@ export function FoodSearch({ onFoodLogged }: FoodSearchProps) {
       </div>
 
       {/* Mode Toggle */}
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-5 gap-2">
         <button
           onClick={() => setSearchMode('search')}
           className={`py-3 md:py-2 px-2 rounded-lg transition-colors text-sm touch-manipulation ${
-            searchMode === 'search'
+            currentMode === 'search'
               ? 'bg-blue-600 text-white'
               : 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300'
           }`}
@@ -256,7 +278,7 @@ export function FoodSearch({ onFoodLogged }: FoodSearchProps) {
         <button
           onClick={() => setSearchMode('favorites')}
           className={`py-3 md:py-2 px-2 rounded-lg transition-colors text-sm touch-manipulation ${
-            (searchMode as string) === 'favorites'
+            currentMode === 'favorites'
               ? 'bg-blue-600 text-white'
               : 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300'
           }`}
@@ -267,7 +289,7 @@ export function FoodSearch({ onFoodLogged }: FoodSearchProps) {
         <button
           onClick={() => setSearchMode('barcode')}
           className={`py-3 md:py-2 px-2 rounded-lg transition-colors text-sm touch-manipulation ${
-            searchMode === 'barcode'
+            currentMode === 'barcode'
               ? 'bg-blue-600 text-white'
               : 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300'
           }`}
@@ -278,13 +300,24 @@ export function FoodSearch({ onFoodLogged }: FoodSearchProps) {
         <button
           onClick={() => setSearchMode('custom')}
           className={`py-3 md:py-2 px-2 rounded-lg transition-colors text-sm touch-manipulation ${
-            (searchMode as string) === 'custom'
+            currentMode === 'custom'
               ? 'bg-blue-600 text-white'
               : 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300'
           }`}
         >
           <Plus className="w-4 h-4 inline mr-1" />
           <span className="hidden sm:inline">Custom</span>
+        </button>
+        <button
+          onClick={() => setSearchMode('manage')}
+          className={`py-3 md:py-2 px-2 rounded-lg transition-colors text-sm touch-manipulation ${
+            currentMode === 'manage'
+              ? 'bg-blue-600 text-white'
+              : 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300'
+          }`}
+        >
+          <Camera className="w-4 h-4 inline mr-1" />
+          <span className="hidden sm:inline">Manage</span>
         </button>
       </div>
 

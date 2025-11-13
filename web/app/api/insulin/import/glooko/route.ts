@@ -232,6 +232,79 @@ const parseCsv = (content: string): Promise<any[]> =>
       .on('error', reject);
   });
 
+// Helper: merge doses within a time window (in minutes)
+function mergeDosesWithinTimeWindow(logs: any[], windowMinutes: number): any[] {
+  if (logs.length === 0) return logs;
+
+  // Sort by timestamp
+  const sortedLogs = [...logs].sort((a, b) => 
+    new Date(a.taken_at).getTime() - new Date(b.taken_at).getTime()
+  );
+
+  const mergedLogs: any[] = [];
+  let currentGroup: any[] = [sortedLogs[0]];
+
+  for (let i = 1; i < sortedLogs.length; i++) {
+    const currentLog = sortedLogs[i];
+    const lastInGroup = currentGroup[currentGroup.length - 1];
+    
+    const timeDiff = Math.abs(
+      new Date(currentLog.taken_at).getTime() - new Date(lastInGroup.taken_at).getTime()
+    ) / (1000 * 60); // Convert to minutes
+
+    // Check if same insulin type and within time window
+    if (currentLog.insulin_type === lastInGroup.insulin_type && timeDiff <= windowMinutes) {
+      currentGroup.push(currentLog);
+    } else {
+      // Merge the current group and start a new one
+      if (currentGroup.length > 1) {
+        mergedLogs.push(mergeGroup(currentGroup));
+      } else {
+        mergedLogs.push(currentGroup[0]);
+      }
+      currentGroup = [currentLog];
+    }
+  }
+
+  // Don't forget the last group
+  if (currentGroup.length > 1) {
+    mergedLogs.push(mergeGroup(currentGroup));
+  } else {
+    mergedLogs.push(currentGroup[0]);
+  }
+
+  return mergedLogs;
+}
+
+// Helper: merge a group of doses into one
+function mergeGroup(group: any[]): any {
+  const totalUnits = group.reduce((sum, log) => sum + log.units, 0);
+  const notesParts = group.map((log, idx) => 
+    `Dose ${idx + 1}: ${log.units}u at ${new Date(log.taken_at).toLocaleTimeString()}`
+  );
+  
+  // Combine all notes
+  const existingNotes = group.map(log => log.notes).filter(Boolean);
+  const allNotes = [...notesParts, ...existingNotes].join(' | ');
+
+  // Use the earliest timestamp
+  const earliestTime = group.reduce((earliest, log) => {
+    const logTime = new Date(log.taken_at);
+    return logTime < earliest ? logTime : earliest;
+  }, new Date(group[0].taken_at));
+
+  // Combine blood glucose (use first non-null value)
+  const bloodGlucose = group.find(log => log.blood_glucose_before)?.blood_glucose_before || null;
+
+  return {
+    ...group[0],
+    units: totalUnits,
+    taken_at: earliestTime.toISOString(),
+    blood_glucose_before: bloodGlucose,
+    notes: `Merged ${group.length} doses: ${allNotes}`
+  };
+}
+
 export async function POST(request: NextRequest) {
   try {
     console.log('Starting Glooko import process...');
@@ -638,14 +711,19 @@ async function handleZipImport(zipFile: File, userId: string, supabase: any) {
       }, { status: 400 });
     }
 
+    // Merge doses within 10 minutes of each other in the CSV
+    console.log(`Before merging: ${preparedLogs.length} logs`);
+    const mergedLogs = mergeDosesWithinTimeWindow(preparedLogs, 10);
+    console.log(`After merging: ${mergedLogs.length} logs`);
+
     // Process each log individually to handle merging with existing entries
     let imported = 0;
     let duplicates = 0;
     let merged = 0;
     const errors: string[] = [];
 
-    for (let i = 0; i < preparedLogs.length; i++) {
-      const log = preparedLogs[i];
+    for (let i = 0; i < mergedLogs.length; i++) {
+      const log = mergedLogs[i];
       if (!log) continue; // Skip null entries from filter
       
       try {
@@ -794,7 +872,7 @@ async function handleZipImport(zipFile: File, userId: string, supabase: any) {
             delivery_type: 'basal',
             meal_relation: null,
             injection_site: 'pump',
-            notes: `Daily basal total from Glooko (${timestamp})`,
+            notes: 'Daily basal total from Glooko import',
             logged_via: 'csv_import'
           });
         
@@ -1010,7 +1088,7 @@ async function handleCsvImport(file: File, userId: string, supabase: any) {
       duplicates: 0
     };
 
-    // Process each data row (start after header row)
+    // First pass: collect all valid logs from CSV
     const dataStartIndex = headerRowIndex + 1;
     console.log('Starting to process', lines.length - dataStartIndex, 'data rows');
     
@@ -1360,7 +1438,7 @@ async function handleBasalSummaryCsv(lines: string[], headerRowIndex: number, he
           delivery_type: 'basal',
           meal_relation: null,
           injection_site: 'pump',
-          notes: `Daily basal total from Glooko CSV (${timestamp})`,
+          notes: 'Daily basal total from Glooko CSV import',
           logged_via: 'csv_import'
         });
 

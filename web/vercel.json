@@ -3,11 +3,18 @@
     {
       "path": "/api/cron/sensor-expiration-check",
       "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/cron/myfitnesspal-sync",
+      "schedule": "*/30 * * * *"
     }
   ],
   "functions": {
     "app/api/cron/sensor-expiration-check/route.ts": {
       "maxDuration": 60
+    },
+    "app/api/cron/myfitnesspal-sync/route.ts": {
+      "maxDuration": 300
     }
   }
 }

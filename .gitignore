@@ -156,3 +156,5 @@ backend/prisma/dev.db*
 # Database
 *.db
 *.sqlite
+# Local Netlify folder
+.netlify

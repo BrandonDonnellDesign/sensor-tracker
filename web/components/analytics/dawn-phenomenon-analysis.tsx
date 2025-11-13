@@ -227,21 +227,19 @@ export default function DawnPhenomenonAnalysisComponent({
           <h4 className="text-md font-semibold text-gray-900 dark:text-slate-100 mb-3">
             Weekly Pattern
           </h4>
-          <div className="grid grid-cols-7 gap-2">
+          <div className="flex gap-2">
             {analysis.weeklyPattern.map((day) => (
-              <div key={day.day} className="text-center">
-                <div className="text-xs text-gray-600 dark:text-slate-400 mb-1">
+              <div key={day.day} className="flex-1 min-w-0 text-center">
+                <div className="text-xs text-gray-600 dark:text-slate-400 mb-1 truncate">
                   {day.day.slice(0, 3)}
                 </div>
                 <div className="bg-gray-100 dark:bg-slate-700 rounded-lg p-2">
                   <div className="text-sm font-medium text-gray-900 dark:text-slate-100">
                     {day.percentage.toFixed(0)}%
                   </div>
-                  {day.averageRise > 0 && (
-                    <div className="text-xs text-gray-500 dark:text-slate-500">
-                      +{day.averageRise.toFixed(0)}
-                    </div>
-                  )}
+                  <div className="text-xs text-gray-500 dark:text-slate-500 h-4">
+                    {day.averageRise > 0 ? `+${day.averageRise.toFixed(0)}` : '\u00A0'}
+                  </div>
                 </div>
               </div>
             ))}

@@ -39,11 +39,13 @@ interface DexcomSettingsProps {
 export function DexcomSettings({ user: _user }: DexcomSettingsProps) {
   const { user } = useAuth();
   const [connection, setConnection] = useState<DexcomConnection | null>(null);
+  const [expiredConnection, setExpiredConnection] = useState<DexcomConnection | null>(null);
   const [_syncSettings, setSyncSettings] = useState<SyncSettings | null>(null);
   const [_syncLogs, setSyncLogs] = useState<SyncLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const showToast = (
     _title: string,
@@ -84,24 +86,47 @@ export function DexcomSettings({ user: _user }: DexcomSettingsProps) {
 
       // Check if connection exists and is active
       if (connectionData) {
-        console.log('Dexcom connection data:', connectionData);
+        console.log('Dexcom connection data:', {
+          id: connectionData.id,
+          is_active: connectionData.is_active,
+          token_expires_at: connectionData.token_expires_at,
+          created_at: connectionData.created_at
+        });
         
         // Check if token is expired
         const tokenExpiry = new Date(connectionData.token_expires_at);
-        const isExpired = tokenExpiry <= new Date();
+        const now = new Date();
+        const isExpired = tokenExpiry <= now;
         
-        console.log('Token expiry:', tokenExpiry, 'Is expired:', isExpired, 'Is active:', connectionData.is_active);
+        console.log('Token check:', {
+          tokenExpiry: tokenExpiry.toISOString(),
+          now: now.toISOString(),
+          isExpired,
+          is_active: connectionData.is_active,
+          willSetConnection: connectionData.is_active && !isExpired
+        });
         
         // Only set connection if it's active and not expired
         if (connectionData.is_active && !isExpired) {
           setConnection(connectionData as unknown as DexcomConnection);
-        } else {
-          console.log('Connection exists but is inactive or expired');
+          setExpiredConnection(null);
+          console.log('✅ Connection set - account is connected');
+        } else if (isExpired) {
+          // Token exists but is expired - show refresh option
+          console.log('⚠️ Token expired - showing refresh option');
           setConnection(null);
+          setExpiredConnection(connectionData as unknown as DexcomConnection);
+        } else {
+          console.log('❌ Connection not set:', {
+            reason: !connectionData.is_active ? 'inactive' : 'expired'
+          });
+          setConnection(null);
+          setExpiredConnection(null);
         }
       } else {
-        console.log('No Dexcom connection found');
+        console.log('No Dexcom connection found in database');
         setConnection(null);
+        setExpiredConnection(null);
       }
 
       const { data: settingsData } = await (supabase as any)
@@ -167,6 +192,44 @@ export function DexcomSettings({ user: _user }: DexcomSettingsProps) {
     }
   };
 
+  const handleRefreshToken = async () => {
+    setIsRefreshing(true);
+    try {
+      if (!user) {
+        showToast('Error', 'User not authenticated', 'destructive');
+        return;
+      }
+
+      const response = await fetch('/api/dexcom/refresh-token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        showToast('Token refreshed', 'Your Dexcom token has been refreshed successfully.');
+        loadDexcomData();
+      } else {
+        showToast(
+          'Refresh failed',
+          result.error || 'Failed to refresh token. Please reconnect your account.',
+          'destructive'
+        );
+      }
+    } catch (error) {
+      showToast(
+        'Refresh failed',
+        'Failed to refresh token. Please try reconnecting your account.',
+        'destructive'
+      );
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   const handleDisconnect = async () => {
     try {
       if (!user) return;
@@ -178,6 +241,7 @@ export function DexcomSettings({ user: _user }: DexcomSettingsProps) {
         .eq('user_id', user.id);
 
       setConnection(null);
+      setExpiredConnection(null);
       showToast('Disconnected', 'Your Dexcom account has been disconnected.');
     } catch (error) {
       showToast('Error', 'Failed to disconnect Dexcom account.', 'destructive');
@@ -295,7 +359,43 @@ export function DexcomSettings({ user: _user }: DexcomSettingsProps) {
         ))}
       </div>
 
-      {!connection ? (
+      {expiredConnection ? (
+        <div className='space-y-3'>
+          <div className='text-center bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4'>
+            <p className='text-sm text-yellow-800 dark:text-yellow-200 mb-2'>
+              Your Dexcom token has expired
+            </p>
+            <p className='text-xs text-yellow-700 dark:text-yellow-300'>
+              Connected on {new Date(expiredConnection.created_at).toLocaleDateString()} • 
+              Expired on {new Date(expiredConnection.token_expires_at).toLocaleDateString()}
+            </p>
+          </div>
+          <div className='flex gap-2 justify-center'>
+            <button
+              onClick={handleRefreshToken}
+              disabled={isRefreshing}
+              className='inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 transition-colors'>
+              {isRefreshing ? (
+                <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+              ) : (
+                <RefreshCw className='mr-2 h-4 w-4' />
+              )}
+              Refresh Token
+            </button>
+            <button
+              onClick={handleConnect}
+              disabled={isConnecting}
+              className='inline-flex items-center px-4 py-2 border border-gray-300 dark:border-slate-600 text-sm font-medium rounded-lg text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 transition-colors'>
+              {isConnecting ? (
+                <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+              ) : (
+                <ExternalLink className='mr-2 h-4 w-4' />
+              )}
+              Reconnect
+            </button>
+          </div>
+        </div>
+      ) : !connection ? (
         <div className='text-center'>
           <button
             onClick={handleConnect}

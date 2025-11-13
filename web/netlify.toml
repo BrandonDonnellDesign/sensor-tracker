@@ -2,32 +2,29 @@
   command = "npm run build"
   publish = ".next"
 
-[build.environment]
-  NODE_VERSION = "18"
-
-# Next.js Plugin Configuration
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
-# Environment variables for production
-[context.production.environment]
-  NODE_ENV = "production"
+# Scheduled Functions (Netlify)
+[[functions]]
+  path = "/.netlify/functions/myfitnesspal-sync"
+  schedule = "*/30 * * * *"
 
-# Function settings for Netlify functions (not Next.js API routes)
-[functions]
-  node_bundler = "esbuild"
-  directory = "netlify/functions"
+[[functions]]
+  path = "/.netlify/functions/sensor-expiration-check"
+  schedule = "0 */6 * * *"
 
-# Headers for security
-[[headers]]
-  for = "/*"
-  [headers.values]
-    X-Frame-Options = "DENY"
-    X-Content-Type-Options = "nosniff"
-    Referrer-Policy = "strict-origin-when-cross-origin"
+# Environment variables
+[build.environment]
+  NEXT_TELEMETRY_DISABLED = "1"
 
-# Scheduled function specific settings
-[[headers]]
-  for = "/.netlify/functions/scheduled-notifications"
-  [headers.values]
-    Cache-Control = "no-cache, no-store, must-revalidate"
+# Redirects for API routes
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

@@ -290,7 +290,7 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
       const supabase = createClient();
       const { error } = await (supabase as any).rpc('update_daily_activity', {
         p_user_id: user.id,
-        p_activity: activity
+        p_activity_type: activity
       });
 
       if (error) {
@@ -326,7 +326,7 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
 
       const { error } = await (supabase as any).rpc('update_daily_activity', {
         p_user_id: user.id,
-        p_activity: 'login'
+        p_activity_type: 'login'
       });
 
       if (error) {

@@ -1,34 +1,95 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useAuth } from '@/components/providers/auth-provider';
-import { Loader2, Plus } from 'lucide-react';
+import { Loader2, Plus, Camera, X, Image as ImageIcon } from 'lucide-react';
+import { createClient } from '@/lib/supabase-client';
 
 interface CustomFoodFormProps {
   onCancel: () => void;
   onSuccess: (food: any) => void;
+  editingFood?: any; // Food item to edit (if editing)
 }
 
-export function CustomFoodForm({ onCancel, onSuccess }: CustomFoodFormProps) {
+export function CustomFoodForm({ onCancel, onSuccess, editingFood }: CustomFoodFormProps) {
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(editingFood?.image_url || null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
-    name: '',
-    brand: '',
-    servingSize: 100,
-    servingUnit: 'g',
-    calories: '',
-    carbs: '',
-    protein: '',
-    fat: '',
-    fiber: '',
-    sugar: '',
-    sodium: '',
-    isPublic: false,
+    name: editingFood?.product_name || '',
+    brand: editingFood?.brand || '',
+    servingSize: editingFood?.serving_size || 100,
+    servingUnit: editingFood?.serving_unit || 'g',
+    calories: editingFood?.energy_kcal?.toString() || '',
+    carbs: editingFood?.carbohydrates_g?.toString() || '',
+    protein: editingFood?.proteins_g?.toString() || '',
+    fat: editingFood?.fat_g?.toString() || '',
+    fiber: editingFood?.fiber_g?.toString() || '',
+    sugar: editingFood?.sugars_g?.toString() || '',
+    sodium: editingFood?.sodium_mg?.toString() || '',
+    isPublic: editingFood?.is_public || false,
   });
 
   const handleInputChange = (field: string, value: string | number | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        alert('Image size must be less than 5MB');
+        return;
+      }
+      setSelectedImage(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setSelectedImage(null);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const uploadImage = async (): Promise<string | null> => {
+    if (!selectedImage || !user) return null;
+
+    setIsUploadingImage(true);
+    try {
+      const supabase = createClient();
+      const fileExt = selectedImage.name.split('.').pop();
+      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+      
+      const { error } = await supabase.storage
+        .from('food-images')
+        .upload(fileName, selectedImage, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (error) throw error;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('food-images')
+        .getPublicUrl(fileName);
+
+      return publicUrl;
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      return null;
+    } finally {
+      setIsUploadingImage(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -37,26 +98,38 @@ export function CustomFoodForm({ onCancel, onSuccess }: CustomFoodFormProps) {
 
     setIsSubmitting(true);
     try {
-      // Use the API endpoint instead of direct database access
-      const response = await fetch('/api/food/items', {
-        method: 'POST',
+      // Upload image first if selected
+      let imageUrl = imagePreview; // Keep existing image if not changed
+      if (selectedImage) {
+        imageUrl = await uploadImage();
+      }
+
+      const payload = {
+        product_name: formData.name.trim(),
+        brand: formData.brand.trim() || null,
+        serving_size: formData.servingSize,
+        serving_unit: formData.servingUnit,
+        energy_kcal: formData.calories ? parseFloat(formData.calories) : null,
+        carbohydrates_g: formData.carbs ? parseFloat(formData.carbs) : null,
+        proteins_g: formData.protein ? parseFloat(formData.protein) : null,
+        fat_g: formData.fat ? parseFloat(formData.fat) : null,
+        fiber_g: formData.fiber ? parseFloat(formData.fiber) : null,
+        sugars_g: formData.sugar ? parseFloat(formData.sugar) : null,
+        sodium_mg: formData.sodium ? parseFloat(formData.sodium) : null,
+        is_public: formData.isPublic,
+        image_url: imageUrl
+      };
+
+      // Use the API endpoint - POST for create, PUT for update
+      const url = editingFood ? `/api/food/items/${editingFood.id}` : '/api/food/items';
+      const method = editingFood ? 'PUT' : 'POST';
+      
+      const response = await fetch(url, {
+        method,
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          product_name: formData.name.trim(),
-          brand: formData.brand.trim() || null,
-          serving_size: formData.servingSize,
-          serving_unit: formData.servingUnit,
-          energy_kcal: formData.calories ? parseFloat(formData.calories) : null,
-          carbohydrates_g: formData.carbs ? parseFloat(formData.carbs) : null,
-          proteins_g: formData.protein ? parseFloat(formData.protein) : null,
-          fat_g: formData.fat ? parseFloat(formData.fat) : null,
-          fiber_g: formData.fiber ? parseFloat(formData.fiber) : null,
-          sugars_g: formData.sugar ? parseFloat(formData.sugar) : null,
-          sodium_mg: formData.sodium ? parseFloat(formData.sodium) : null,
-          is_public: formData.isPublic
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
@@ -97,10 +170,59 @@ export function CustomFoodForm({ onCancel, onSuccess }: CustomFoodFormProps) {
     <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-gray-200 dark:border-slate-700 p-6">
       <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4 flex items-center gap-2">
         <Plus className="w-5 h-5" />
-        Create Custom Food
+        {editingFood ? 'Edit Custom Food' : 'Create Custom Food'}
       </h3>
       
       <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Photo Upload */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+            Food Photo (optional)
+          </label>
+          <div className="flex items-start gap-4">
+            {imagePreview ? (
+              <div className="relative">
+                <img
+                  src={imagePreview}
+                  alt="Food preview"
+                  className="w-32 h-32 object-cover rounded-lg border-2 border-gray-300 dark:border-slate-600"
+                />
+                <button
+                  type="button"
+                  onClick={handleRemoveImage}
+                  className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <div className="w-32 h-32 border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-lg flex items-center justify-center bg-gray-50 dark:bg-slate-700">
+                <ImageIcon className="w-8 h-8 text-gray-400" />
+              </div>
+            )}
+            <div className="flex-1">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleImageSelect}
+                className="hidden"
+                id="food-image-upload"
+              />
+              <label
+                htmlFor="food-image-upload"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-gray-700 dark:text-slate-300 rounded-lg cursor-pointer transition-colors"
+              >
+                <Camera className="w-4 h-4" />
+                {imagePreview ? 'Change Photo' : 'Add Photo'}
+              </label>
+              <p className="mt-2 text-xs text-gray-500 dark:text-slate-400">
+                Upload a photo of your food (max 5MB)
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* Basic Info */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
@@ -309,16 +431,16 @@ export function CustomFoodForm({ onCancel, onSuccess }: CustomFoodFormProps) {
           </button>
           <button
             type="submit"
-            disabled={isSubmitting || !formData.name.trim()}
+            disabled={isSubmitting || isUploadingImage || !formData.name.trim()}
             className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50"
           >
-            {isSubmitting ? (
+            {isSubmitting || isUploadingImage ? (
               <>
                 <Loader2 className="w-4 h-4 inline mr-2 animate-spin" />
-                Creating...
+                {isUploadingImage ? 'Uploading Photo...' : 'Creating...'}
               </>
             ) : (
-              'Create & Log Food'
+              editingFood ? 'Update Food' : 'Create & Log Food'
             )}
           </button>
         </div>

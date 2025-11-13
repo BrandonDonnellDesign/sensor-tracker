@@ -2,6 +2,7 @@
 
 import { useAuth } from '@/components/providers/auth-provider';
 import { DexcomSettings } from '@/components/dexcom-settings';
+import { MyFitnessPalIntegration } from '@/components/settings/myfitnesspal-integration';
 import { Settings, Zap, Activity } from 'lucide-react';
 
 interface IntegrationCardProps {
@@ -75,14 +76,13 @@ export function CgmIntegrations() {
           </div>
         </div>
         <h2 className='text-2xl font-bold text-gray-900 dark:text-slate-100 mb-4'>
-          CGM Integrations
+          Integrations
         </h2>
         <p className='text-gray-600 dark:text-slate-400 text-lg leading-relaxed max-w-2xl mx-auto mb-8'>
-          Automatic sensor data sync from your CGM devices is currently in
-          development. These features will allow you to automatically import
-          sensor information, eliminating manual entry.
+          Connect your diabetes management tools and nutrition tracking apps for seamless data synchronization.
         </p>
       </div>
+
       {/* Integration Cards */}
       <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
         {/* Dexcom Integration - Active in Dev, Coming Soon in Prod */}
@@ -114,6 +114,11 @@ export function CgmIntegrations() {
             'Multi-device support',
           ]}
         />
+      </div>
+
+      {/* MyFitnessPal Integration */}
+      <div className='bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-gray-200 dark:border-slate-700 p-6'>
+        <MyFitnessPalIntegration />
       </div>
       {/* Footer */}
       <div className='text-center bg-gray-50 dark:bg-slate-700/50 rounded-lg p-6'>

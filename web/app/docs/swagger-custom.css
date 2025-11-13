@@ -1,5 +1,15 @@
 /* Custom Swagger UI styling */
 
+/* Fix scheme container background */
+.swagger-ui .scheme-container {
+  background: rgb(17 24 39 / var(--tw-bg-opacity, 1)) !important;
+  background-color: rgb(17 24 39 / var(--tw-bg-opacity, 1)) !important;
+  margin: 0 0 20px !important;
+  padding: 30px 0 !important;
+  box-shadow: none !important;
+  border-bottom: 1px solid rgb(31 41 55 / var(--tw-border-opacity, 1)) !important;
+}
+
 /* Target the schemes wrapper and server container */
 .swagger-ui .schemes.wrapper,
 .swagger-ui .schemes-server-container,
@@ -8,51 +18,97 @@
   background: transparent !important;
 }
 
+/* Ensure all child elements inherit transparent background */
+.swagger-ui .scheme-container .schemes.wrapper,
+.swagger-ui .scheme-container section {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
 /* Server selection dropdown */
 .swagger-ui .servers,
 .swagger-ui .servers > label,
 .swagger-ui .servers > label > select,
 .swagger-ui select#servers {
-  background-color: #f7f7f7 !important;
+  background-color: rgb(31 41 55 / var(--tw-bg-opacity, 1)) !important;
   background-image: none !important;
 }
 
 .swagger-ui .servers-title {
-  color: #3b4151 !important;
+  color: rgb(229 231 235 / var(--tw-text-opacity, 1)) !important;
   font-weight: 600 !important;
   margin-bottom: 8px !important;
 }
 
 .swagger-ui select#servers {
-  border: 1px solid #d9d9d9 !important;
-  color: #3b4151 !important;
+  border: 1px solid rgb(55 65 81 / var(--tw-border-opacity, 1)) !important;
+  color: rgb(229 231 235 / var(--tw-text-opacity, 1)) !important;
   padding: 8px 12px !important;
   border-radius: 4px !important;
   font-size: 14px !important;
 }
 
+/* Authorize button */
+.swagger-ui .btn.authorize {
+  background-color: #3b82f6 !important;
+  color: white !important;
+  border-color: #3b82f6 !important;
+}
+
+.swagger-ui .btn.authorize:hover {
+  background-color: #2563eb !important;
+  border-color: #2563eb !important;
+}
+
+.swagger-ui .btn.authorize svg {
+  fill: white !important;
+}
+
+/* Light mode override */
+@media (prefers-color-scheme: light) {
+  .swagger-ui .scheme-container {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) !important;
+    border-bottom: 1px solid #e5e7eb !important;
+  }
+}
+
 /* Dark mode */
 @media (prefers-color-scheme: dark) {
-  .swagger-ui .schemes.wrapper,
-  .swagger-ui .schemes-server-container,
-  .swagger-ui .schemes-server-container > div {
-    filter: invert(1) hue-rotate(180deg) !important;
+  .swagger-ui .scheme-container {
+    background: rgb(17 24 39 / var(--tw-bg-opacity, 1)) !important;
+    background-color: rgb(17 24 39 / var(--tw-bg-opacity, 1)) !important;
+    box-shadow: none !important;
+    border-bottom: 1px solid rgb(31 41 55 / var(--tw-border-opacity, 1)) !important;
+  }
+  
+  .swagger-ui .scheme-container .schemes.wrapper,
+  .swagger-ui .scheme-container section {
+    background: transparent !important;
+    background-color: transparent !important;
   }
   
   .swagger-ui .servers,
   .swagger-ui .servers > label,
   .swagger-ui .servers > label > select,
   .swagger-ui select#servers {
-    background-color: #374151 !important;
+    background-color: rgb(31 41 55 / var(--tw-bg-opacity, 1)) !important;
     background-image: none !important;
   }
   
   .swagger-ui .servers-title {
-    color: #e5e7eb !important;
+    color: rgb(229 231 235 / var(--tw-text-opacity, 1)) !important;
   }
   
   .swagger-ui select#servers {
-    border-color: #4b5563 !important;
-    color: #e5e7eb !important;
+    border-color: rgb(55 65 81 / var(--tw-border-opacity, 1)) !important;
+    color: rgb(229 231 235 / var(--tw-text-opacity, 1)) !important;
+  }
+  
+  .swagger-ui .btn.authorize {
+    background-color: rgb(59 130 246 / var(--tw-bg-opacity, 1)) !important;
+    color: white !important;
+    border-color: rgb(59 130 246 / var(--tw-border-opacity, 1)) !important;
   }
 }
