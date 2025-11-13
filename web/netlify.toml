@@ -5,26 +5,17 @@
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
-# Scheduled Functions (Netlify)
-[[functions]]
-  path = "/.netlify/functions/myfitnesspal-sync"
-  schedule = "*/30 * * * *"
-
-[[functions]]
-  path = "/.netlify/functions/sensor-expiration-check"
-  schedule = "0 */6 * * *"
-
 # Environment variables
 [build.environment]
   NEXT_TELEMETRY_DISABLED = "1"
 
-# Redirects for API routes
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/:splat"
-  status = 200
+# Functions configuration
+[functions]
+  directory = "netlify/functions"
 
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+# Scheduled Functions
+[functions."myfitnesspal-sync"]
+  schedule = "*/30 * * * *"
+
+[functions."sensor-expiration-check"]
+  schedule = "0 */6 * * *"
