@@ -71,7 +71,7 @@ export async function writePumpBolus(
         user_id: data.user_id,
         timestamp: data.timestamp,
         units: data.units,
-        bolus_type: determineBol usType(data),
+        bolus_type: determineBolusType(data),
         metadata: buildMetadata(data),
       });
 
