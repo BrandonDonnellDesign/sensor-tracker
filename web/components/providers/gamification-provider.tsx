@@ -288,15 +288,18 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
 
     try {
       const supabase = createClient();
-      const { error } = await (supabase as any).rpc('update_daily_activity', {
-        p_user_id: user.id,
-        p_activity_type: activity
+      console.log('Recording activity:', { activity, userId: user.id });
+      const { error, data } = await (supabase as any).rpc('update_daily_activity', {
+        p_activity: activity,
+        p_user_id: user.id
       });
 
       if (error) {
         console.error('Error recording activity:', error);
+        console.error('Error details:', JSON.stringify(error, null, 2));
         return;
       }
+      console.log('Activity recorded successfully');
 
       // Refresh stats after recording activity
       await fetchUserStats();
@@ -325,8 +328,8 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
       }
 
       const { error } = await (supabase as any).rpc('update_daily_activity', {
-        p_user_id: user.id,
-        p_activity_type: 'login'
+        p_activity: 'login',
+        p_user_id: user.id
       });
 
       if (error) {

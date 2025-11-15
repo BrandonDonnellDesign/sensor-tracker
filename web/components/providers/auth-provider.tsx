@@ -72,8 +72,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
       // Record login activity
       const { error } = await (supabase as any).rpc('update_daily_activity', {
-        p_user_id: userId,
-        p_activity_type: 'login'
+        p_activity: 'login',
+        p_user_id: userId
       });
 
       if (error) {

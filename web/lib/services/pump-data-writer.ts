@@ -27,7 +27,7 @@ interface PumpDataInput {
 /**
  * Determine bolus type from delivery type and meal relation
  */
-function determineBol usType(data: PumpDataInput): 'meal' | 'correction' | 'auto_correction' | 'extended' {
+function determineBolusType(data: PumpDataInput): 'meal' | 'correction' | 'auto_correction' | 'extended' {
   if (data.delivery_type === 'correction') return 'correction';
   if (data.meal_relation && ['before_meal', 'with_meal', 'after_meal'].includes(data.meal_relation)) {
     return 'meal';
