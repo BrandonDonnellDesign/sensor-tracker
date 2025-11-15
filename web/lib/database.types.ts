@@ -95,36 +95,6 @@ export type Database = {
         }
         Relationships: []
       }
-      admin_notes: {
-        Row: {
-          admin_user_id: string | null
-          category: string | null
-          content: string | null
-          created_at: string
-          id: string
-          resolved: boolean
-          title: string
-        }
-        Insert: {
-          admin_user_id?: string | null
-          category?: string | null
-          content?: string | null
-          created_at?: string
-          id?: string
-          resolved?: boolean
-          title: string
-        }
-        Update: {
-          admin_user_id?: string | null
-          category?: string | null
-          content?: string | null
-          created_at?: string
-          id?: string
-          resolved?: boolean
-          title?: string
-        }
-        Relationships: []
-      }
       ai_moderation_log: {
         Row: {
           action: string
@@ -335,108 +305,6 @@ export type Database = {
           },
         ]
       }
-      archived_sensors: {
-        Row: {
-          archived_at: string
-          archived_by_user_id: string | null
-          archived_reason: string
-          created_at: string
-          date_added: string
-          days_worn: number | null
-          id: string
-          is_deleted: boolean
-          is_problematic: boolean
-          issue_notes: string | null
-          lot_number: string | null
-          notes_at_archival: string | null
-          original_expiry_date: string | null
-          sensor_type: string
-          serial_number: string
-          synced_at: string | null
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          archived_at?: string
-          archived_by_user_id?: string | null
-          archived_reason?: string
-          created_at: string
-          date_added: string
-          days_worn?: number | null
-          id: string
-          is_deleted?: boolean
-          is_problematic?: boolean
-          issue_notes?: string | null
-          lot_number?: string | null
-          notes_at_archival?: string | null
-          original_expiry_date?: string | null
-          sensor_type?: string
-          serial_number: string
-          synced_at?: string | null
-          updated_at: string
-          user_id: string
-        }
-        Update: {
-          archived_at?: string
-          archived_by_user_id?: string | null
-          archived_reason?: string
-          created_at?: string
-          date_added?: string
-          days_worn?: number | null
-          id?: string
-          is_deleted?: boolean
-          is_problematic?: boolean
-          issue_notes?: string | null
-          lot_number?: string | null
-          notes_at_archival?: string | null
-          original_expiry_date?: string | null
-          sensor_type?: string
-          serial_number?: string
-          synced_at?: string | null
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      community_comment_votes: {
-        Row: {
-          comment_id: string | null
-          created_at: string | null
-          id: string
-          user_id: string | null
-          vote_type: string
-        }
-        Insert: {
-          comment_id?: string | null
-          created_at?: string | null
-          id?: string
-          user_id?: string | null
-          vote_type: string
-        }
-        Update: {
-          comment_id?: string | null
-          created_at?: string | null
-          id?: string
-          user_id?: string | null
-          vote_type?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "community_comment_votes_comment_id_fkey"
-            columns: ["comment_id"]
-            isOneToOne: false
-            referencedRelation: "community_comments_with_stats"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "community_comment_votes_comment_id_fkey"
-            columns: ["comment_id"]
-            isOneToOne: false
-            referencedRelation: "community_tip_comments"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       community_tip_bookmarks: {
         Row: {
           created_at: string | null
@@ -530,13 +398,6 @@ export type Database = {
             foreignKeyName: "community_tip_comments_parent_comment_id_fkey"
             columns: ["parent_comment_id"]
             isOneToOne: false
-            referencedRelation: "community_comments_with_stats"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "community_tip_comments_parent_comment_id_fkey"
-            columns: ["parent_comment_id"]
-            isOneToOne: false
             referencedRelation: "community_tip_comments"
             referencedColumns: ["id"]
           },
@@ -549,68 +410,6 @@ export type Database = {
           },
           {
             foreignKeyName: "community_tip_comments_tip_id_fkey"
-            columns: ["tip_id"]
-            isOneToOne: false
-            referencedRelation: "community_tips_with_stats"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      community_tip_reports: {
-        Row: {
-          comment_id: string | null
-          created_at: string | null
-          description: string | null
-          id: string
-          reason: string
-          reporter_id: string | null
-          status: string | null
-          tip_id: string | null
-        }
-        Insert: {
-          comment_id?: string | null
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          reason: string
-          reporter_id?: string | null
-          status?: string | null
-          tip_id?: string | null
-        }
-        Update: {
-          comment_id?: string | null
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          reason?: string
-          reporter_id?: string | null
-          status?: string | null
-          tip_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "community_tip_reports_comment_id_fkey"
-            columns: ["comment_id"]
-            isOneToOne: false
-            referencedRelation: "community_comments_with_stats"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "community_tip_reports_comment_id_fkey"
-            columns: ["comment_id"]
-            isOneToOne: false
-            referencedRelation: "community_tip_comments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "community_tip_reports_tip_id_fkey"
-            columns: ["tip_id"]
-            isOneToOne: false
-            referencedRelation: "community_tips"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "community_tip_reports_tip_id_fkey"
             columns: ["tip_id"]
             isOneToOne: false
             referencedRelation: "community_tips_with_stats"
@@ -887,66 +686,6 @@ export type Database = {
           token_type?: string
           updated_at?: string
           user_id?: string
-        }
-        Relationships: []
-      }
-      email_queue: {
-        Row: {
-          attempts: number | null
-          created_at: string | null
-          error_message: string | null
-          html_content: string
-          id: string
-          max_attempts: number | null
-          metadata: Json | null
-          priority: string | null
-          recipient_email: string
-          recipient_name: string | null
-          scheduled_for: string | null
-          sent_at: string | null
-          status: string | null
-          subject: string
-          template_type: string
-          text_content: string
-          updated_at: string | null
-        }
-        Insert: {
-          attempts?: number | null
-          created_at?: string | null
-          error_message?: string | null
-          html_content: string
-          id?: string
-          max_attempts?: number | null
-          metadata?: Json | null
-          priority?: string | null
-          recipient_email: string
-          recipient_name?: string | null
-          scheduled_for?: string | null
-          sent_at?: string | null
-          status?: string | null
-          subject: string
-          template_type: string
-          text_content: string
-          updated_at?: string | null
-        }
-        Update: {
-          attempts?: number | null
-          created_at?: string | null
-          error_message?: string | null
-          html_content?: string
-          id?: string
-          max_attempts?: number | null
-          metadata?: Json | null
-          priority?: string | null
-          recipient_email?: string
-          recipient_name?: string | null
-          scheduled_for?: string | null
-          sent_at?: string | null
-          status?: string | null
-          subject?: string
-          template_type?: string
-          text_content?: string
-          updated_at?: string | null
         }
         Relationships: []
       }
@@ -1238,129 +977,6 @@ export type Database = {
           },
         ]
       }
-      freestyle_sync_log: {
-        Row: {
-          api_calls_made: number | null
-          created_at: string
-          error_message: string | null
-          id: string
-          operation: string
-          records_processed: number | null
-          status: string
-          sync_duration_ms: number | null
-          sync_type: string
-          user_id: string
-        }
-        Insert: {
-          api_calls_made?: number | null
-          created_at?: string
-          error_message?: string | null
-          id?: string
-          operation: string
-          records_processed?: number | null
-          status: string
-          sync_duration_ms?: number | null
-          sync_type: string
-          user_id: string
-        }
-        Update: {
-          api_calls_made?: number | null
-          created_at?: string
-          error_message?: string | null
-          id?: string
-          operation?: string
-          records_processed?: number | null
-          status?: string
-          sync_duration_ms?: number | null
-          sync_type?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      freestyle_sync_settings: {
-        Row: {
-          auto_sync_enabled: boolean
-          created_at: string
-          id: string
-          last_successful_sync: string | null
-          last_sync_error: string | null
-          sync_device_status: boolean
-          sync_frequency_minutes: number
-          sync_glucose_data: boolean
-          sync_sensor_data: boolean
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          auto_sync_enabled?: boolean
-          created_at?: string
-          id?: string
-          last_successful_sync?: string | null
-          last_sync_error?: string | null
-          sync_device_status?: boolean
-          sync_frequency_minutes?: number
-          sync_glucose_data?: boolean
-          sync_sensor_data?: boolean
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          auto_sync_enabled?: boolean
-          created_at?: string
-          id?: string
-          last_successful_sync?: string | null
-          last_sync_error?: string | null
-          sync_device_status?: boolean
-          sync_frequency_minutes?: number
-          sync_glucose_data?: boolean
-          sync_sensor_data?: boolean
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      freestyle_tokens: {
-        Row: {
-          access_token_encrypted: string
-          created_at: string
-          id: string
-          is_active: boolean
-          last_sync_at: string | null
-          refresh_token_encrypted: string
-          scope: string
-          token_expires_at: string
-          token_type: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          access_token_encrypted: string
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          last_sync_at?: string | null
-          refresh_token_encrypted: string
-          scope?: string
-          token_expires_at: string
-          token_type?: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          access_token_encrypted?: string
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          last_sync_at?: string | null
-          refresh_token_encrypted?: string
-          scope?: string
-          token_expires_at?: string
-          token_type?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       glucose_readings: {
         Row: {
           created_at: string | null
@@ -1424,59 +1040,6 @@ export type Database = {
         }
         Relationships: []
       }
-      insulin_doses: {
-        Row: {
-          cgm_reading_at_dose: number | null
-          cgm_trend_at_dose: string | null
-          created_at: string
-          dose_type: string | null
-          dosed_at: string
-          id: string
-          injection_site: string | null
-          insulin_type_id: string
-          notes: string | null
-          units: number
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          cgm_reading_at_dose?: number | null
-          cgm_trend_at_dose?: string | null
-          created_at?: string
-          dose_type?: string | null
-          dosed_at?: string
-          id?: string
-          injection_site?: string | null
-          insulin_type_id: string
-          notes?: string | null
-          units: number
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          cgm_reading_at_dose?: number | null
-          cgm_trend_at_dose?: string | null
-          created_at?: string
-          dose_type?: string | null
-          dosed_at?: string
-          id?: string
-          injection_site?: string | null
-          insulin_type_id?: string
-          notes?: string | null
-          units?: number
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "insulin_doses_insulin_type_id_fkey"
-            columns: ["insulin_type_id"]
-            isOneToOne: false
-            referencedRelation: "insulin_types"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       insulin_logs: {
         Row: {
           activity_level: string | null
@@ -1490,6 +1053,7 @@ export type Database = {
           insulin_type: string
           logged_via: string | null
           meal_relation: string | null
+          migrated_to_pump: boolean | null
           mood: string | null
           notes: string | null
           taken_at: string
@@ -1509,6 +1073,7 @@ export type Database = {
           insulin_type: string
           logged_via?: string | null
           meal_relation?: string | null
+          migrated_to_pump?: boolean | null
           mood?: string | null
           notes?: string | null
           taken_at?: string
@@ -1528,6 +1093,7 @@ export type Database = {
           insulin_type?: string
           logged_via?: string | null
           meal_relation?: string | null
+          migrated_to_pump?: boolean | null
           mood?: string | null
           notes?: string | null
           taken_at?: string
@@ -1537,139 +1103,160 @@ export type Database = {
         }
         Relationships: []
       }
-      insulin_types: {
+      inventory_alerts: {
         Row: {
-          brand: string | null
-          color: string | null
-          created_at: string
-          duration_minutes: number | null
+          alerts_enabled: boolean
+          created_at: string | null
           id: string
-          is_active: boolean | null
-          name: string
-          onset_minutes: number | null
-          peak_minutes: number | null
-          type: string
-          updated_at: string
+          low_stock_threshold: number
+          reorder_threshold: number
+          sensor_model_id: string | null
+          updated_at: string | null
           user_id: string
         }
         Insert: {
-          brand?: string | null
-          color?: string | null
-          created_at?: string
-          duration_minutes?: number | null
+          alerts_enabled?: boolean
+          created_at?: string | null
           id?: string
-          is_active?: boolean | null
-          name: string
-          onset_minutes?: number | null
-          peak_minutes?: number | null
-          type: string
-          updated_at?: string
+          low_stock_threshold?: number
+          reorder_threshold?: number
+          sensor_model_id?: string | null
+          updated_at?: string | null
           user_id: string
         }
         Update: {
-          brand?: string | null
-          color?: string | null
-          created_at?: string
-          duration_minutes?: number | null
+          alerts_enabled?: boolean
+          created_at?: string | null
           id?: string
-          is_active?: boolean | null
+          low_stock_threshold?: number
+          reorder_threshold?: number
+          sensor_model_id?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_alerts_sensor_model_id_fkey"
+            columns: ["sensor_model_id"]
+            isOneToOne: false
+            referencedRelation: "sensor_models"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meal_template_items: {
+        Row: {
+          calories: number | null
+          carbs_g: number
+          created_at: string | null
+          fat_g: number | null
+          food_item_id: string | null
+          id: string
+          meal_template_id: string
+          notes: string | null
+          product_name: string
+          protein_g: number | null
+          serving_size: number | null
+          serving_unit: string | null
+          sort_order: number | null
+        }
+        Insert: {
+          calories?: number | null
+          carbs_g: number
+          created_at?: string | null
+          fat_g?: number | null
+          food_item_id?: string | null
+          id?: string
+          meal_template_id: string
+          notes?: string | null
+          product_name: string
+          protein_g?: number | null
+          serving_size?: number | null
+          serving_unit?: string | null
+          sort_order?: number | null
+        }
+        Update: {
+          calories?: number | null
+          carbs_g?: number
+          created_at?: string | null
+          fat_g?: number | null
+          food_item_id?: string | null
+          id?: string
+          meal_template_id?: string
+          notes?: string | null
+          product_name?: string
+          protein_g?: number | null
+          serving_size?: number | null
+          serving_unit?: string | null
+          sort_order?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meal_template_items_food_item_id_fkey"
+            columns: ["food_item_id"]
+            isOneToOne: false
+            referencedRelation: "food_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meal_template_items_meal_template_id_fkey"
+            columns: ["meal_template_id"]
+            isOneToOne: false
+            referencedRelation: "meal_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meal_templates: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          is_favorite: boolean | null
+          last_used_at: string | null
+          meal_type: string | null
+          name: string
+          total_calories: number | null
+          total_carbs: number
+          total_fat: number | null
+          total_protein: number | null
+          updated_at: string | null
+          use_count: number | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_favorite?: boolean | null
+          last_used_at?: string | null
+          meal_type?: string | null
+          name: string
+          total_calories?: number | null
+          total_carbs?: number
+          total_fat?: number | null
+          total_protein?: number | null
+          updated_at?: string | null
+          use_count?: number | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_favorite?: boolean | null
+          last_used_at?: string | null
+          meal_type?: string | null
           name?: string
-          onset_minutes?: number | null
-          peak_minutes?: number | null
-          type?: string
-          updated_at?: string
+          total_calories?: number | null
+          total_carbs?: number
+          total_fat?: number | null
+          total_protein?: number | null
+          updated_at?: string | null
+          use_count?: number | null
           user_id?: string
         }
         Relationships: []
-      }
-      notification_delivery_log: {
-        Row: {
-          created_at: string | null
-          error_message: string | null
-          id: string
-          notification_id: string
-          provider: string
-          provider_response: Json | null
-          status: string
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          error_message?: string | null
-          id?: string
-          notification_id: string
-          provider: string
-          provider_response?: Json | null
-          status: string
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          error_message?: string | null
-          id?: string
-          notification_id?: string
-          provider?: string
-          provider_response?: Json | null
-          status?: string
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "notification_delivery_log_notification_id_fkey"
-            columns: ["notification_id"]
-            isOneToOne: false
-            referencedRelation: "active_notifications"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "notification_delivery_log_notification_id_fkey"
-            columns: ["notification_id"]
-            isOneToOne: false
-            referencedRelation: "notifications"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      notification_logs: {
-        Row: {
-          created_at: string | null
-          error_message: string | null
-          id: string
-          metadata: Json | null
-          sent_at: string | null
-          success: boolean
-          type: string
-          user_id: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          error_message?: string | null
-          id?: string
-          metadata?: Json | null
-          sent_at?: string | null
-          success?: boolean
-          type: string
-          user_id?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          error_message?: string | null
-          id?: string
-          metadata?: Json | null
-          sent_at?: string | null
-          success?: boolean
-          type?: string
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "notification_logs_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       notification_templates: {
         Row: {
@@ -1721,6 +1308,7 @@ export type Database = {
           id: string
           last_retry_at: string | null
           message: string
+          metadata: Json | null
           read: boolean
           retry_count: number | null
           sensor_id: string | null
@@ -1739,6 +1327,7 @@ export type Database = {
           id?: string
           last_retry_at?: string | null
           message: string
+          metadata?: Json | null
           read?: boolean
           retry_count?: number | null
           sensor_id?: string | null
@@ -1757,6 +1346,7 @@ export type Database = {
           id?: string
           last_retry_at?: string | null
           message?: string
+          metadata?: Json | null
           read?: boolean
           retry_count?: number | null
           sensor_id?: string | null
@@ -1777,45 +1367,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      performance_issues: {
-        Row: {
-          created_at: string | null
-          id: string
-          issue_details: Json | null
-          issue_type: string
-          page_url: string | null
-          resolved: boolean | null
-          severity: string | null
-          timestamp: string | null
-          user_agent: string | null
-          user_id: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          issue_details?: Json | null
-          issue_type: string
-          page_url?: string | null
-          resolved?: boolean | null
-          severity?: string | null
-          timestamp?: string | null
-          user_agent?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          issue_details?: Json | null
-          issue_type?: string
-          page_url?: string | null
-          resolved?: boolean | null
-          severity?: string | null
-          timestamp?: string | null
-          user_agent?: string | null
-          user_id?: string | null
-        }
-        Relationships: []
       }
       performance_summary: {
         Row: {
@@ -1877,6 +1428,7 @@ export type Database = {
           last_sync_at: string | null
           notification_preferences: Json | null
           notifications_enabled: boolean | null
+          password_hash: string | null
           preferred_achievement_id: string | null
           preferred_achievement_tracking: string | null
           push_notifications_enabled: boolean | null
@@ -1901,6 +1453,7 @@ export type Database = {
           last_sync_at?: string | null
           notification_preferences?: Json | null
           notifications_enabled?: boolean | null
+          password_hash?: string | null
           preferred_achievement_id?: string | null
           preferred_achievement_tracking?: string | null
           push_notifications_enabled?: boolean | null
@@ -1925,6 +1478,7 @@ export type Database = {
           last_sync_at?: string | null
           notification_preferences?: Json | null
           notifications_enabled?: boolean | null
+          password_hash?: string | null
           preferred_achievement_id?: string | null
           preferred_achievement_tracking?: string | null
           push_notifications_enabled?: boolean | null
@@ -1937,41 +1491,239 @@ export type Database = {
         }
         Relationships: []
       }
-      roadmap_dependencies: {
+      pump_basal_events: {
         Row: {
+          basal_rate: number
+          basal_type: string
           created_at: string | null
-          depends_on_id: string | null
+          duration_minutes: number
           id: string
-          item_id: string | null
+          insulin_type: string | null
+          metadata: Json | null
+          percent_of_basal: number | null
+          source: string | null
+          timestamp: string
+          user_id: string
         }
         Insert: {
+          basal_rate: number
+          basal_type: string
           created_at?: string | null
-          depends_on_id?: string | null
+          duration_minutes: number
           id?: string
-          item_id?: string | null
+          insulin_type?: string | null
+          metadata?: Json | null
+          percent_of_basal?: number | null
+          source?: string | null
+          timestamp: string
+          user_id: string
         }
         Update: {
+          basal_rate?: number
+          basal_type?: string
           created_at?: string | null
-          depends_on_id?: string | null
+          duration_minutes?: number
           id?: string
-          item_id?: string | null
+          insulin_type?: string | null
+          metadata?: Json | null
+          percent_of_basal?: number | null
+          source?: string | null
+          timestamp?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      pump_bolus_events: {
+        Row: {
+          bg_input: number | null
+          bolus_type: string
+          carbs_g: number | null
+          created_at: string | null
+          extended_duration_minutes: number | null
+          extended_units: number | null
+          id: string
+          immediate_units: number | null
+          insulin_type: string | null
+          metadata: Json | null
+          source: string | null
+          timestamp: string
+          units: number
+          user_id: string
+        }
+        Insert: {
+          bg_input?: number | null
+          bolus_type: string
+          carbs_g?: number | null
+          created_at?: string | null
+          extended_duration_minutes?: number | null
+          extended_units?: number | null
+          id?: string
+          immediate_units?: number | null
+          insulin_type?: string | null
+          metadata?: Json | null
+          source?: string | null
+          timestamp: string
+          units: number
+          user_id: string
+        }
+        Update: {
+          bg_input?: number | null
+          bolus_type?: string
+          carbs_g?: number | null
+          created_at?: string | null
+          extended_duration_minutes?: number | null
+          extended_units?: number | null
+          id?: string
+          immediate_units?: number | null
+          insulin_type?: string | null
+          metadata?: Json | null
+          source?: string | null
+          timestamp?: string
+          units?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      pump_delivery_logs: {
+        Row: {
+          amount: number
+          basal_event_id: string | null
+          bolus_event_id: string | null
+          created_at: string | null
+          delivery_type: string
+          id: string
+          metadata: Json | null
+          source: string | null
+          timestamp: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          basal_event_id?: string | null
+          bolus_event_id?: string | null
+          created_at?: string | null
+          delivery_type: string
+          id?: string
+          metadata?: Json | null
+          source?: string | null
+          timestamp: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          basal_event_id?: string | null
+          bolus_event_id?: string | null
+          created_at?: string | null
+          delivery_type?: string
+          id?: string
+          metadata?: Json | null
+          source?: string | null
+          timestamp?: string
+          user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "roadmap_dependencies_depends_on_id_fkey"
-            columns: ["depends_on_id"]
+            foreignKeyName: "pump_delivery_logs_basal_event_id_fkey"
+            columns: ["basal_event_id"]
             isOneToOne: false
-            referencedRelation: "roadmap_items"
+            referencedRelation: "pump_basal_events"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "roadmap_dependencies_item_id_fkey"
-            columns: ["item_id"]
+            foreignKeyName: "pump_delivery_logs_bolus_event_id_fkey"
+            columns: ["bolus_event_id"]
             isOneToOne: false
-            referencedRelation: "roadmap_items"
+            referencedRelation: "pump_bolus_events"
             referencedColumns: ["id"]
           },
         ]
+      }
+      pump_status_events: {
+        Row: {
+          alarm_code: string | null
+          created_at: string | null
+          id: string
+          metadata: Json | null
+          reservoir_remaining: number | null
+          severity: string | null
+          source: string | null
+          status: string
+          timestamp: string
+          user_id: string
+        }
+        Insert: {
+          alarm_code?: string | null
+          created_at?: string | null
+          id?: string
+          metadata?: Json | null
+          reservoir_remaining?: number | null
+          severity?: string | null
+          source?: string | null
+          status: string
+          timestamp: string
+          user_id: string
+        }
+        Update: {
+          alarm_code?: string | null
+          created_at?: string | null
+          id?: string
+          metadata?: Json | null
+          reservoir_remaining?: number | null
+          severity?: string | null
+          source?: string | null
+          status?: string
+          timestamp?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      replacement_tracking: {
+        Row: {
+          carrier: string
+          created_at: string | null
+          delivered_at: string | null
+          expected_delivery: string | null
+          id: string
+          notes: string | null
+          sensor_lot_number: string | null
+          sensor_serial_number: string
+          status: string
+          tracking_number: string
+          updated_at: string | null
+          user_id: string
+          warranty_claim_number: string | null
+        }
+        Insert: {
+          carrier: string
+          created_at?: string | null
+          delivered_at?: string | null
+          expected_delivery?: string | null
+          id?: string
+          notes?: string | null
+          sensor_lot_number?: string | null
+          sensor_serial_number: string
+          status?: string
+          tracking_number: string
+          updated_at?: string | null
+          user_id: string
+          warranty_claim_number?: string | null
+        }
+        Update: {
+          carrier?: string
+          created_at?: string | null
+          delivered_at?: string | null
+          expected_delivery?: string | null
+          id?: string
+          notes?: string | null
+          sensor_lot_number?: string | null
+          sensor_serial_number?: string
+          status?: string
+          tracking_number?: string
+          updated_at?: string | null
+          user_id?: string
+          warranty_claim_number?: string | null
+        }
+        Relationships: []
       }
       roadmap_features: {
         Row: {
@@ -2094,6 +1846,50 @@ export type Database = {
           },
         ]
       }
+      sensor_inventory: {
+        Row: {
+          created_at: string | null
+          id: string
+          last_updated: string | null
+          location: string | null
+          notes: string | null
+          quantity: number
+          sensor_model_id: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          last_updated?: string | null
+          location?: string | null
+          notes?: string | null
+          quantity?: number
+          sensor_model_id?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          last_updated?: string | null
+          location?: string | null
+          notes?: string | null
+          quantity?: number
+          sensor_model_id?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sensor_inventory_sensor_model_id_fkey"
+            columns: ["sensor_model_id"]
+            isOneToOne: false
+            referencedRelation: "sensor_models"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sensor_models: {
         Row: {
           created_at: string
@@ -2123,6 +1919,65 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      sensor_orders: {
+        Row: {
+          actual_delivery_date: string | null
+          cost: number | null
+          created_at: string | null
+          expected_delivery_date: string | null
+          id: string
+          notes: string | null
+          order_date: string
+          order_number: string | null
+          quantity: number
+          sensor_model_id: string | null
+          status: string
+          supplier: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          actual_delivery_date?: string | null
+          cost?: number | null
+          created_at?: string | null
+          expected_delivery_date?: string | null
+          id?: string
+          notes?: string | null
+          order_date?: string
+          order_number?: string | null
+          quantity: number
+          sensor_model_id?: string | null
+          status?: string
+          supplier?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          actual_delivery_date?: string | null
+          cost?: number | null
+          created_at?: string | null
+          expected_delivery_date?: string | null
+          id?: string
+          notes?: string | null
+          order_date?: string
+          order_number?: string | null
+          quantity?: number
+          sensor_model_id?: string | null
+          status?: string
+          supplier?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sensor_orders_sensor_model_id_fkey"
+            columns: ["sensor_model_id"]
+            isOneToOne: false
+            referencedRelation: "sensor_models"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sensor_photos: {
         Row: {
@@ -2364,6 +2219,42 @@ export type Database = {
           },
         ]
       }
+      user_calculator_settings: {
+        Row: {
+          correction_factor: number
+          created_at: string | null
+          id: string
+          insulin_to_carb: number
+          rapid_acting_duration: number
+          short_acting_duration: number
+          target_glucose: number
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          correction_factor?: number
+          created_at?: string | null
+          id?: string
+          insulin_to_carb?: number
+          rapid_acting_duration?: number
+          short_acting_duration?: number
+          target_glucose?: number
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          correction_factor?: number
+          created_at?: string | null
+          id?: string
+          insulin_to_carb?: number
+          rapid_acting_duration?: number
+          short_acting_duration?: number
+          target_glucose?: number
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_events: {
         Row: {
           created_at: string | null
@@ -2532,77 +2423,6 @@ export type Database = {
         }
         Relationships: []
       }
-      user_notifications: {
-        Row: {
-          action_url: string | null
-          created_at: string | null
-          id: string
-          is_read: boolean | null
-          message: string
-          related_comment_id: string | null
-          related_tip_id: string | null
-          title: string
-          type: string
-          updated_at: string | null
-          user_id: string
-        }
-        Insert: {
-          action_url?: string | null
-          created_at?: string | null
-          id?: string
-          is_read?: boolean | null
-          message: string
-          related_comment_id?: string | null
-          related_tip_id?: string | null
-          title: string
-          type: string
-          updated_at?: string | null
-          user_id: string
-        }
-        Update: {
-          action_url?: string | null
-          created_at?: string | null
-          id?: string
-          is_read?: boolean | null
-          message?: string
-          related_comment_id?: string | null
-          related_tip_id?: string | null
-          title?: string
-          type?: string
-          updated_at?: string | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_notifications_related_comment_id_fkey"
-            columns: ["related_comment_id"]
-            isOneToOne: false
-            referencedRelation: "community_comments_with_stats"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_notifications_related_comment_id_fkey"
-            columns: ["related_comment_id"]
-            isOneToOne: false
-            referencedRelation: "community_tip_comments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_notifications_related_tip_id_fkey"
-            columns: ["related_tip_id"]
-            isOneToOne: false
-            referencedRelation: "community_tips"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_notifications_related_tip_id_fkey"
-            columns: ["related_tip_id"]
-            isOneToOne: false
-            referencedRelation: "community_tips_with_stats"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       web_vitals: {
         Row: {
           created_at: string | null
@@ -2645,97 +2465,8 @@ export type Database = {
         }
         Relationships: []
       }
-      weekly_digest_tracking: {
-        Row: {
-          created_at: string | null
-          email_id: string | null
-          id: string
-          sent_at: string | null
-          user_id: string | null
-          week_start_date: string
-        }
-        Insert: {
-          created_at?: string | null
-          email_id?: string | null
-          id?: string
-          sent_at?: string | null
-          user_id?: string | null
-          week_start_date: string
-        }
-        Update: {
-          created_at?: string | null
-          email_id?: string | null
-          id?: string
-          sent_at?: string | null
-          user_id?: string | null
-          week_start_date?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "weekly_digest_tracking_email_id_fkey"
-            columns: ["email_id"]
-            isOneToOne: false
-            referencedRelation: "email_queue"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "weekly_digest_tracking_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
     }
     Views: {
-      active_notifications: {
-        Row: {
-          created_at: string | null
-          dismissed_at: string | null
-          id: string | null
-          message: string | null
-          read: boolean | null
-          sensor_id: string | null
-          title: string | null
-          type: string | null
-          updated_at: string | null
-          user_id: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          dismissed_at?: string | null
-          id?: string | null
-          message?: string | null
-          read?: boolean | null
-          sensor_id?: string | null
-          title?: string | null
-          type?: string | null
-          updated_at?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          dismissed_at?: string | null
-          id?: string | null
-          message?: string | null
-          read?: boolean | null
-          sensor_id?: string | null
-          title?: string | null
-          type?: string | null
-          updated_at?: string | null
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "notifications_sensor_id_fkey"
-            columns: ["sensor_id"]
-            isOneToOne: false
-            referencedRelation: "sensors"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       admin_active_users_30d: {
         Row: {
           active_users: number | null
@@ -2781,6 +2512,29 @@ export type Database = {
         }
         Relationships: []
       }
+      all_insulin_delivery: {
+        Row: {
+          activity_level: string | null
+          blood_glucose_after: number | null
+          blood_glucose_before: number | null
+          created_at: string | null
+          delivery_type: string | null
+          id: string | null
+          injection_site: string | null
+          insulin_name: string | null
+          insulin_type: string | null
+          logged_via: string | null
+          meal_relation: string | null
+          mood: string | null
+          notes: string | null
+          source: string | null
+          taken_at: string | null
+          units: number | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
       api_key_stats: {
         Row: {
           created_at: string | null
@@ -2798,59 +2552,6 @@ export type Database = {
           user_id: string | null
         }
         Relationships: []
-      }
-      community_comments_with_stats: {
-        Row: {
-          author_id: string | null
-          author_name: string | null
-          content: string | null
-          created_at: string | null
-          downvotes: number | null
-          id: string | null
-          is_approved: boolean | null
-          is_deleted: boolean | null
-          is_rejected: boolean | null
-          moderated_at: string | null
-          moderated_by: string | null
-          moderation_reason: string | null
-          moderation_status: string | null
-          net_votes: number | null
-          parent_comment_id: string | null
-          reply_count: number | null
-          tip_id: string | null
-          updated_at: string | null
-          upvotes: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "community_tip_comments_parent_comment_id_fkey"
-            columns: ["parent_comment_id"]
-            isOneToOne: false
-            referencedRelation: "community_comments_with_stats"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "community_tip_comments_parent_comment_id_fkey"
-            columns: ["parent_comment_id"]
-            isOneToOne: false
-            referencedRelation: "community_tip_comments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "community_tip_comments_tip_id_fkey"
-            columns: ["tip_id"]
-            isOneToOne: false
-            referencedRelation: "community_tips"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "community_tip_comments_tip_id_fkey"
-            columns: ["tip_id"]
-            isOneToOne: false
-            referencedRelation: "community_tips_with_stats"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       community_tips_with_stats: {
         Row: {
@@ -2968,38 +2669,6 @@ export type Database = {
           },
         ]
       }
-      insulin_doses_with_cgm: {
-        Row: {
-          cgm_at_peak: number | null
-          cgm_reading_at_dose: number | null
-          cgm_trend_at_dose: string | null
-          created_at: string | null
-          dose_type: string | null
-          dosed_at: string | null
-          duration_minutes: number | null
-          id: string | null
-          injection_site: string | null
-          insulin_brand: string | null
-          insulin_name: string | null
-          insulin_type: string | null
-          insulin_type_id: string | null
-          notes: string | null
-          onset_minutes: number | null
-          peak_minutes: number | null
-          units: number | null
-          updated_at: string | null
-          user_id: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "insulin_doses_insulin_type_id_fkey"
-            columns: ["insulin_type_id"]
-            isOneToOne: false
-            referencedRelation: "insulin_types"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       performance_summary_backup: {
         Row: {
           avg_value: number | null
@@ -3054,11 +2723,16 @@ export type Database = {
         Args: { input_date: string }
         Returns: string
       }
-      calculate_user_streak: { Args: { p_user_id: string }; Returns: undefined }
+      calculate_total_iob: {
+        Args: { p_at_time?: string; p_user_id: string }
+        Returns: number
+      }
+      calculate_user_streak: { Args: { p_user_id: string }; Returns: number }
       check_and_award_achievements: {
         Args: { p_user_id: string }
         Returns: undefined
       }
+      check_inventory_levels: { Args: never; Returns: undefined }
       check_rate_limit:
         | {
             Args: {
@@ -3307,6 +2981,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      increment_template_use_count: {
+        Args: { template_id: string }
+        Returns: undefined
+      }
       is_admin_user: { Args: never; Returns: boolean }
       is_current_user_admin: { Args: never; Returns: boolean }
       log_dexcom_operation: {
@@ -3370,7 +3048,14 @@ export type Database = {
         Returns: Json
       }
       refresh_performance_summary_table: { Args: never; Returns: undefined }
-      retroactively_award_achievements: { Args: never; Returns: undefined }
+      retroactively_award_achievements: {
+        Args: never
+        Returns: {
+          achievements_awarded: number
+          points_awarded: number
+          ret_user_id: string
+        }[]
+      }
       sync_all_dexcom_users: { Args: never; Returns: undefined }
       sync_cron_logs_to_system_logs: { Args: never; Returns: number }
       sync_dexcom_user: { Args: { p_user_id: string }; Returns: Json }
