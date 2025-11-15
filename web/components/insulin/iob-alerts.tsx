@@ -3,6 +3,11 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/components/providers/auth-provider';
 import { createClient } from '@/lib/supabase-client';
+import { 
+  calculateIOB,
+  getInsulinDuration,
+  type InsulinDose,
+} from '@/lib/iob-calculator';
 import { AlertTriangle, Bell, X, CheckCircle } from 'lucide-react';
 
 interface IOBAlert {
@@ -43,7 +48,7 @@ export function IOBAlerts({ className = '' }: IOBAlertsProps) {
       
       const { data: logs, error } = await supabase
         .from('insulin_logs')
-        .select('units, insulin_type, taken_at')
+        .select('id, units, insulin_type, taken_at')
         .eq('user_id', user.id)
         .gte('taken_at', cutoffTime.toISOString())
         .neq('delivery_type', 'basal')
@@ -51,22 +56,18 @@ export function IOBAlerts({ className = '' }: IOBAlertsProps) {
 
       if (error) throw error;
 
-      // Calculate current IOB
+      // Calculate current IOB using tested utility
       const now = new Date();
-      let totalIOB = 0;
+      const iobDoses: InsulinDose[] = (logs || []).map(log => ({
+        id: log.id || `${log.taken_at}-${log.units}`,
+        amount: log.units,
+        timestamp: new Date(log.taken_at),
+        insulinType: log.insulin_type as 'rapid' | 'short' | 'intermediate' | 'long',
+        duration: getInsulinDuration(log.insulin_type as any),
+      }));
 
-      logs?.forEach(log => {
-        const logTime = new Date(log.taken_at);
-        const hoursElapsed = (now.getTime() - logTime.getTime()) / (1000 * 60 * 60);
-        const actionTime = log.insulin_type === 'short' ? 6 : 4;
-        
-        if (hoursElapsed < actionTime) {
-          const remainingPercentage = Math.max(0, (actionTime - hoursElapsed) / actionTime);
-          totalIOB += log.units * remainingPercentage;
-        }
-      });
-
-      const currentIOB = Math.round(totalIOB * 10) / 10;
+      const iobResult = calculateIOB(iobDoses, now);
+      const currentIOB = iobResult.totalIOB;
 
       // Generate alerts based on IOB levels
       const newAlerts: IOBAlert[] = [];

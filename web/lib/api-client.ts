@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase-client';
+import { logger } from '@/lib/logger';
 
 /**
  * Make an authenticated API request
@@ -9,12 +10,12 @@ export async function authenticatedFetch(url: string, options: RequestInit = {})
   const { data: { session }, error: sessionError } = await supabase.auth.getSession();
   
   if (sessionError) {
-    console.error('Error getting session:', sessionError);
+    logger.error('Error getting session:', sessionError);
     throw new Error('Failed to get authentication session');
   }
   
   if (!session?.access_token) {
-    console.error('No access token available');
+    logger.error('No access token available');
     throw new Error('Not authenticated');
   }
   
@@ -28,24 +29,21 @@ export async function authenticatedFetch(url: string, options: RequestInit = {})
     headers.set('Content-Type', 'application/json');
   }
   
-  // Debug logging (remove in production)
+  // Debug logging (development only, no sensitive data)
   if (process.env.NODE_ENV === 'development') {
     const tokenParts = session.access_token.split('.');
-    console.log('API Request:', {
+    logger.debug('API Request:', {
       url,
       method: options.method || 'GET',
       hasToken: !!session.access_token,
       tokenLength: session.access_token.length,
       tokenParts: tokenParts.length,
-      firstPart: tokenParts[0]?.substring(0, 20),
-      authHeader: `Bearer ${session.access_token.substring(0, 20)}...`
     });
     
-    // Validate token before sending
+    // Validate token structure
     if (tokenParts.length !== 3) {
-      console.error('⚠️ WARNING: Token is malformed before sending!', {
+      logger.warn('Token is malformed', {
         tokenParts: tokenParts.length,
-        token: session.access_token
       });
     }
   }

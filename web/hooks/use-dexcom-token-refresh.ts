@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/components/providers/auth-provider';
 import { authenticatedFetch } from '@/lib/api-client';
+import { logger } from '@/lib/logger';
 
 interface DexcomToken {
   id: string;
@@ -41,7 +42,7 @@ export function useDexcomTokenRefresh() {
         return data.token;
       }
     } catch (error) {
-      console.error('Error checking token status:', error);
+      logger.error('Error checking token status:', error);
     }
     return null;
   }, [user]);
@@ -97,13 +98,13 @@ export function useDexcomTokenRefresh() {
     const token = await checkTokenExpiration();
     
     if (token && needsRefresh(token)) {
-      console.log('Token expires soon, auto-refreshing...');
+      logger.debug('Token expires soon, auto-refreshing');
       const result = await refreshToken();
       
       if (result.success) {
-        console.log('Token auto-refreshed successfully');
+        logger.debug('Token auto-refreshed successfully');
       } else {
-        console.error('Auto-refresh failed:', result.message);
+        logger.warn('Auto-refresh failed:', result.message);
       }
     }
   }, [checkTokenExpiration, needsRefresh, refreshToken]);

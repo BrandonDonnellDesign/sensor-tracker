@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { X, Camera } from 'lucide-react';
+import { logger } from '@/lib/logger';
 
 interface BarcodeScannerProps {
   onScan: (barcode: string) => void;
@@ -30,7 +31,7 @@ export function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps) {
           videoRef.current.srcObject = stream;
         }
       } catch (err: any) {
-        console.error('Camera error:', err);
+        logger.error('Camera error:', err);
         
         if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
           setError('Camera access was denied. Please enable camera permissions in your browser settings.');

@@ -23,6 +23,11 @@ jest.mock('next/router', () => ({
   },
 }));
 
-// Mock IndexedDB for Dexie
-global.indexedDB = require('fake-indexeddb');
-global.IDBKeyRange = require('fake-indexeddb/lib/FDBKeyRange');
+// Mock IndexedDB for Dexie (only if available)
+try {
+  global.indexedDB = require('fake-indexeddb');
+  global.IDBKeyRange = require('fake-indexeddb/lib/FDBKeyRange');
+} catch (e) {
+  // fake-indexeddb not installed, skip mocking
+  console.log('fake-indexeddb not available, skipping IndexedDB mock');
+}

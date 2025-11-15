@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase-client';
+import { logger } from '@/lib/logger';
 import { Loader2, Trash2, Calendar, Edit2, Plus } from 'lucide-react';
 import { FoodLogEditForm } from './food-log-edit-form';
 import { FavoriteButton } from './favorite-button';
@@ -55,7 +56,7 @@ export function FoodLogList({ userId }: FoodLogListProps) {
       setLogs(filteredLogs);
 
     } catch (error) {
-      console.error('Error loading food logs:', error);
+      logger.error('Error loading food logs:', error);
       setLogs([]);
     } finally {
       setIsLoading(false);
@@ -88,7 +89,7 @@ export function FoodLogList({ userId }: FoodLogListProps) {
       setTotalDayInsulin(total);
 
     } catch (error) {
-      console.error('Error loading day insulin:', error);
+      logger.error('Error loading day insulin:', error);
       setTotalDayInsulin(0);
     }
   };
@@ -106,7 +107,7 @@ export function FoodLogList({ userId }: FoodLogListProps) {
       if (error) throw error;
       loadLogs();
     } catch (error) {
-      console.error('Error deleting log:', error);
+      logger.error('Error deleting log:', error);
     }
   };
 
@@ -138,7 +139,7 @@ export function FoodLogList({ userId }: FoodLogListProps) {
       loadLogs();
       loadDayInsulin();
     } catch (error) {
-      console.error('Error logging food again:', error);
+      logger.error('Error logging food again:', error);
       alert('Failed to log food again. Please try again.');
     }
   };

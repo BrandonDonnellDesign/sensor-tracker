@@ -8,6 +8,7 @@ import { InfiniteScrollDoses } from '@/components/insulin/infinite-scroll-doses'
 import { VirtualDoseList, useVirtualDoseData } from '@/components/insulin/virtual-dose-list'
 import { BatchFileUpload } from '@/components/insulin/batch-file-upload'
 import { VoiceDoseLogger } from '@/components/insulin/voice-dose-logger'
+import { EnhancedDoseHistory } from '@/components/insulin/enhanced-dose-history'
 import { Button } from '@/components/ui/button'
 import { 
   History, 
@@ -21,7 +22,7 @@ import {
 import Link from 'next/link'
 
 export default function InsulinHistoryPage() {
-  const [activeTab, setActiveTab] = useState('paginated')
+  const [activeTab, setActiveTab] = useState('enhanced')
   const [refreshKey, setRefreshKey] = useState(0)
   
   // For virtual scrolling demo
@@ -58,7 +59,11 @@ export default function InsulinHistoryPage() {
 
       {/* Main Content */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
+          <TabsTrigger value="enhanced" className="flex items-center gap-2">
+            <List className="h-4 w-4" />
+            <span className="hidden sm:inline">Enhanced</span>
+          </TabsTrigger>
           <TabsTrigger value="paginated" className="flex items-center gap-2">
             <List className="h-4 w-4" />
             <span className="hidden sm:inline">Paginated</span>
@@ -80,6 +85,34 @@ export default function InsulinHistoryPage() {
             <span className="hidden sm:inline">Voice</span>
           </TabsTrigger>
         </TabsList>
+
+        {/* Enhanced View with Bulk Actions */}
+        <TabsContent value="enhanced" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <List className="h-5 w-5" />
+                Enhanced Dose History
+              </CardTitle>
+              <CardDescription>
+                Advanced view with search, filters, bulk actions, and undo functionality. Perfect for managing large amounts of data.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <span className="font-medium">Features:</span>
+                  <span>• Search & filter</span>
+                  <span>• Bulk delete</span>
+                  <span>• Undo actions</span>
+                  <span>• Date range</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <EnhancedDoseHistory key={`enhanced-${refreshKey}`} />
+        </TabsContent>
 
         {/* Paginated View */}
         <TabsContent value="paginated" className="space-y-4">

@@ -11,6 +11,13 @@ import { useInsulinData } from '@/lib/hooks/use-insulin-data';
 import { useCalculatorSettings } from '@/lib/hooks/use-calculator-settings';
 import { CalculatorSettingsDialog } from './calculator-settings-dialog';
 import { 
+  calculateIOB,
+  calculateCarbCoverage,
+  calculateCorrectionDose,
+  calculateTotalDose,
+  type InsulinDose,
+} from '@/lib/iob-calculator';
+import { 
   Calculator, 
   Clock, 
   TrendingUp, 
@@ -54,28 +61,25 @@ export function SmartCalculator({
     setTargetGlucose(settings.targetGlucose);
   }, [settings.targetGlucose]);
 
-  // Calculate Insulin on Board (IOB)
+  // Calculate Insulin on Board (IOB) using tested utility
   const insulinOnBoard = useMemo(() => {
-    const now = new Date();
-    let totalIOB = 0;
+    // Convert doses to IOB calculator format
+    const iobDoses: InsulinDose[] = recentDoses.map(dose => ({
+      id: dose.id,
+      amount: dose.amount,
+      timestamp: dose.timestamp,
+      insulinType: 'rapid', // Default to rapid, could be enhanced to use actual type
+      duration: dose.duration,
+    }));
 
-    recentDoses.forEach(dose => {
-      const hoursElapsed = (now.getTime() - dose.timestamp.getTime()) / (1000 * 60 * 60);
-      
-      if (hoursElapsed < dose.duration) {
-        // Linear decay model (can be enhanced with exponential decay)
-        const remainingPercentage = Math.max(0, (dose.duration - hoursElapsed) / dose.duration);
-        totalIOB += dose.amount * remainingPercentage;
-      }
-    });
-
-    return Math.round(totalIOB * 100) / 100;
+    const iobResult = calculateIOB(iobDoses);
+    return iobResult.totalIOB;
   }, [recentDoses]);
 
   // Get the effective glucose value (manual override or current reading)
   const effectiveGlucose = useManualGlucose && manualGlucose ? manualGlucose : currentGlucose;
 
-  // Calculate recommended doses
+  // Calculate recommended doses using tested utility functions
   const calculations = useMemo(() => {
     if (!effectiveGlucose) {
       return {
@@ -87,25 +91,22 @@ export function SmartCalculator({
       };
     }
 
-    // Carb coverage
-    const carbCoverage = carbs / settings.insulinToCarb;
-    
-    // Correction dose
-    const glucoseDifference = effectiveGlucose - targetGlucose;
-    const correctionDose = Math.max(0, glucoseDifference / settings.correctionFactor);
-    
-    // Total recommended dose
+    // Use tested calculation functions
+    const carbCoverage = calculateCarbCoverage(carbs, settings.insulinToCarb);
+    const correctionDose = calculateCorrectionDose(
+      effectiveGlucose,
+      targetGlucose,
+      settings.correctionFactor
+    );
     const totalDose = carbCoverage + correctionDose;
-    
-    // Adjust for IOB
-    const adjustedDose = Math.max(0, totalDose - insulinOnBoard);
+    const adjustedDose = calculateTotalDose(carbCoverage, correctionDose, insulinOnBoard);
     
     return {
-      carbCoverage: Math.round(carbCoverage * 100) / 100,
-      correctionDose: Math.round(correctionDose * 100) / 100,
+      carbCoverage,
+      correctionDose,
       totalDose: Math.round(totalDose * 100) / 100,
-      adjustedDose: Math.round(adjustedDose * 100) / 100,
-      iobAdjustment: Math.round(insulinOnBoard * 100) / 100
+      adjustedDose,
+      iobAdjustment: insulinOnBoard
     };
   }, [carbs, effectiveGlucose, targetGlucose, settings, insulinOnBoard]);
 

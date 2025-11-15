@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useAuth } from '@/components/providers/auth-provider';
 import { createClient } from '@/lib/supabase-client';
+import { logger } from '@/lib/logger';
 import { Loader2, Plus } from 'lucide-react';
 import { FavoriteButton } from './favorite-button';
 
@@ -83,7 +84,7 @@ export function FoodLogForm({ food, onCancel, onSuccess, onAddToMeal }: FoodLogF
         // Fallback: if serving size is suspiciously small (like 1g), use 100g
         // This handles bad cached data where serving_size was stored incorrectly
         if (productServingSize < 10) {
-          console.warn('Suspicious serving size detected:', productServingSize, 'using 100g instead');
+          logger.warn('Suspicious serving size detected:', productServingSize, 'using 100g instead');
           productServingSize = 100;
         }
         
@@ -210,7 +211,7 @@ export function FoodLogForm({ food, onCancel, onSuccess, onAddToMeal }: FoodLogF
 
       onSuccess();
     } catch (error) {
-      console.error('Error logging food:', error);
+      logger.error('Error logging food:', error);
       alert('Failed to log food. Please try again.');
     } finally {
       setIsSubmitting(false);
@@ -364,13 +365,6 @@ export function FoodLogForm({ food, onCancel, onSuccess, onAddToMeal }: FoodLogF
           </p>
         </div>
       </div>
-
-      {/* Debug info for zero-nutrition items */}
-      {(food.calories === 0 || food.energy_kcal === 0) && (
-        <div className="text-xs text-gray-500 dark:text-slate-400 bg-blue-50 dark:bg-blue-900/20 p-2 rounded">
-          ℹ️ This item appears to be zero-calorie (diet/sugar-free version)
-        </div>
-      )}
 
       {/* Meal Type, Date and Time */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

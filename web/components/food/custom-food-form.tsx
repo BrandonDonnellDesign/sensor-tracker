@@ -4,6 +4,7 @@ import { useState, useRef } from 'react';
 import { useAuth } from '@/components/providers/auth-provider';
 import { Loader2, Plus, Camera, X, Image as ImageIcon } from 'lucide-react';
 import { createClient } from '@/lib/supabase-client';
+import { logger } from '@/lib/logger';
 
 interface CustomFoodFormProps {
   onCancel: () => void;
@@ -85,7 +86,7 @@ export function CustomFoodForm({ onCancel, onSuccess, editingFood }: CustomFoodF
 
       return publicUrl;
     } catch (error) {
-      console.error('Error uploading image:', error);
+      logger.error('Error uploading image:', error);
       return null;
     } finally {
       setIsUploadingImage(false);
@@ -158,7 +159,7 @@ export function CustomFoodForm({ onCancel, onSuccess, editingFood }: CustomFoodF
 
       onSuccess(customFood);
     } catch (error) {
-      console.error('Error creating custom food:', error);
+      logger.error('Error creating custom food:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to create custom food. Please try again.';
       alert(errorMessage);
     } finally {

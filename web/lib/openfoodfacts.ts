@@ -20,22 +20,23 @@ export interface FoodItem {
   isPublic?: boolean;
 }
 
+import { OpenFoodFactsAPI } from './api-config';
+import { logger } from './logger';
+
 export async function searchProducts(query: string): Promise<FoodItem[]> {
   try {
     // Use US-specific API - the API already filters by country and language
-    const url = `https://us.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(
-      query
-    )}&page_size=20&json=true&sort_by=popularity`;
+    const url = OpenFoodFactsAPI.searchUrl(query, 20);
     const response = await fetch(url);
     
     if (!response.ok) {
-      console.error('OpenFoodFacts API error:', response.status, response.statusText);
+      logger.error('OpenFoodFacts API error:', response.status, response.statusText);
       return [];
     }
 
     const contentType = response.headers.get('content-type');
     if (!contentType || !contentType.includes('application/json')) {
-      console.error('OpenFoodFacts returned non-JSON response');
+      logger.error('OpenFoodFacts returned non-JSON response');
       return [];
     }
 
@@ -58,7 +59,7 @@ export async function searchProducts(query: string): Promise<FoodItem[]> {
       .map((product: any) => convertToFoodItem(product))
       .slice(0, 10);
   } catch (error) {
-    console.error('Error searching OpenFoodFacts:', error);
+    logger.error('Error searching OpenFoodFacts:', error);
     return [];
   }
 }
@@ -67,17 +68,17 @@ export async function getProductByBarcode(
   barcode: string
 ): Promise<FoodItem | null> {
   try {
-    const url = `https://world.openfoodfacts.org/api/v2/product/${barcode}.json`;
+    const url = OpenFoodFactsAPI.productUrl(barcode);
     const response = await fetch(url);
     
     if (!response.ok) {
-      console.error('OpenFoodFacts barcode API error:', response.status, response.statusText);
+      logger.error('OpenFoodFacts barcode API error:', response.status, response.statusText);
       return null;
     }
 
     const contentType = response.headers.get('content-type');
     if (!contentType || !contentType.includes('application/json')) {
-      console.error('OpenFoodFacts barcode returned non-JSON response');
+      logger.error('OpenFoodFacts barcode returned non-JSON response');
       return null;
     }
 

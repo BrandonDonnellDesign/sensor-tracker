@@ -4,6 +4,11 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/components/providers/auth-provider';
 import { useInsulinCalculatorSettings } from '@/lib/hooks/use-insulin-calculator-settings';
 import { createClient } from '@/lib/supabase-client';
+import { 
+  calculateIOB,
+  getInsulinDuration,
+  type InsulinDose as IOBInsulinDose,
+} from '@/lib/iob-calculator';
 import { Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Area, AreaChart } from 'recharts';
 import { Activity, Clock, TrendingDown, Info } from 'lucide-react';
 
@@ -76,34 +81,36 @@ export function IOBDecayChart({ className = '' }: IOBDecayChartProps) {
 
       setActiveDoses(activeLogs as InsulinLog[]);
 
+      // Convert logs to IOB calculator format
+      const iobDoses: IOBInsulinDose[] = activeLogs.map(log => ({
+        id: log.id,
+        amount: log.units,
+        timestamp: new Date(log.taken_at),
+        insulinType: log.insulin_type as 'rapid' | 'short' | 'intermediate' | 'long',
+        duration: getInsulinDuration(log.insulin_type as any),
+      }));
+
       // Generate decay curve data points (every 15 minutes for next 6 hours)
       const decayPoints: IOBDecayPoint[] = [];
       const maxMinutes = 360; // 6 hours
       
       for (let minutes = 0; minutes <= maxMinutes; minutes += 15) {
         const futureTime = new Date(now.getTime() + minutes * 60 * 1000);
-        let totalIOB = 0;
+        
+        // Use tested IOB calculator with exponential decay
+        const iobResult = calculateIOB(iobDoses, futureTime);
+        
+        // Calculate type-specific IOB
         let rapidIOB = 0;
         let shortIOB = 0;
-
-        activeLogs.forEach(log => {
-          const logTime = new Date(log.taken_at);
-          const minutesElapsed = (futureTime.getTime() - logTime.getTime()) / (1000 * 60);
-          
-          const actionTime = log.insulin_type === 'short' ? 6 : 4;
-          const actionMinutes = actionTime * 60;
-
-          if (minutesElapsed >= 0 && minutesElapsed < actionMinutes) {
-            // Linear decay model
-            const remainingPercentage = Math.max(0, (actionMinutes - minutesElapsed) / actionMinutes);
-            const remainingUnits = log.units * remainingPercentage;
-            
-            totalIOB += remainingUnits;
-            
+        
+        iobResult.doses.forEach((dose, index) => {
+          const log = activeLogs[index];
+          if (dose.remainingAmount > 0) {
             if (log.insulin_type === 'rapid') {
-              rapidIOB += remainingUnits;
+              rapidIOB += dose.remainingAmount;
             } else if (log.insulin_type === 'short') {
-              shortIOB += remainingUnits;
+              shortIOB += dose.remainingAmount;
             }
           }
         });
@@ -111,7 +118,7 @@ export function IOBDecayChart({ className = '' }: IOBDecayChartProps) {
         decayPoints.push({
           time: futureTime.toISOString(),
           minutesFromNow: minutes,
-          totalIOB: Math.round(totalIOB * 100) / 100,
+          totalIOB: Math.round(iobResult.totalIOB * 100) / 100,
           rapidIOB: Math.round(rapidIOB * 100) / 100,
           shortIOB: Math.round(shortIOB * 100) / 100,
           formattedTime: minutes === 0 ? 'Now' : `+${Math.floor(minutes / 60)}h ${minutes % 60}m`
@@ -355,7 +362,7 @@ export function IOBDecayChart({ className = '' }: IOBDecayChartProps) {
             <div className="flex items-start space-x-2">
               <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
               <p className="text-xs text-blue-800 dark:text-blue-200">
-                This curve shows how your active bolus insulin decays over time using a linear model. 
+                This curve shows how your active bolus insulin decays over time using an exponential decay model. 
                 Basal insulin is excluded as it provides constant background coverage.
               </p>
             </div>

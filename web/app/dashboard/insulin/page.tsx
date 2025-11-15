@@ -8,7 +8,6 @@ import { QuickDoseLogger } from '@/components/insulin/quick-dose-logger';
 import { InsulinCalculatorWidget } from '@/components/food/insulin-calculator-widget';
 import { TDIDashboard } from '@/components/insulin/tdi-dashboard';
 import { BasalTrends } from '@/components/insulin/basal-trends';
-import { ExportData } from '@/components/insulin/export-data';
 import { IOBDecayChart } from '@/components/insulin/iob-decay-chart';
 import { IOBAlerts } from '@/components/insulin/iob-alerts';
 import { SmartDefaults } from '@/components/insulin/smart-defaults';
@@ -397,9 +396,6 @@ export default function InsulinPage() {
             </div>
           </div>
         </div>
-
-        {/* Export Section */}
-        <ExportData />
 
         {/* Enhanced Dose History */}
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-lg overflow-hidden">

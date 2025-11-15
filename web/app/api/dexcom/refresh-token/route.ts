@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
-
+import { logger } from '@/lib/logger';
+import { ApiErrors } from '@/lib/api-error';
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,11 +11,8 @@ export async function POST(request: NextRequest) {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
     if (authError || !user) {
-      console.error('Auth error in Dexcom refresh token API:', authError);
-      return NextResponse.json({ 
-        error: 'Unauthorized',
-        details: 'Please log in to refresh Dexcom token'
-      }, { status: 401 });
+      logger.error('Auth error in Dexcom refresh token API:', authError);
+      return ApiErrors.unauthorized();
     }
 
     const body = await request.json();
@@ -119,14 +117,9 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Error refreshing Dexcom token:', error);
-    return NextResponse.json(
-      { 
-        success: false,
-        error: 'Internal server error',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
+    logger.error('Error refreshing Dexcom token:', error);
+    return ApiErrors.internalError(
+      error instanceof Error ? error.message : 'Failed to refresh token'
     );
   }
 }

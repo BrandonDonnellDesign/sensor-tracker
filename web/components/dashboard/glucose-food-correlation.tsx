@@ -535,28 +535,6 @@ export function GlucoseFoodCorrelation() {
         </div>
       )}
 
-      {/* Debug Info - Remove this in production */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="bg-gray-50 dark:bg-slate-700/50 rounded-lg p-4 border border-gray-200 dark:border-slate-600">
-          <h4 className="font-semibold text-gray-900 dark:text-slate-100 mb-2">
-            🔍 Debug Info
-          </h4>
-          <div className="text-sm text-gray-600 dark:text-slate-400 space-y-1">
-            <p>Total events: {events.length}</p>
-            <p>Glucose readings: {events.filter(e => e.event_type === 'glucose').length}</p>
-            <p>Food events: {events.filter(e => e.event_type === 'food').length}</p>
-            <p>Grouped meals: {mealGroups.length}</p>
-            <p>Timeline data points: {timelineData.length}</p>
-            <p>Meal markers in timeline: {timelineData.filter(d => d.isFoodEvent).length}</p>
-            {mealGroups.slice(0, 3).map((group, i) => (
-              <p key={i}>
-                Sample meal: {group.foods.join(', ')} ({group.count} items) at {new Date(group.timestamp).toLocaleString()}
-              </p>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Quick Tips */}
       <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
         <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">

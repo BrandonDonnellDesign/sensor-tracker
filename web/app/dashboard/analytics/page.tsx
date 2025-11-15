@@ -9,8 +9,13 @@ import { FoodAnalytics } from '@/components/dashboard/food-analytics';
 import { GlucoseFoodCorrelation } from '@/components/dashboard/glucose-food-correlation';
 import { NutritionInsights } from '@/components/dashboard/nutrition-insights';
 import DawnPhenomenonAnalysis from '@/components/analytics/dawn-phenomenon-analysis';
+import { A1CEstimation } from '@/components/analytics/a1c-estimation';
+import { TimeInRangeAnalysis } from '@/components/analytics/time-in-range-analysis';
+import { AnalyticsOverview } from '@/components/analytics/analytics-overview';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useGamification } from '@/components/providers/gamification-provider';
 import { Database } from '@/lib/database.types';
+import { BarChart3, Target, Sunrise, UtensilsCrossed } from 'lucide-react';
 
 type Sensor = Database['public']['Tables']['sensors']['Row'];
 
@@ -105,22 +110,88 @@ export default function AnalyticsPage() {
           </p>
         </div>
 
-        {/* Analytics Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-6">
-          {/* Main Analytics */}
-          <div className="lg:col-span-3 space-y-4 lg:space-y-8">
-            {/* Dawn Phenomenon Analysis */}
-            <DawnPhenomenonAnalysis />
-            
-            {/* Sensor Analytics */}
-            <AdvancedAnalytics sensors={sensors} />
-            
-            {/* Food Analytics */}
-            <FoodAnalytics />
-            
-            {/* Glucose-Food Correlation */}
-            <GlucoseFoodCorrelation />
-          </div>
+        {/* Tabbed Analytics */}
+        <Tabs defaultValue="overview" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 gap-2">
+            <TabsTrigger value="overview" className="flex items-center gap-2">
+              <BarChart3 className="h-4 w-4" />
+              <span className="hidden sm:inline">Overview</span>
+              <span className="sm:hidden">All</span>
+            </TabsTrigger>
+            <TabsTrigger value="glucose" className="flex items-center gap-2">
+              <Target className="h-4 w-4" />
+              <span className="hidden sm:inline">Glucose Control</span>
+              <span className="sm:hidden">Glucose</span>
+            </TabsTrigger>
+            <TabsTrigger value="patterns" className="flex items-center gap-2">
+              <Sunrise className="h-4 w-4" />
+              <span className="hidden sm:inline">Patterns</span>
+              <span className="sm:hidden">Patterns</span>
+            </TabsTrigger>
+            <TabsTrigger value="food" className="flex items-center gap-2">
+              <UtensilsCrossed className="h-4 w-4" />
+              <span className="hidden sm:inline">Food Impact</span>
+              <span className="sm:hidden">Food</span>
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Overview Tab */}
+          <TabsContent value="overview" className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-6">
+              <div className="lg:col-span-3">
+                <AnalyticsOverview />
+              </div>
+              <div className="lg:col-span-1 space-y-4">
+                <AIInsightsPanel data={insightData} />
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* Glucose Control Tab */}
+          <TabsContent value="glucose" className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-6">
+              <div className="lg:col-span-3 space-y-6">
+                <TimeInRangeAnalysis />
+                <A1CEstimation />
+              </div>
+              <div className="lg:col-span-1 space-y-4">
+                <AIInsightsPanel data={insightData} />
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* Patterns Tab */}
+          <TabsContent value="patterns" className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-6">
+              <div className="lg:col-span-3 space-y-6">
+                <DawnPhenomenonAnalysis />
+                <AdvancedAnalytics sensors={sensors} />
+              </div>
+              <div className="lg:col-span-1 space-y-4">
+                <AIInsightsPanel data={insightData} />
+                <NutritionInsights />
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* Food Impact Tab */}
+          <TabsContent value="food" className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-6">
+              <div className="lg:col-span-3 space-y-6">
+                <GlucoseFoodCorrelation />
+                <FoodAnalytics />
+              </div>
+              <div className="lg:col-span-1 space-y-4">
+                <AIInsightsPanel data={insightData} />
+                <NutritionInsights />
+              </div>
+            </div>
+          </TabsContent>
+        </Tabs>
+
+        {/* Removed sidebar - now integrated into tabs */}
+        <div className="hidden">
+          {/* Keep for reference but hide */}
 
           {/* AI Insights Sidebar */}
           <div className="lg:col-span-1 space-y-4 lg:space-y-6">

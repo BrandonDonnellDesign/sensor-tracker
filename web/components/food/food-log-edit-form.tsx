@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { createClient } from '@/lib/supabase-client';
+import { logger } from '@/lib/logger';
 import { Loader2 } from 'lucide-react';
 import { FavoriteButton } from './favorite-button';
 
@@ -147,7 +148,7 @@ export function FoodLogEditForm({ log, onCancel, onSuccess }: FoodLogEditFormPro
       if (error) throw error;
       onSuccess();
     } catch (error) {
-      console.error('Error updating food log:', error);
+      logger.error('Error updating food log:', error);
       alert('Failed to update food log. Please try again.');
     } finally {
       setIsSubmitting(false);

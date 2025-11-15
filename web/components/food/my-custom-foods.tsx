@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/components/providers/auth-provider';
 import { createClient } from '@/lib/supabase-client';
+import { logger } from '@/lib/logger';
 import { Edit, Trash2, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { CustomFoodForm } from './custom-food-form';
 
@@ -38,7 +39,7 @@ export function MyCustomFoods({ onAddToMeal }: MyCustomFoodsProps = {}) {
       if (error) throw error;
       setCustomFoods(data || []);
     } catch (error) {
-      console.error('Error loading custom foods:', error);
+      logger.error('Error loading custom foods:', error);
     } finally {
       setLoading(false);
     }
@@ -65,7 +66,7 @@ export function MyCustomFoods({ onAddToMeal }: MyCustomFoodsProps = {}) {
 
       await loadCustomFoods();
     } catch (error) {
-      console.error('Error deleting food:', error);
+      logger.error('Error deleting food:', error);
       alert('Failed to delete food. Please try again.');
     }
   };

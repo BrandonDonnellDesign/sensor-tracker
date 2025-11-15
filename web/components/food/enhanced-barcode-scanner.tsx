@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { X, Camera, Flashlight, RotateCcw } from 'lucide-react';
+import { logger } from '@/lib/logger';
 
 interface EnhancedBarcodeScannerProps {
   onScan: (barcode: string) => void;
@@ -57,7 +58,7 @@ export function EnhancedBarcodeScanner({ onScan, onClose }: EnhancedBarcodeScann
       startBarcodeDetection();
 
     } catch (err: any) {
-      console.error('Camera error:', err);
+      logger.error('Camera error:', err);
       
       if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
         setError('Camera access was denied. Please enable camera permissions in your browser settings.');
@@ -91,7 +92,7 @@ export function EnhancedBarcodeScanner({ onScan, onClose }: EnhancedBarcodeScann
       });
       setFlashOn(!flashOn);
     } catch (err) {
-      console.error('Flash toggle error:', err);
+      logger.error('Flash toggle error:', err);
     }
   };
 

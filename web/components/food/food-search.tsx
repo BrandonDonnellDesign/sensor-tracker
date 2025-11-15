@@ -12,6 +12,7 @@ import { FavoriteButton } from './favorite-button';
 import { MyCustomFoods } from './my-custom-foods';
 import { CameraPermissionDialog } from '@/components/ui/camera-permission-dialog';
 import { useCameraPermission } from '@/lib/hooks/use-camera-permission';
+import { logger } from '@/lib/logger';
 
 type SearchMode = 'search' | 'barcode' | 'custom' | 'favorites' | 'manage';
 type SearchModeValue = SearchMode;
@@ -47,7 +48,7 @@ export function FoodSearch({ onFoodLogged }: FoodSearchProps) {
       const combined = [...(data.local || []), ...(data.remote || [])];
       setSearchResults(combined);
     } catch (error) {
-      console.error('Search error:', error);
+      logger.error('Search error:', error);
     } finally {
       setIsSearching(false);
     }
@@ -65,7 +66,7 @@ export function FoodSearch({ onFoodLogged }: FoodSearchProps) {
         setShowScanner(false);
       }
     } catch (error) {
-      console.error('Barcode lookup error:', error);
+      logger.error('Barcode lookup error:', error);
     } finally {
       setIsSearching(false);
     }

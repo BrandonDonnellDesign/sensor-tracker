@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Heart, Loader2, Star, Trash2, Edit2 } from 'lucide-react';
 import { useAuth } from '@/components/providers/auth-provider';
+import { logger } from '@/lib/logger';
 
 interface FavoritesListProps {
   onSelectFood: (food: any) => void;
@@ -34,10 +35,10 @@ export function FavoritesList({ onSelectFood, onAddToMeal, onRefresh }: Favorite
       if (response.ok) {
         setFavorites(data.favorites || []);
       } else {
-        console.error('Failed to load favorites:', data.error);
+        logger.error('Failed to load favorites:', data.error);
       }
     } catch (error) {
-      console.error('Error loading favorites:', error);
+      logger.error('Error loading favorites:', error);
     } finally {
       setIsLoading(false);
     }
@@ -54,10 +55,10 @@ export function FavoritesList({ onSelectFood, onAddToMeal, onRefresh }: Favorite
         onRefresh?.();
       } else {
         const data = await response.json();
-        console.error('Failed to remove favorite:', data.error);
+        logger.error('Failed to remove favorite:', data.error);
       }
     } catch (error) {
-      console.error('Error removing favorite:', error);
+      logger.error('Error removing favorite:', error);
     }
   };
 
@@ -79,10 +80,10 @@ export function FavoritesList({ onSelectFood, onAddToMeal, onRefresh }: Favorite
         setEditNickname('');
       } else {
         const data = await response.json();
-        console.error('Failed to update favorite:', data.error);
+        logger.error('Failed to update favorite:', data.error);
       }
     } catch (error) {
-      console.error('Error updating favorite:', error);
+      logger.error('Error updating favorite:', error);
     }
   };
 

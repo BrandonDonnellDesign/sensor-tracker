@@ -6,10 +6,14 @@ import { useSearchParams } from 'next/navigation';
 import { FoodSearch } from '@/components/food/food-search';
 import { FoodLogList } from '@/components/food/food-log-list';
 import { MealImpactAnalyzer } from '@/components/food/meal-impact-analyzer';
+import { MealTemplateBrowser } from '@/components/meal-templates/meal-template-browser';
+import { CreateTemplateDialog } from '@/components/meal-templates/create-template-dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
 import { createClient } from '@/lib/supabase-client';
-import { UtensilsCrossed, Plus, History, BarChart3, Activity, Target, TrendingUp } from 'lucide-react';
+import { UtensilsCrossed, Plus, History, BarChart3, Activity, Target, TrendingUp, BookOpen } from 'lucide-react';
+import { toast } from 'sonner';
+import type { MealTemplate } from '@/types/meal-templates';
 
 interface FoodLog {
   id: string;
@@ -48,6 +52,8 @@ export default function FoodPage() {
   const [showLogForm, setShowLogForm] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [activeTab, setActiveTab] = useState('history');
+  const [showCreateTemplate, setShowCreateTemplate] = useState(false);
+  const [templateRefreshKey, setTemplateRefreshKey] = useState(0);
   const [loading, setLoading] = useState(true);
   const [foodLogs, setFoodLogs] = useState<FoodLog[]>([]);
   const [insulinLogs, setInsulinLogs] = useState<InsulinLog[]>([]);
@@ -60,10 +66,20 @@ export default function FoodPage() {
   // Handle tab from URL parameter
   useEffect(() => {
     const tab = searchParams.get('tab');
-    if (tab && ['log', 'history', 'analytics'].includes(tab)) {
+    if (tab && ['log', 'history', 'analytics', 'templates'].includes(tab)) {
       setActiveTab(tab);
     }
   }, [searchParams]);
+
+  const handleTemplateSelected = (template: MealTemplate) => {
+    toast.success(`Selected: ${template.name}`);
+    // TODO: Pre-fill food logger with template items
+    setActiveTab('log');
+  };
+
+  const handleTemplateCreated = () => {
+    setTemplateRefreshKey(prev => prev + 1);
+  };
 
   useEffect(() => {
     if (user?.id) {
@@ -149,6 +165,7 @@ export default function FoodPage() {
   const handleFoodLogged = () => {
     setShowLogForm(false);
     setRefreshKey(prev => prev + 1);
+    setActiveTab('history'); // Switch back to history tab after logging
   };
 
   // Calculate today's statistics
@@ -255,11 +272,16 @@ export default function FoodPage() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3 bg-slate-800/50 border border-slate-700">
+        <TabsList className="grid w-full grid-cols-4 bg-slate-800/50 border border-slate-700">
           <TabsTrigger value="log" className="flex items-center gap-2">
             <Plus className="w-4 h-4" />
             <span className="hidden sm:inline">Log Food</span>
             <span className="sm:hidden">Log</span>
+          </TabsTrigger>
+          <TabsTrigger value="templates" className="flex items-center gap-2">
+            <BookOpen className="w-4 h-4" />
+            <span className="hidden sm:inline">Templates</span>
+            <span className="sm:hidden">Templates</span>
           </TabsTrigger>
           <TabsTrigger value="history" className="flex items-center gap-2">
             <History className="w-4 h-4" />
@@ -276,6 +298,16 @@ export default function FoodPage() {
         <TabsContent value="log" className="space-y-4">
           <div className="bg-[#1e293b] rounded-lg shadow-lg border border-slate-700/30 p-4 lg:p-6">
             <FoodSearch onFoodLogged={handleFoodLogged} />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="templates" className="space-y-4">
+          <div className="bg-[#1e293b] rounded-lg shadow-lg border border-slate-700/30 p-4 lg:p-6">
+            <MealTemplateBrowser
+              key={templateRefreshKey}
+              onSelectTemplate={handleTemplateSelected}
+              onCreateNew={() => setShowCreateTemplate(true)}
+            />
           </div>
         </TabsContent>
 
@@ -298,6 +330,13 @@ export default function FoodPage() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Create Template Dialog */}
+      <CreateTemplateDialog
+        open={showCreateTemplate}
+        onOpenChange={setShowCreateTemplate}
+        onSuccess={handleTemplateCreated}
+      />
     </div>
   );
 }

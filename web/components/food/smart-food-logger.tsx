@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Utensils, Calculator, Syringe, Activity } from 'lucide-react';
+import { logger } from '@/lib/logger';
 
 
 interface SmartFoodLoggerProps {
@@ -127,7 +128,7 @@ export function SmartFoodLogger({
         setSearchResults(results.slice(0, 10)); // Limit to 10 results
       }
     } catch (error) {
-      console.error('Food search error:', error);
+      logger.error('Food search error:', error);
     }
   };
 
@@ -193,7 +194,7 @@ export function SmartFoodLogger({
         onFoodLogged?.();
       }
     } catch (error) {
-      console.error('Error logging food:', error);
+      logger.error('Error logging food:', error);
     } finally {
       setIsLoading(false);
     }
@@ -219,7 +220,7 @@ export function SmartFoodLogger({
         await handleLogFood();
       }
     } catch (error) {
-      console.error('Error logging insulin:', error);
+      logger.error('Error logging insulin:', error);
     }
   };
 

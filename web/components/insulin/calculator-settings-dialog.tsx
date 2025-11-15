@@ -98,10 +98,6 @@ export function CalculatorSettingsDialog({ children }: CalculatorSettingsDialogP
           <DialogDescription className="text-gray-700 dark:text-gray-300 font-medium">
             Customize your insulin calculator parameters. These should be determined with your healthcare provider.
           </DialogDescription>
-          {/* Debug info */}
-          <div className="text-xs text-gray-500 mt-2 p-2 bg-gray-100 dark:bg-gray-800 rounded">
-            Current saved: I:C={settings.insulinToCarb}, ISF={settings.correctionFactor}, Target={settings.targetGlucose}
-          </div>
         </DialogHeader>
 
         <div className="space-y-6 py-6">

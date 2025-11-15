@@ -56,8 +56,8 @@
 
 ### 📈 Enhanced Analytics
 - [ ] **Glucose Pattern Analysis**
-  - [ ] Dawn phenomenon detection and tracking
-  - [x] Post-meal spike analysis
+  - [x] Dawn phenomenon detection and tracking ✅
+  - [x] Post-meal spike analysis ✅
   - [ ] Time-in-range trend analysis
   - [ ] Weekly/monthly pattern reports
   

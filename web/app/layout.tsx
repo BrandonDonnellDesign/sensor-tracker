@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 
 import './globals.css';
 import '@/lib/logout-utils';
+import { validateEnv } from '@/lib/env-validation';
 
 import { AuthProvider } from '@/components/providers/auth-provider';
 import { ThemeProvider } from '@/components/providers/theme-provider';
@@ -11,6 +12,12 @@ import { ErrorBoundary } from '@/components/ui/error-boundary';
 
 import { ServiceWorkerRegistration } from '@/components/pwa/service-worker-registration';
 import { PWAInstallPrompt } from '@/components/pwa/pwa-install-prompt';
+import { WebVitalsTracker } from '@/components/analytics/web-vitals-tracker';
+
+// Validate environment variables at startup
+if (typeof window === 'undefined') {
+  validateEnv();
+}
 
 const inter = Inter({ 
   subsets: ['latin'],
@@ -48,7 +55,7 @@ export default function RootLayout({
             <AuthProvider>
               <GamificationProvider>
                 <ServiceWorkerRegistration />
-                {/* <WebVitalsTracker /> */}
+                <WebVitalsTracker />
                 {children}
                 <PWAInstallPrompt />
               </GamificationProvider>

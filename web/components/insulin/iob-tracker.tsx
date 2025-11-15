@@ -4,6 +4,12 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/components/providers/auth-provider';
 import { useInsulinCalculatorSettings } from '@/lib/hooks/use-insulin-calculator-settings';
 import { createClient } from '@/lib/supabase-client';
+import { 
+  calculateIOB,
+  getInsulinDuration,
+  type InsulinDose as IOBInsulinDose,
+} from '@/lib/iob-calculator';
+import { logger } from '@/lib/logger';
 import { Droplets, Clock, TrendingDown, AlertTriangle } from 'lucide-react';
 
 interface InsulinLog {
@@ -40,13 +46,13 @@ export function IOBTracker({ className = '', showDetails = false }: IOBTrackerPr
   useEffect(() => {
     if (!user || !settings) return;
     
-    calculateIOB();
+    loadIOBData();
     // Refresh IOB every 15 minutes
-    const interval = setInterval(calculateIOB, 15 * 60 * 1000);
+    const interval = setInterval(loadIOBData, 15 * 60 * 1000);
     return () => clearInterval(interval);
   }, [user, settings]);
 
-  const calculateIOB = async () => {
+  const loadIOBData = async () => {
     if (!user || !settings) return;
 
     try {
@@ -72,7 +78,7 @@ export function IOBTracker({ className = '', showDetails = false }: IOBTrackerPr
       const calculation = calculateIOBFromLogs((logs || []) as InsulinLog[]);
       setIOBData(calculation);
     } catch (err) {
-      console.error('Error calculating IOB:', err);
+      logger.error('Error calculating IOB:', err);
       setError('Failed to calculate insulin on board');
     } finally {
       setLoading(false);
@@ -81,43 +87,59 @@ export function IOBTracker({ className = '', showDetails = false }: IOBTrackerPr
 
   const calculateIOBFromLogs = (logs: InsulinLog[]): IOBCalculation => {
     const now = new Date();
-    let totalIOB = 0;
+    
+    // Handle empty logs
+    if (!logs || logs.length === 0) {
+      return {
+        totalIOB: 0,
+        rapidActingIOB: 0,
+        shortActingIOB: 0,
+        logs: []
+      };
+    }
+    
+    // Convert logs to IOB calculator format
+    const iobDoses: IOBInsulinDose[] = logs.map(log => ({
+      id: log.id,
+      amount: log.units,
+      timestamp: new Date(log.taken_at),
+      insulinType: log.insulin_type,
+      duration: getInsulinDuration(log.insulin_type),
+    }));
+
+    // Use tested IOB calculator
+    const iobResult = calculateIOB(iobDoses, now);
+    
+    // Calculate type-specific IOB
     let rapidActingIOB = 0;
     let shortActingIOB = 0;
-    const activeLogs: IOBCalculation['logs'] = [];
-
-    logs.forEach(log => {
-      const logTime = new Date(log.taken_at);
-      const hoursElapsed = (now.getTime() - logTime.getTime()) / (1000 * 60 * 60);
-      
-      // Only process bolus insulin (rapid and short-acting)
-      let actionTime = 4; // Default rapid-acting
-      if (log.insulin_type === 'short') actionTime = 6;
-      // Note: basal insulin (intermediate/long) is now filtered out at query level
-
-      if (hoursElapsed < actionTime) {
-        // Simple linear decay model (can be made more sophisticated)
-        const remainingPercentage = Math.max(0, (actionTime - hoursElapsed) / actionTime);
-        const remainingUnits = log.units * remainingPercentage;
-        
-        totalIOB += remainingUnits;
-        
-        if (log.insulin_type === 'rapid') {
-          rapidActingIOB += remainingUnits;
-        } else if (log.insulin_type === 'short') {
-          shortActingIOB += remainingUnits;
+    
+    if (iobResult.doses && iobResult.doses.length > 0) {
+      iobResult.doses.forEach((dose, index) => {
+        const log = logs[index];
+        if (log && dose.remainingAmount > 0) {
+          if (log.insulin_type === 'rapid') {
+            rapidActingIOB += dose.remainingAmount;
+          } else if (log.insulin_type === 'short') {
+            shortActingIOB += dose.remainingAmount;
+          }
         }
+      });
+    }
 
-        activeLogs.push({
-          log,
-          remainingUnits: Math.round(remainingUnits * 10) / 10,
-          hoursRemaining: Math.round((actionTime - hoursElapsed) * 10) / 10
-        });
-      }
-    });
+    // Build active logs with remaining amounts
+    const activeLogs = iobResult.doses && iobResult.doses.length > 0
+      ? iobResult.doses
+          .map((dose, index) => ({
+            log: logs[index],
+            remainingUnits: dose.remainingAmount,
+            hoursRemaining: dose.hoursRemaining,
+          }))
+          .filter(item => item.log && item.remainingUnits > 0)
+      : [];
 
     return {
-      totalIOB: Math.round(totalIOB * 10) / 10,
+      totalIOB: iobResult.totalIOB,
       rapidActingIOB: Math.round(rapidActingIOB * 10) / 10,
       shortActingIOB: Math.round(shortActingIOB * 10) / 10,
       logs: activeLogs

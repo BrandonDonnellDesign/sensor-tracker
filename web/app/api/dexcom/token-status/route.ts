@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
+import { logger } from '@/lib/logger';
+import { ApiErrors } from '@/lib/api-error';
 
 export async function GET() {
   try {
@@ -9,10 +11,7 @@ export async function GET() {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
     if (authError || !user) {
-      return NextResponse.json({ 
-        error: 'Unauthorized',
-        details: 'Please log in to check token status'
-      }, { status: 401 });
+      return ApiErrors.unauthorized();
     }
 
     // Get all user's Dexcom tokens
@@ -23,10 +22,8 @@ export async function GET() {
       .order('updated_at', { ascending: false });
 
     if (tokenError) {
-      return NextResponse.json({
-        error: 'Failed to fetch tokens',
-        details: tokenError.message
-      }, { status: 500 });
+      logger.error('Failed to fetch tokens:', tokenError);
+      return ApiErrors.databaseError('Failed to fetch tokens');
     }
 
     const now = new Date();
@@ -57,13 +54,9 @@ export async function GET() {
     });
 
   } catch (error) {
-    console.error('Error checking token status:', error);
-    return NextResponse.json(
-      { 
-        error: 'Internal server error',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
+    logger.error('Error checking token status:', error);
+    return ApiErrors.internalError(
+      error instanceof Error ? error.message : 'Failed to check token status'
     );
   }
 }

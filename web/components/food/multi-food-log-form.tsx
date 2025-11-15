@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useAuth } from '@/components/providers/auth-provider';
 import { createClient } from '@/lib/supabase-client';
+import { logger } from '@/lib/logger';
 import { Loader2, Trash2, Plus } from 'lucide-react';
 
 interface MultiFoodLogFormProps {
@@ -165,7 +166,7 @@ export function MultiFoodLogForm({ items, onCancel, onSuccess, onAddMore }: Mult
 
       onSuccess();
     } catch (error) {
-      console.error('Error logging meal:', error);
+      logger.error('Error logging meal:', error);
       alert('Failed to log meal. Please try again.');
     } finally {
       setIsSubmitting(false);

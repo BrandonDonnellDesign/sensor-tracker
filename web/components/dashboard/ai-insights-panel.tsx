@@ -218,37 +218,37 @@ export const AIInsightsPanel = memo(function AIInsightsPanel({
                     <div className="flex items-start space-x-3 flex-1">
                       {getInsightIcon(insight)}
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center space-x-2 mb-1">
-                          <h5 className="text-sm font-medium text-gray-900 dark:text-slate-100">
+                        <div className="flex items-center flex-wrap gap-2 mb-1">
+                          <h5 className="text-sm font-medium text-gray-900 dark:text-slate-100 break-words">
                             {insight.title}
                           </h5>
                           {getPriorityBadge(insight.priority)}
                         </div>
-                        <p className="text-sm text-gray-600 dark:text-slate-400 mb-2">
+                        <p className="text-sm text-gray-600 dark:text-slate-400 mb-2 break-words">
                           {insight.description}
                         </p>
                         
                         {insight.actionable && insight.action && (
-                          <div className="flex items-center space-x-3">
+                          <div className="flex flex-wrap items-center gap-3">
                             {insight.action.url ? (
                               <a
                                 href={insight.action.url}
-                                className="inline-flex items-center text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium"
+                                className="inline-flex items-center text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium break-words"
                               >
-                                {insight.action.label}
-                                <ChevronRight className="w-4 h-4 ml-1" />
+                                <span className="break-words">{insight.action.label}</span>
+                                <ChevronRight className="w-4 h-4 ml-1 flex-shrink-0" />
                               </a>
                             ) : insight.action.handler ? (
                               <button
                                 onClick={insight.action.handler}
-                                className="inline-flex items-center text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium"
+                                className="inline-flex items-center text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium break-words"
                               >
-                                {insight.action.label}
-                                <ChevronRight className="w-4 h-4 ml-1" />
+                                <span className="break-words">{insight.action.label}</span>
+                                <ChevronRight className="w-4 h-4 ml-1 flex-shrink-0" />
                               </button>
                             ) : null}
                             
-                            <div className="flex items-center text-xs text-gray-500 dark:text-slate-500">
+                            <div className="flex items-center text-xs text-gray-500 dark:text-slate-500 whitespace-nowrap">
                               <span>Confidence: {Math.round(insight.confidence * 100)}%</span>
                             </div>
                           </div>
@@ -269,7 +269,7 @@ export const AIInsightsPanel = memo(function AIInsightsPanel({
                             <h6 className="text-xs font-medium text-gray-700 dark:text-slate-300 mb-2">
                               Technical Details:
                             </h6>
-                            <pre className="text-xs text-gray-600 dark:text-slate-400 overflow-x-auto">
+                            <pre className="text-xs text-gray-600 dark:text-slate-400 overflow-x-auto whitespace-pre-wrap break-words">
                               {JSON.stringify(insight.metadata, null, 2)}
                             </pre>
                           </div>

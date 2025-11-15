@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { initWebVitals, trackPageLoad } from '@/lib/analytics/web-vitals';
 import { initWebVitalsFallback, initBasicPerformanceTracking } from '@/lib/analytics/web-vitals-fallback';
+import { logger } from '@/lib/logger';
 
 export function WebVitalsTracker() {
   useEffect(() => {
@@ -15,9 +16,9 @@ export function WebVitalsTracker() {
         initWebVitals();
         trackPageLoad();
         
-        console.log('✅ Main web vitals tracking initialized');
+        logger.debug('Main web vitals tracking initialized');
       } catch (error) {
-        console.warn('Main web vitals failed, trying fallback:', error);
+        logger.warn('Main web vitals failed, trying fallback:', error);
         
         try {
           // Try fallback implementation
@@ -25,11 +26,11 @@ export function WebVitalsTracker() {
           
           if (!fallbackSuccess) {
             // If fallback also fails, use basic tracking
-            console.warn('Fallback failed, using basic performance tracking');
+            logger.warn('Fallback failed, using basic performance tracking');
             initBasicPerformanceTracking();
           }
         } catch (fallbackError) {
-          console.error('All web vitals implementations failed:', fallbackError);
+          logger.error('All web vitals implementations failed:', fallbackError);
           // Still try basic performance tracking as last resort
           initBasicPerformanceTracking();
         }
@@ -53,7 +54,7 @@ export function WebVitalsTracker() {
           });
         }
       } catch (error) {
-        console.error('Error in route change tracking:', error);
+        logger.error('Error in route change tracking:', error);
       }
     };
 

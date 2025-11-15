@@ -11,6 +11,12 @@ import { useAuth } from '@/components/providers/auth-provider';
 import { useInsulinData } from '@/lib/hooks/use-insulin-data';
 import { useCalculatorSettings } from '@/lib/hooks/use-calculator-settings';
 import { createClient } from '@/lib/supabase-client';
+import { logger } from '@/lib/logger';
+import { 
+  calculateIOB,
+  getInsulinDuration,
+  type InsulinDose,
+} from '@/lib/iob-calculator';
 import { 
   UtensilsCrossed, 
   Syringe, 
@@ -112,21 +118,22 @@ export function IntegratedMealLogger({ food, onCancel, onSuccess }: IntegratedMe
     return carbs ? parseFloat(carbs) : 0;
   }, [food, servingSize, servingUnit]);
 
-  // Calculate Insulin on Board (IOB)
+  // Calculate Insulin on Board (IOB) using tested utility
   const insulinOnBoard = useMemo(() => {
     const now = new Date();
-    let totalIOB = 0;
+    
+    // Convert doses to IOB calculator format
+    const iobDoses: InsulinDose[] = recentDoses.map(dose => ({
+      id: `${dose.timestamp.getTime()}-${dose.amount}`,
+      amount: dose.amount,
+      timestamp: dose.timestamp,
+      insulinType: (dose as any).insulinType || 'rapid',
+      duration: (dose as any).duration || getInsulinDuration((dose as any).insulinType || 'rapid'),
+    }));
 
-    recentDoses.forEach(dose => {
-      const hoursElapsed = (now.getTime() - dose.timestamp.getTime()) / (1000 * 60 * 60);
-      
-      if (hoursElapsed < dose.duration) {
-        const remainingPercentage = Math.max(0, (dose.duration - hoursElapsed) / dose.duration);
-        totalIOB += dose.amount * remainingPercentage;
-      }
-    });
-
-    return Math.round(totalIOB * 100) / 100;
+    // Use tested IOB calculator with exponential decay
+    const iobResult = calculateIOB(iobDoses, now);
+    return Math.round(iobResult.totalIOB * 100) / 100;
   }, [recentDoses]);
 
   // Get effective glucose value
@@ -304,10 +311,10 @@ export function IntegratedMealLogger({ food, onCancel, onSuccess }: IntegratedMe
             .eq('id', existingImport.id);
 
           if (updateError) {
-            console.error('Failed to merge with existing Glooko import:', updateError);
+            logger.error('Failed to merge with existing Glooko import:', updateError);
             // Fall back to creating new entry
           } else {
-            console.log('Successfully merged meal context with existing Glooko import');
+            logger.debug('Successfully merged meal context with existing Glooko import');
           }
         } else {
           // No existing import found, create new insulin log
@@ -326,7 +333,7 @@ export function IntegratedMealLogger({ food, onCancel, onSuccess }: IntegratedMe
             }]);
 
           if (insulinError) {
-            console.error('Failed to log insulin dose:', insulinError);
+            logger.error('Failed to log insulin dose:', insulinError);
             // Don't throw error - meal was logged successfully
           }
         }
@@ -338,7 +345,7 @@ export function IntegratedMealLogger({ food, onCancel, onSuccess }: IntegratedMe
       }, 1500);
 
     } catch (error) {
-      console.error('Error logging meal:', error);
+      logger.error('Error logging meal:', error);
       alert('Failed to log meal. Please try again.');
     } finally {
       setIsSubmitting(false);

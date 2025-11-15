@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Heart, Loader2 } from 'lucide-react';
 import { useAuth } from '@/components/providers/auth-provider';
+import { logger } from '@/lib/logger';
 
 interface FavoriteButtonProps {
   foodId: string;
@@ -47,7 +48,7 @@ export function FavoriteButton({
         }
       }
     } catch (error) {
-      console.error('Error checking favorite status:', error);
+      logger.error('Error checking favorite status:', error);
     }
   };
 
@@ -68,7 +69,7 @@ export function FavoriteButton({
           onFavoriteChange?.(false);
         } else {
           const data = await response.json();
-          console.error('Failed to remove favorite:', data.error);
+          logger.error('Failed to remove favorite:', data.error);
         }
       } else {
         // Add to favorites
@@ -94,12 +95,12 @@ export function FavoriteButton({
             setIsFavorite(true);
             checkIfFavorite(); // Get the favorite ID
           } else {
-            console.error('Failed to add favorite:', data.error);
+            logger.error('Failed to add favorite:', data.error);
           }
         }
       }
     } catch (error) {
-      console.error('Error toggling favorite:', error);
+      logger.error('Error toggling favorite:', error);
     } finally {
       setIsLoading(false);
     }
