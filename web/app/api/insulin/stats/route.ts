@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
 
     // Get insulin logs for the period
     const { data: logs, error } = await supabase
-      .from('insulin_logs')
+      .from('all_insulin_delivery')
       .select('units, delivery_type, insulin_type, taken_at')
       .eq('user_id', user.id)
       .gte('taken_at', startDate.toISOString())
@@ -95,7 +95,7 @@ export async function GET(request: NextRequest) {
       const iobCutoff = new Date(now.getTime() - 8 * 60 * 60 * 1000); // 8 hours ago
       
       const { data: recentLogs } = await supabase
-        .from('insulin_logs')
+        .from('all_insulin_delivery')
         .select('units, insulin_type, taken_at')
         .eq('user_id', user.id)
         .gte('taken_at', iobCutoff.toISOString())

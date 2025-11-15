@@ -129,7 +129,7 @@ export async function getInsulinDoses(
   const supabase = createClient();
   
   let query = (supabase as any)
-    .from('insulin_logs')
+    .from('all_insulin_delivery')
     .select('*')
     .eq('user_id', userId)
     .order('taken_at', { ascending: false });

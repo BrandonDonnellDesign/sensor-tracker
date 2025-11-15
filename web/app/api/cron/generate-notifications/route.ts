@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
 
         // Get user's insulin data
         const { data: insulinDoses } = await supabase
-          .from('insulin_logs')
+          .from('all_insulin_delivery')
           .select('*')
           .eq('user_id', user.id)
           .gte('taken_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())

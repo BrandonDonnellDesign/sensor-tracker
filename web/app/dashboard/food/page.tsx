@@ -131,8 +131,8 @@ export default function FoodPage() {
           .gte('logged_at', thirtyDaysAgo.toISOString())
           .order('logged_at', { ascending: false }),
         
-        supabase
-          .from('insulin_logs')
+        (supabase as any)
+          .from('all_insulin_delivery')
           .select('*')
           .eq('user_id', user.id)
           .gte('taken_at', thirtyDaysAgo.toISOString())

@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     
     // Query insulin logs directly
     let query = supabase
-      .from('insulin_logs')
+      .from('all_insulin_delivery')
       .select('*')
       .eq('user_id', user.id)
       .order('taken_at', { ascending: false });

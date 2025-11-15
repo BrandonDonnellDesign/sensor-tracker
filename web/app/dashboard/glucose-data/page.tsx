@@ -159,8 +159,8 @@ export default function GlucoseDataPage() {
         .order('logged_at', { ascending: false });
 
       // Load insulin logs
-      const { data: insulinData } = await supabase
-        .from('insulin_logs')
+      const { data: insulinData } = await (supabase as any)
+        .from('all_insulin_delivery')
         .select('id, user_id, units, insulin_type, taken_at')
         .eq('user_id', user.id)
         .gte('taken_at', startDate.toISOString())

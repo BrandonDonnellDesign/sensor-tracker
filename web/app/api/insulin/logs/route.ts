@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
 
     // Build query
     let query = supabase
-      .from('insulin_logs')
+      .from('all_insulin_delivery')
       .select('*', { count: 'exact' })
       .eq('user_id', user.id)
       .order('taken_at', { ascending: false });

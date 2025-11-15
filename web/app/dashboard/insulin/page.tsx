@@ -109,8 +109,8 @@ export default function InsulinPage() {
         startDate.setDate(startDate.getDate() - 30);
       }
 
-      const { data, error } = await supabase
-        .from('insulin_logs')
+      const { data, error } = await (supabase as any)
+        .from('all_insulin_delivery')
         .select('*')
         .eq('user_id', user.id)
         .gte('taken_at', startDate.toISOString())
@@ -130,8 +130,8 @@ export default function InsulinPage() {
 
     try {
       const supabase = createClient();
-      const { error } = await supabase
-        .from('insulin_logs')
+      const { error } = await (supabase as any)
+        .from('all_insulin_delivery')
         .delete()
         .eq('id', logId);
 

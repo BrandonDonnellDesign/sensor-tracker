@@ -67,7 +67,7 @@ export function ExportSettings({ userId }: ExportSettingsProps) {
       // Fetch insulin data
       if (includeAll || selectedDataTypes.includes('insulin')) {
         const { data: insulin } = await supabase
-          .from('insulin_logs')
+          .from('all_insulin_delivery')
           .select('*')
           .eq('user_id', userId)
           .order('taken_at', { ascending: false });

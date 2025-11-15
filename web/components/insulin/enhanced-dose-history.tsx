@@ -41,7 +41,7 @@ export function EnhancedDoseHistory() {
     try {
       const supabase = createClient();
       const { data, error } = await supabase
-        .from('insulin_logs')
+        .from('all_insulin_delivery')
         .select('*')
         .order('taken_at', { ascending: false })
         .limit(500);
@@ -110,7 +110,7 @@ export function EnhancedDoseHistory() {
     try {
       const supabase = createClient();
       const { error } = await supabase
-        .from('insulin_logs')
+        .from('all_insulin_delivery')
         .delete()
         .in('id', Array.from(selectedIds));
 
@@ -130,7 +130,7 @@ export function EnhancedDoseHistory() {
     try {
       const supabase = createClient();
       const { error } = await supabase
-        .from('insulin_logs')
+        .from('all_insulin_delivery')
         .insert(deletedLogs as any);
 
       if (error) throw error;

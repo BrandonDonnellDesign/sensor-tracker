@@ -75,7 +75,7 @@ export function FoodLogList({ userId }: FoodLogListProps) {
       
       // Get all insulin logs for the selected date
       const { data, error } = await supabase
-        .from('insulin_logs')
+        .from('all_insulin_delivery')
         .select('units, delivery_type')
         .eq('user_id', userId)
         .gte('taken_at', startOfDay.toISOString())

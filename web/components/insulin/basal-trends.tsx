@@ -51,7 +51,7 @@ export function BasalTrends({ className = '' }: BasalTrendsProps) {
       startDate.setHours(0, 0, 0, 0);
 
       const { data: logs, error } = await supabase
-        .from('insulin_logs')
+        .from('all_insulin_delivery')
         .select('units, taken_at')
         .eq('user_id', user.id)
         .eq('delivery_type', 'basal')

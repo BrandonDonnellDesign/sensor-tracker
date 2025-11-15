@@ -170,7 +170,7 @@ export class GlucosePredictionService {
     try {
       const supabase = createClient();
       const { data, error } = await (supabase as any)
-        .from('insulin_logs')
+        .from('all_insulin_delivery')
         .select('*')
         .eq('user_id', userId)
         .gte('taken_at', new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString()) // Last 6 hours

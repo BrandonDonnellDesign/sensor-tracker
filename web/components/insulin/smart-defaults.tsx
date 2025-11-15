@@ -40,7 +40,7 @@ export function SmartDefaults({ onDefaultsCalculated, className = '' }: SmartDef
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       
       const { data: logs, error } = await supabase
-        .from('insulin_logs')
+        .from('all_insulin_delivery')
         .select('*')
         .eq('user_id', user.id)
         .gte('taken_at', thirtyDaysAgo.toISOString())

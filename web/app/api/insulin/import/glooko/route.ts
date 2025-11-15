@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase-server';
 import AdmZip from 'adm-zip';
 import csv from 'csv-parser';
 import { Readable } from 'stream';
+import { writePumpData, checkPumpDuplicate } from '@/lib/services/pump-data-writer';
 
 interface ImportResult {
   success: boolean;
@@ -727,68 +728,38 @@ async function handleZipImport(zipFile: File, userId: string, supabase: any) {
       if (!log) continue; // Skip null entries from filter
       
       try {
-        // Check for existing entries within 5 minutes
-        const logTime = new Date(log.taken_at);
-        const fiveMinutesBefore = new Date(logTime.getTime() - 5 * 60 * 1000);
-        const fiveMinutesAfter = new Date(logTime.getTime() + 5 * 60 * 1000);
+        // Check for duplicates in pump tables
+        const isDuplicate = await checkPumpDuplicate(
+          supabase,
+          userId,
+          log.taken_at,
+          log.units,
+          log.delivery_type
+        );
 
-        const { data: existingLogs } = await supabase
-          .from('insulin_logs')
-          .select('*')
-          .eq('user_id', userId)
-          .eq('insulin_type', log.insulin_type)
-          .gte('taken_at', fiveMinutesBefore.toISOString())
-          .lte('taken_at', fiveMinutesAfter.toISOString())
-          .order('taken_at', { ascending: true });
-
-        const existingLog = existingLogs && existingLogs.length > 0 ? existingLogs[0] : null;
-
-        if (existingLog) {
-          const doseDifference = Math.abs(existingLog.units - log.units);
-          const isManualEntry = existingLog.logged_via === 'manual' || existingLog.logged_via === 'quick_dose';
-          
-          if (isManualEntry || doseDifference > 0.1) {
-            // Merge with existing entry
-            const existingNotes = existingLog.notes || '';
-            const mergedNotes = [
-              existingNotes,
-              `Glooko data: ${log.units}u`,
-              log.notes
-            ].filter(Boolean).join(' | ');
-
-            const { error: updateError } = await supabase
-              .from('insulin_logs')
-              .update({
-                // Use the imported dose (more accurate from Glooko)
-                units: log.units,
-                insulin_name: log.insulin_name,
-                blood_glucose_before: log.blood_glucose_before || existingLog.blood_glucose_before,
-                notes: mergedNotes,
-                // Update timestamp to Glooko's more precise time
-                taken_at: log.taken_at,
-                updated_at: new Date().toISOString()
-              })
-              .eq('id', existingLog.id);
-
-            if (updateError) {
-              errors.push(`Record ${i + 1}: Failed to merge - ${updateError.message}`);
-            } else {
-              merged++;
-            }
-          } else {
-            // Exact duplicate
-            duplicates++;
-          }
+        if (isDuplicate) {
+          duplicates++;
         } else {
-          // Insert new log
-          const { error: insertError } = await supabase
-            .from('insulin_logs')
-            .insert(log);
+          // Write directly to pump tables
+          const result = await writePumpData(supabase, {
+            user_id: userId,
+            timestamp: log.taken_at,
+            units: log.units,
+            insulin_type: log.insulin_type,
+            insulin_name: log.insulin_name,
+            delivery_type: log.delivery_type,
+            meal_relation: log.meal_relation,
+            injection_site: 'pump',
+            blood_glucose_before: log.blood_glucose_before,
+            blood_glucose_after: log.blood_glucose_after,
+            notes: log.notes,
+            logged_via: 'csv_import',
+          });
 
-          if (insertError) {
-            errors.push(`Record ${i + 1}: Failed to insert - ${insertError.message}`);
-          } else {
+          if (result.success) {
             imported++;
+          } else {
+            errors.push(`Record ${i + 1}: Failed to insert - ${result.error?.message || 'Unknown error'}`);
           }
         }
       } catch (error) {
@@ -840,47 +811,38 @@ async function handleZipImport(zipFile: File, userId: string, supabase: any) {
           continue; // Skip invalid dates
         }
         
-        // Check for existing basal entry for this day
-        const dayStart = new Date(basalDate);
-        dayStart.setHours(0, 0, 0, 0);
-        const dayEnd = new Date(basalDate);
-        dayEnd.setHours(23, 59, 59, 999);
+        // Check for duplicates in pump tables
+        const isDuplicate = await checkPumpDuplicate(
+          supabase,
+          userId,
+          basalDate.toISOString(),
+          basalAmount,
+          'basal'
+        );
         
-        const { data: existingBasal } = await supabase
-          .from('insulin_logs')
-          .select('*')
-          .eq('user_id', userId)
-          .eq('delivery_type', 'basal')
-          .gte('taken_at', dayStart.toISOString())
-          .lte('taken_at', dayEnd.toISOString())
-          .limit(1);
-        
-        if (existingBasal && existingBasal.length > 0) {
+        if (isDuplicate) {
           basalDuplicates++;
-          continue; // Skip if basal already exists for this day
+          continue;
         }
         
-        // Insert daily basal total
-        const { error: basalError } = await supabase
-          .from('insulin_logs')
-          .insert({
-            user_id: userId,
-            units: basalAmount,
-            insulin_type: 'long',
-            insulin_name: 'Basal (Daily Total)',
-            taken_at: basalDate.toISOString(),
-            delivery_type: 'basal',
-            meal_relation: null,
-            injection_site: 'pump',
-            notes: 'Daily basal total from Glooko import',
-            logged_via: 'csv_import'
-          });
+        // Write directly to pump tables
+        const result = await writePumpData(supabase, {
+          user_id: userId,
+          timestamp: basalDate.toISOString(),
+          units: basalAmount,
+          insulin_type: 'long',
+          insulin_name: 'Basal (Daily Total)',
+          delivery_type: 'basal',
+          injection_site: 'pump',
+          notes: 'Daily basal total from Glooko import',
+          logged_via: 'csv_import',
+        });
         
-        if (basalError) {
-          errors.push(`Basal record for ${timestamp}: Failed to insert - ${basalError.message}`);
-        } else {
+        if (result.success) {
           basalImported++;
           console.log(`Successfully imported basal: ${basalAmount}u for ${timestamp}`);
+        } else {
+          errors.push(`Basal record for ${timestamp}: Failed to insert - ${result.error?.message || 'Unknown error'}`);
         }
         
       } catch (error) {
@@ -1185,34 +1147,18 @@ async function handleCsvImport(file: File, userId: string, supabase: any) {
         // Normalize insulin information
         const insulinInfo = normalizeInsulinInfo(actualInsulinType, deliveryType || bolusType || basalType || 'bolus');
 
-        // Check for existing manual entries within 5 minutes to merge with
-        const fiveMinutesBefore = new Date(takenAt.getTime() - 5 * 60 * 1000);
-        const fiveMinutesAfter = new Date(takenAt.getTime() + 5 * 60 * 1000);
+        // Check for duplicates in pump tables
+        const isDuplicate = await checkPumpDuplicate(
+          supabase,
+          userId,
+          takenAt.toISOString(),
+          dose,
+          insulinInfo.deliveryType
+        );
 
-        const { data: existingLogs } = await supabase
-          .from('insulin_logs')
-          .select('*')
-          .eq('user_id', userId)
-          .eq('insulin_type', insulinInfo.insulinType)
-          .gte('taken_at', fiveMinutesBefore.toISOString())
-          .lte('taken_at', fiveMinutesAfter.toISOString())
-          .order('taken_at', { ascending: true });
-
-        const existingLog = existingLogs && existingLogs.length > 0 ? existingLogs[0] : null;
-
-        let shouldMerge = false;
-        if (existingLog) {
-          // Check if we should merge (different doses or one is manual entry)
-          const doseDifference = Math.abs(existingLog.units - dose);
-          const isManualEntry = existingLog.logged_via === 'manual' || existingLog.logged_via === 'quick_dose';
-          
-          if (isManualEntry || doseDifference > 0.1) {
-            shouldMerge = true;
-          } else {
-            // Exact duplicate, skip
-            result.duplicates++;
-            continue;
-          }
+        if (isDuplicate) {
+          result.duplicates++;
+          continue;
         }
         
         // Parse blood glucose if available
@@ -1227,7 +1173,7 @@ async function handleCsvImport(file: File, userId: string, supabase: any) {
         if (initialDelivery && parseFloat(initialDelivery) > 0) glookoNotes.push(`Initial: ${initialDelivery}U`);
         if (extendedDelivery && parseFloat(extendedDelivery) > 0) glookoNotes.push(`Extended: ${extendedDelivery}U`);
         
-        const combinedNotes = glookoNotes.join(' | ') || null;
+        const combinedNotes = glookoNotes.join(' | ') || `Imported from Glooko: ${insulinInfo.insulinName}`;
         
         // Determine meal relation based on delivery type
         let mealRelation = null;
@@ -1237,62 +1183,30 @@ async function handleCsvImport(file: File, userId: string, supabase: any) {
           mealRelation = 'correction';
         }
 
-        if (shouldMerge && existingLog) {
-          // Merge Glooko data with existing manual entry
-          const existingNotes = existingLog.notes || '';
-          const mergedNotes = [
-            existingNotes,
-            `Glooko data: ${dose}u`,
-            combinedNotes
-          ].filter(Boolean).join(' | ');
+        // Write directly to pump tables
+        const writeResult = await writePumpData(supabase, {
+          user_id: userId,
+          timestamp: takenAt.toISOString(),
+          units: dose,
+          insulin_type: insulinInfo.insulinType,
+          insulin_name: insulinInfo.insulinName,
+          delivery_type: insulinInfo.deliveryType,
+          meal_relation: mealRelation,
+          injection_site: 'pump',
+          blood_glucose_before: bgBefore,
+          notes: combinedNotes,
+          logged_via: 'csv_import',
+          carbs: carbs ? parseFloat(carbs) : undefined,
+          carb_ratio: carbsRatio,
+        });
 
-          // Update existing log with merged information
-          const { error: updateError } = await supabase
-            .from('insulin_logs')
-            .update({
-              // Use the imported dose (more accurate from Glooko)
-              units: dose,
-              insulin_name: insulinInfo.insulinName,
-              blood_glucose_before: bgBefore || existingLog.blood_glucose_before,
-              notes: mergedNotes,
-              // Update timestamp to Glooko's more precise time
-              taken_at: takenAt.toISOString(),
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', existingLog.id);
-
-          if (updateError) {
-            result.skipped++;
-            result.errors.push(`Row ${i + 1}: Failed to merge with existing entry - ${updateError.message}`);
-            console.log(`Merge error on row ${i + 1}:`, updateError);
-            continue;
-          }
-
-          console.log(`Merged row ${i + 1} with existing manual entry`);
+        if (writeResult.success) {
+          result.imported++;
+          console.log(`Successfully imported row ${i + 1}`);
         } else {
-          // Insert new insulin log
-          const { error: logError } = await supabase
-            .from('insulin_logs')
-            .insert({
-              user_id: userId,
-              insulin_type: insulinInfo.insulinType,
-              insulin_name: insulinInfo.insulinName,
-              units: dose,
-              taken_at: takenAt.toISOString(),
-              delivery_type: insulinInfo.deliveryType,
-              meal_relation: mealRelation,
-              injection_site: 'pump',
-              blood_glucose_before: bgBefore,
-              notes: combinedNotes || `Imported from Glooko: ${insulinInfo.insulinName}`,
-              logged_via: 'csv_import'
-            });
-
-          if (logError) {
-            result.skipped++;
-            result.errors.push(`Row ${i + 1}: Failed to save log entry - ${logError.message}`);
-            console.log(`Database error on row ${i + 1}:`, logError);
-            continue;
-          }
+          result.skipped++;
+          result.errors.push(`Row ${i + 1}: Failed to save log entry - ${writeResult.error?.message || 'Unknown error'}`);
+          console.log(`Database error on row ${i + 1}:`, writeResult.error);
         }
 
         result.imported++;
@@ -1412,42 +1326,39 @@ async function handleBasalSummaryCsv(lines: string[], headerRowIndex: number, he
       const dayEnd = new Date(basalDate);
       dayEnd.setHours(23, 59, 59, 999);
 
-      const { data: existingBasal } = await supabase
-        .from('insulin_logs')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('delivery_type', 'basal')
-        .gte('taken_at', dayStart.toISOString())
-        .lte('taken_at', dayEnd.toISOString())
-        .limit(1);
+      // Check for duplicates in pump tables
+      const isDuplicate = await checkPumpDuplicate(
+        supabase,
+        userId,
+        basalDate.toISOString(),
+        basalAmount,
+        'basal'
+      );
 
-      if (existingBasal && existingBasal.length > 0) {
+      if (isDuplicate) {
         result.basalDuplicates++;
         continue;
       }
 
-      // Insert daily basal total
-      const { error: basalError } = await supabase
-        .from('insulin_logs')
-        .insert({
-          user_id: userId,
-          units: basalAmount,
-          insulin_type: 'long',
-          insulin_name: 'Basal (Daily Total)',
-          taken_at: basalDate.toISOString(),
-          delivery_type: 'basal',
-          meal_relation: null,
-          injection_site: 'pump',
-          notes: 'Daily basal total from Glooko CSV import',
-          logged_via: 'csv_import'
-        });
+      // Write directly to pump tables
+      const writeResult = await writePumpData(supabase, {
+        user_id: userId,
+        timestamp: basalDate.toISOString(),
+        units: basalAmount,
+        insulin_type: 'long',
+        insulin_name: 'Basal (Daily Total)',
+        delivery_type: 'basal',
+        injection_site: 'pump',
+        notes: 'Daily basal total from Glooko CSV import',
+        logged_via: 'csv_import',
+      });
 
-      if (basalError) {
-        result.errors.push(`Basal row ${i}: Failed to insert - ${basalError.message}`);
-        result.skipped++;
-      } else {
+      if (writeResult.success) {
         result.basalImported++;
         console.log(`Successfully imported basal: ${basalAmount}u for ${timestamp}`);
+      } else {
+        result.errors.push(`Basal row ${i}: Failed to insert - ${writeResult.error?.message || 'Unknown error'}`);
+        result.skipped++;
       }
 
     } catch (error) {

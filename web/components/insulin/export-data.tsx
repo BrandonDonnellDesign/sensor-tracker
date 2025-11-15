@@ -27,7 +27,7 @@ export function ExportData({ className = '' }: ExportDataProps) {
       startDate.setDate(startDate.getDate() - exportPeriod);
       
       const { data: logs, error } = await supabase
-        .from('insulin_logs')
+        .from('all_insulin_delivery')
         .select('*')
         .eq('user_id', user.id)
         .gte('taken_at', startDate.toISOString())
@@ -104,7 +104,7 @@ export function ExportData({ className = '' }: ExportDataProps) {
       startDate.setDate(startDate.getDate() - exportPeriod);
       
       const { data: logs, error } = await supabase
-        .from('insulin_logs')
+        .from('all_insulin_delivery')
         .select('*')
         .eq('user_id', user.id)
         .gte('taken_at', startDate.toISOString())

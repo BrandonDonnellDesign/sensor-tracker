@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
 
     // Only use insulin_logs table now
     const { data: logs, error } = await supabase
-      .from('insulin_logs')
+      .from('all_insulin_delivery')
       .select(`
         id,
         insulin_type,

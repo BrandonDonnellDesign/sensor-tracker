@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
         .limit(50),
       
       supabase
-        .from('insulin_logs')
+        .from('all_insulin_delivery')
         .select('*')
         .eq('user_id', user.id)
         .order('taken_at', { ascending: false })
