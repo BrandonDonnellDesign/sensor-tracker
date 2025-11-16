@@ -1,50 +1,45 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@/lib/supabase-server';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const { searchParams } = new URL(request.url);
-    const demo = searchParams.get('demo');
-    const userId = request.headers.get('x-user-id');
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-    let query = supabase
-      .from('replacement_tracking')
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { data: replacements, error } = await (supabase as any)
+      .from('sensor_replacements')
       .select('*')
+      .eq('user_id', user.id)
       .order('created_at', { ascending: false });
 
-    // Only filter by user_id if we have a valid one and not in demo mode
-    if (userId && !demo) {
-      query = query.eq('user_id', userId);
-    }
+    if (error) throw error;
 
-    // Limit results for demo mode
-    if (demo) {
-      query = query.limit(20);
-    }
+    return NextResponse.json({
+      success: true,
+      replacements: replacements || []
+    });
 
-    const { data: replacements, error } = await query;
-
-    if (error) {
-      console.error('Error fetching replacements:', error);
-      return NextResponse.json({ error: 'Failed to fetch replacements' }, { status: 500 });
-    }
-
-    return NextResponse.json({ replacements });
   } catch (error) {
-    console.error('Error in replacement tracking GET:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('Error fetching replacements:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch replacements' },
+      { status: 500 }
+    );
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    // Use a demo user ID for development - in production this would come from auth
-    const userId = request.headers.get('x-user-id') || '00000000-0000-0000-0000-000000000000';
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
     const body = await request.json();
     const {
@@ -57,35 +52,41 @@ export async function POST(request: NextRequest) {
       notes
     } = body;
 
-    if (!sensor_serial_number || !carrier || !tracking_number) {
-      return NextResponse.json({ 
-        error: 'Missing required fields: sensor_serial_number, carrier, tracking_number' 
-      }, { status: 400 });
+    if (!sensor_serial_number || !tracking_number) {
+      return NextResponse.json(
+        { error: 'sensor_serial_number and tracking_number are required' },
+        { status: 400 }
+      );
     }
 
-    const { data: replacement, error } = await supabase
-      .from('replacement_tracking')
+    const { data, error } = await (supabase as any)
+      .from('sensor_replacements')
       .insert({
-        user_id: userId,
+        user_id: user.id,
         sensor_serial_number,
         sensor_lot_number,
         warranty_claim_number,
         carrier,
         tracking_number,
         expected_delivery,
+        status: 'shipped',
         notes
       })
       .select()
       .single();
 
-    if (error) {
-      console.error('Error creating replacement:', error);
-      return NextResponse.json({ error: 'Failed to create replacement' }, { status: 500 });
-    }
+    if (error) throw error;
 
-    return NextResponse.json({ replacement });
+    return NextResponse.json({
+      success: true,
+      replacement: data
+    });
+
   } catch (error) {
-    console.error('Error in replacement tracking POST:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('Error creating replacement:', error);
+    return NextResponse.json(
+      { error: 'Failed to create replacement' },
+      { status: 500 }
+    );
   }
 }

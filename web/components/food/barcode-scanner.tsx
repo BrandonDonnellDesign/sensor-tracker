@@ -16,33 +16,68 @@ export function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps) {
 
   useEffect(() => {
     let stream: MediaStream | null = null;
+    let mounted = true;
 
     const startCamera = async () => {
       try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { 
-            facingMode: 'environment', // Prefer back camera
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
+        // Check if MediaDevices API is available
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          if (mounted) {
+            setError('Camera is not supported in this browser. Please use a modern browser like Chrome, Safari, or Firefox.');
           }
-        });
+          return;
+        }
+
+        console.log('Attempting to access camera...');
+
+        // Try simplest approach first - just request video
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ video: true });
+          console.log('Camera access granted with basic constraints');
+        } catch (basicError: any) {
+          console.log('Basic camera access failed, trying with facingMode:', basicError.name);
+          
+          // Try with facingMode as fallback
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({
+              video: { facingMode: 'environment' }
+            });
+            console.log('Camera access granted with environment facingMode');
+          } catch (facingError: any) {
+            console.log('Environment camera failed, trying user-facing:', facingError.name);
+            
+            // Last attempt with user-facing camera
+            stream = await navigator.mediaDevices.getUserMedia({
+              video: { facingMode: 'user' }
+            });
+            console.log('Camera access granted with user facingMode');
+          }
+        }
         
-        if (videoRef.current) {
+        if (mounted && videoRef.current && stream) {
           videoRef.current.srcObject = stream;
+          console.log('Camera stream attached to video element');
         }
       } catch (err: any) {
+        if (!mounted) return;
+        
+        console.error('All camera access attempts failed:', err.name, err.message, err);
         logger.error('Camera error:', err);
         
         if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
           setError('Camera access was denied. Please enable camera permissions in your browser settings.');
         } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
-          setError('No camera found on this device.');
+          setError('No camera found. Please check if your device has a camera and it\'s not being used by another app.');
         } else if (err.name === 'NotSupportedError') {
-          setError('Camera is not supported on this device.');
+          setError('Camera is not supported on this device or browser.');
         } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
-          setError('Camera is already in use by another application.');
+          setError('Camera is already in use by another application. Please close other apps using the camera.');
+        } else if (err.name === 'OverconstrainedError' || err.name === 'ConstraintNotSatisfiedError') {
+          setError('Camera settings could not be applied. Please try again.');
+        } else if (err.name === 'TypeError') {
+          setError('Camera access error. Please ensure you\'re using HTTPS or localhost.');
         } else {
-          setError('Failed to access camera. Please check your browser settings.');
+          setError(`Camera error: ${err.message || err.name || 'Unknown error'}. Please try entering the barcode manually.`);
         }
       }
     };
@@ -50,6 +85,7 @@ export function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps) {
     startCamera();
 
     return () => {
+      mounted = false;
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
       }
@@ -86,7 +122,22 @@ export function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps) {
                 <h3 className="text-lg font-medium text-red-800 dark:text-red-200 mb-2">
                   Camera Access Issue
                 </h3>
-                <p className="text-red-600 dark:text-red-400 mb-4 text-sm">{error}</p>
+                <p className="text-red-600 dark:text-red-400 mb-4 text-sm whitespace-pre-wrap">{error}</p>
+                
+                {/* Debug info */}
+                <details className="text-left mb-4">
+                  <summary className="text-xs text-red-700 dark:text-red-300 cursor-pointer mb-2 hover:underline">
+                    Show Technical Details
+                  </summary>
+                  <div className="bg-red-100 dark:bg-red-900/30 rounded p-3 text-xs font-mono text-red-800 dark:text-red-200 overflow-auto max-h-40">
+                    <div className="mb-1"><strong>Browser:</strong> {navigator.userAgent.substring(0, 100)}...</div>
+                    <div className="mb-1"><strong>MediaDevices:</strong> {navigator.mediaDevices ? '✓ Available' : '✗ Not Available'}</div>
+                    <div className="mb-1"><strong>getUserMedia:</strong> {typeof navigator.mediaDevices?.getUserMedia === 'function' ? '✓ Available' : '✗ Not Available'}</div>
+                    <div className="mb-1"><strong>Protocol:</strong> {window.location.protocol}</div>
+                    <div className="mb-1"><strong>Host:</strong> {window.location.host}</div>
+                    <div className="mb-1"><strong>HTTPS:</strong> {window.location.protocol === 'https:' ? '✓ Yes' : '✗ No (required for camera)'}</div>
+                  </div>
+                </details>
                 
                 {error.includes('denied') && (
                   <div className="bg-red-100 dark:bg-red-900/30 rounded-lg p-3 mb-4 text-left">

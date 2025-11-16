@@ -267,45 +267,46 @@ export function RecentSensors({ sensors, onRefresh, isRefreshing = false }: Rece
             )}
           </div>
           
-          <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border border-green-200 dark:border-green-800 rounded-xl p-4">
-            <Link
-              href={`/dashboard/sensors/${currentSensor.id}`}
-              className="block hover:bg-green-100/50 dark:hover:bg-green-800/20 rounded-lg p-2 transition-colors"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <div className="w-4 h-4 rounded-full bg-green-500 animate-pulse"></div>
-                  <div>
-                    <p className="text-lg font-semibold text-gray-900 dark:text-slate-100">{currentSensor.serial_number}</p>
-                    <p className="text-sm text-gray-600 dark:text-slate-400">
-                      {currentSensor.sensorModel.manufacturer} {currentSensor.sensorModel.modelName}
-                      {currentSensor.lot_number && ` • Lot: ${currentSensor.lot_number}`}
-                    </p>
-                    <p className="text-xs text-gray-500 dark:text-slate-500 mt-1">
-                      Added {dateFormatter.formatDate(currentSensor.date_added)}
-                    </p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-medium text-green-700 dark:text-green-400">
-                    {formatDaysLeftLocal(currentSensor.sensorExpInfo.daysLeft, currentSensor.sensorExpInfo)}
+          <Link
+            href={`/dashboard/sensors/${currentSensor.id}`}
+            className="block bg-white dark:bg-slate-700/50 border-2 border-green-200 dark:border-green-800 rounded-xl p-4 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse"></div>
+                <div>
+                  <p className="text-lg font-semibold text-gray-900 dark:text-slate-100">{currentSensor.serial_number}</p>
+                  <p className="text-sm text-gray-600 dark:text-slate-400">
+                    {currentSensor.sensorModel.manufacturer} {currentSensor.sensorModel.modelName}
+                    {currentSensor.lot_number && ` • Lot: ${currentSensor.lot_number}`}
                   </p>
-                  <div className="flex items-center justify-end space-x-1 mt-2">
-                    {currentSensor.sensorExpInfo.expirationStatus === 'warning' && (
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300">
-                        Expiring Soon
-                      </span>
-                    )}
-                    {currentSensor.sensorExpInfo.expirationStatus === 'normal' && (
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300">
-                        Active
-                      </span>
-                    )}
-                  </div>
+                  <p className="text-xs text-gray-500 dark:text-slate-500 mt-1">
+                    Added {dateFormatter.formatDate(currentSensor.date_added)}
+                  </p>
                 </div>
               </div>
-            </Link>
-          </div>
+              <div className="text-right">
+                <p className="text-2xl font-bold text-green-600 dark:text-green-400 mb-1">
+                  {currentSensor.sensorExpInfo.daysLeft}
+                </p>
+                <p className="text-xs text-gray-600 dark:text-slate-400 mb-2">
+                  {currentSensor.sensorExpInfo.daysLeft === 1 ? 'day left' : 'days left'}
+                </p>
+                <div className="flex items-center justify-end space-x-1">
+                  {currentSensor.sensorExpInfo.expirationStatus === 'warning' && (
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300">
+                      Expiring Soon
+                    </span>
+                  )}
+                  {currentSensor.sensorExpInfo.expirationStatus === 'normal' && (
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300">
+                      Active
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </Link>
         </div>
       )}
 

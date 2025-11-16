@@ -16,6 +16,7 @@ interface Sensor {
   lot_number?: string;
   is_problematic: boolean;
   sensor_models?: {
+    id: string;
     manufacturer: string;
     model_name: string;
   };
@@ -61,6 +62,7 @@ export default function ReplacementTracker() {
   const [newReplacement, setNewReplacement] = useState({
     sensor_serial_number: '',
     sensor_lot_number: '',
+    sensor_model_id: '',
     warranty_claim_number: '',
     carrier: 'ups',
     tracking_number: '',
@@ -130,7 +132,8 @@ export default function ReplacementTracker() {
       setNewReplacement({
         ...newReplacement,
         sensor_serial_number: sensor.serial_number,
-        sensor_lot_number: sensor.lot_number || ''
+        sensor_lot_number: sensor.lot_number || '',
+        sensor_model_id: sensor.sensor_models?.id || ''
       });
     }
   };
@@ -156,6 +159,7 @@ export default function ReplacementTracker() {
         setNewReplacement({
           sensor_serial_number: '',
           sensor_lot_number: '',
+          sensor_model_id: '',
           warranty_claim_number: '',
           carrier: 'ups',
           tracking_number: '',
@@ -226,7 +230,6 @@ export default function ReplacementTracker() {
           <Button 
             onClick={() => setIsAddingNew(true)} 
             className="btn-primary flex items-center space-x-2"
-            disabled={sensors.length === 0}
           >
             <Plus className="w-5 h-5" />
             <span>Add Tracking</span>
@@ -269,6 +272,7 @@ export default function ReplacementTracker() {
                 setNewReplacement({
                   sensor_serial_number: '',
                   sensor_lot_number: '',
+                  sensor_model_id: '',
                   warranty_claim_number: '',
                   carrier: 'ups',
                   tracking_number: '',
@@ -292,82 +296,70 @@ export default function ReplacementTracker() {
                     <Label htmlFor="sensor-select" className="text-xl font-bold text-gray-900 dark:text-slate-100 block">
                       Sensor Information
                     </Label>
-                    <p className="text-sm text-blue-700 dark:text-blue-300">Select the sensor being replaced</p>
+                    <p className="text-sm text-blue-700 dark:text-blue-300">Select a sensor or enter details manually</p>
                   </div>
                 </div>
                 
-                {sensors.length > 0 ? (
-                  <Select value={selectedSensorId} onValueChange={handleSensorSelect}>
-                    <SelectTrigger className="h-14 text-base border-2 border-gray-500 focus:border-blue-600 focus:ring-2 focus:ring-blue-200 bg-white text-black font-medium shadow-sm">
-                      <SelectValue placeholder="Choose a sensor from your list" />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-60 bg-white border-2 border-gray-400 shadow-lg">
-                      {sensors.map((sensor) => (
-                        <SelectItem key={sensor.id} value={sensor.id} className="py-4 px-4 hover:bg-blue-50 focus:bg-blue-100">
-                          <div className="flex flex-col">
-                            <span className="font-bold text-black text-base">{sensor.serial_number}</span>
-                            <span className="text-sm text-gray-700 font-medium">
-                              {sensor.sensor_models?.manufacturer} {sensor.sensor_models?.model_name}
-                              {sensor.lot_number && ` • Lot: ${sensor.lot_number}`}
-                              {sensor.is_problematic && (
-                                <span className="ml-2 px-2 py-1 bg-red-200 text-red-800 rounded text-xs font-bold">
-                                  Problematic
+                <div className="space-y-6">
+                  {sensors.length > 0 && (
+                    <div className="space-y-2">
+                      <Label htmlFor="sensor-select" className="text-base font-semibold text-gray-900 dark:text-slate-100">
+                        Quick Select (Optional)
+                      </Label>
+                      <Select value={selectedSensorId} onValueChange={handleSensorSelect}>
+                        <SelectTrigger className="h-14 text-base border-2 border-gray-300 dark:border-slate-600 focus:border-blue-600 focus:ring-2 focus:ring-blue-200 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 font-medium shadow-sm">
+                          <SelectValue placeholder="Choose a sensor from your list (optional)" />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-60 bg-white dark:bg-slate-800 border-2 border-gray-400 dark:border-slate-600 shadow-lg">
+                          {sensors.map((sensor) => (
+                            <SelectItem key={sensor.id} value={sensor.id} className="py-4 px-4 hover:bg-blue-50 dark:hover:bg-slate-700 focus:bg-blue-100 dark:focus:bg-slate-600">
+                              <div className="flex flex-col">
+                                <span className="font-bold text-gray-900 dark:text-slate-100 text-base">{sensor.serial_number}</span>
+                                <span className="text-sm text-gray-700 dark:text-slate-400 font-medium">
+                                  {sensor.sensor_models?.manufacturer} {sensor.sensor_models?.model_name}
+                                  {sensor.lot_number && ` • Lot: ${sensor.lot_number}`}
+                                  {sensor.is_problematic && (
+                                    <span className="ml-2 px-2 py-1 bg-red-200 text-red-800 rounded text-xs font-bold">
+                                      Problematic
+                                    </span>
+                                  )}
                                 </span>
-                              )}
-                            </span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <div className="space-y-3">
-                    <div className="p-4 bg-amber-100 dark:bg-amber-900/30 border-2 border-amber-300 dark:border-amber-700 rounded-xl mb-6">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-amber-600 rounded-lg flex items-center justify-center">
-                          <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                          </svg>
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">
-                            Cannot load sensors from database
-                          </p>
-                          <p className="text-xs text-amber-700 dark:text-amber-300">
-                            Enter sensor details manually below
-                          </p>
-                        </div>
-                      </div>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <Label htmlFor="manual-serial" className="text-base font-semibold text-gray-900 dark:text-slate-100 flex items-center gap-2">
-                          <span className="w-2 h-2 bg-red-500 rounded-full"></span>
-                          Serial Number
-                        </Label>
-                        <Input
-                          id="manual-serial"
-                          value={newReplacement.sensor_serial_number}
-                          onChange={(e) => setNewReplacement({ ...newReplacement, sensor_serial_number: e.target.value })}
-                          placeholder="Enter sensor serial number"
-                          className="h-14 border-2 border-gray-300 dark:border-slate-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 text-base bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 placeholder:text-gray-500 dark:placeholder:text-slate-400 font-medium shadow-sm rounded-xl"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="manual-lot" className="text-base font-semibold text-gray-900 dark:text-slate-100">
-                          Lot Number
-                        </Label>
-                        <Input
-                          id="manual-lot"
-                          value={newReplacement.sensor_lot_number}
-                          onChange={(e) => setNewReplacement({ ...newReplacement, sensor_lot_number: e.target.value })}
-                          placeholder="Enter lot number"
-                          className="h-14 border-2 border-gray-300 dark:border-slate-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 text-base bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 placeholder:text-gray-500 dark:placeholder:text-slate-400 font-medium shadow-sm rounded-xl"
-                        />
-                      </div>
+                  )}
+                  
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <Label htmlFor="manual-serial" className="text-base font-semibold text-gray-900 dark:text-slate-100 flex items-center gap-2">
+                        <span className="w-2 h-2 bg-red-500 rounded-full"></span>
+                        Serial Number
+                      </Label>
+                      <Input
+                        id="manual-serial"
+                        value={newReplacement.sensor_serial_number}
+                        onChange={(e) => setNewReplacement({ ...newReplacement, sensor_serial_number: e.target.value })}
+                        placeholder="Enter sensor serial number"
+                        className="h-14 border-2 border-gray-300 dark:border-slate-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 text-base bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 placeholder:text-gray-500 dark:placeholder:text-slate-400 font-medium shadow-sm rounded-xl"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="manual-lot" className="text-base font-semibold text-gray-900 dark:text-slate-100">
+                        Lot Number (Optional)
+                      </Label>
+                      <Input
+                        id="manual-lot"
+                        value={newReplacement.sensor_lot_number}
+                        onChange={(e) => setNewReplacement({ ...newReplacement, sensor_lot_number: e.target.value })}
+                        placeholder="Enter lot number"
+                        className="h-14 border-2 border-gray-300 dark:border-slate-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 text-base bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 placeholder:text-gray-500 dark:placeholder:text-slate-400 font-medium shadow-sm rounded-xl"
+                      />
                     </div>
                   </div>
-                )}
+                </div>
               </div>
 
             {/* Shipping Information */}
@@ -501,34 +493,10 @@ export default function ReplacementTracker() {
           <Button 
             onClick={() => setIsAddingNew(true)} 
             className="btn-primary inline-flex items-center space-x-2"
-            disabled={sensors.length === 0}
           >
             <Plus className="w-5 h-5" />
-            <span>{sensors.length === 0 ? 'Add Sensors First' : 'Add First Tracking'}</span>
+            <span>Add First Tracking</span>
           </Button>
-          {sensors.length === 0 && (
-            <div className="mt-6 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl">
-              <p className="text-amber-800 dark:text-amber-200 mb-3">
-                You need to add sensors to your account before you can track replacements.
-              </p>
-              <div className="flex gap-3 justify-center">
-                <a 
-                  href="/dashboard/sensors/new" 
-                  className="btn-primary inline-flex items-center space-x-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Add Sensor</span>
-                </a>
-                <a 
-                  href="/dashboard/sensors" 
-                  className="btn-secondary inline-flex items-center space-x-2"
-                >
-                  <Package className="w-4 h-4" />
-                  <span>View Sensors</span>
-                </a>
-              </div>
-            </div>
-          )}
         </div>
       ) : (
         <div className="grid gap-4">

@@ -7,8 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Utensils, Calculator, Syringe, Activity } from 'lucide-react';
+import { Utensils, Calculator, Syringe, Activity, ChefHat } from 'lucide-react';
 import { logger } from '@/lib/logger';
+import { MultiItemCustomFoodForm } from './multi-item-custom-food-form';
 
 
 interface SmartFoodLoggerProps {
@@ -38,6 +39,7 @@ export function SmartFoodLogger({
   const [servingSize, setServingSize] = useState('1');
   const [customCarbs, setCustomCarbs] = useState('');
   const [showInsulinSuggestion, setShowInsulinSuggestion] = useState(false);
+  const [showMultiItemForm, setShowMultiItemForm] = useState(false);
 
 
 
@@ -228,12 +230,36 @@ export function SmartFoodLogger({
     }
   };
 
+  if (showMultiItemForm) {
+    return (
+      <MultiItemCustomFoodForm
+        onCancel={() => setShowMultiItemForm(false)}
+        onSuccess={(food) => {
+          setSelectedFood(food);
+          setShowMultiItemForm(false);
+          setShowInsulinSuggestion(true);
+        }}
+      />
+    );
+  }
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Utensils className="h-5 w-5" />
-          Smart Food Logger
+        <CardTitle className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Utensils className="h-5 w-5" />
+            Smart Food Logger
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowMultiItemForm(true)}
+            className="flex items-center gap-2"
+          >
+            <ChefHat className="h-4 w-4" />
+            Create Recipe
+          </Button>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">

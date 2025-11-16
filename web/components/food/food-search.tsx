@@ -1,12 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { Search, Barcode, Loader2, ShoppingCart, Plus, Heart, Camera, Syringe } from 'lucide-react';
+import { Search, Barcode, Loader2, ShoppingCart, Plus, Heart, Camera, Syringe, ChefHat } from 'lucide-react';
 import { BarcodeScanner } from './barcode-scanner';
 import { FoodLogForm } from './food-log-form';
 import { IntegratedMealLogger } from './integrated-meal-logger';
 import { MultiFoodLogForm } from './multi-food-log-form';
-import { CustomFoodForm } from './custom-food-form';
+import { MultiItemCustomFoodForm } from './multi-item-custom-food-form';
 import { FavoritesList } from './favorites-list';
 import { FavoriteButton } from './favorite-button';
 import { MyCustomFoods } from './my-custom-foods';
@@ -14,7 +14,7 @@ import { CameraPermissionDialog } from '@/components/ui/camera-permission-dialog
 import { useCameraPermission } from '@/lib/hooks/use-camera-permission';
 import { logger } from '@/lib/logger';
 
-type SearchMode = 'search' | 'barcode' | 'custom' | 'favorites' | 'manage';
+type SearchMode = 'search' | 'barcode' | 'custom' | 'recipe' | 'favorites' | 'manage';
 type SearchModeValue = SearchMode;
 
 interface FoodSearchProps {
@@ -158,9 +158,9 @@ export function FoodSearch({ onFoodLogged }: FoodSearchProps) {
     }
   }
 
-  if (searchMode === 'custom') {
+  if (searchMode === 'custom' || searchMode === 'recipe') {
     return (
-      <CustomFoodForm
+      <MultiItemCustomFoodForm
         onCancel={() => setSearchMode('search')}
         onSuccess={(food) => {
           setSelectedFood(food);
@@ -301,13 +301,13 @@ export function FoodSearch({ onFoodLogged }: FoodSearchProps) {
         <button
           onClick={() => setSearchMode('custom')}
           className={`py-3 md:py-2 px-2 rounded-lg transition-colors text-sm touch-manipulation ${
-            currentMode === 'custom'
+            currentMode === 'custom' || currentMode === 'recipe'
               ? 'bg-blue-600 text-white'
               : 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300'
           }`}
         >
-          <Plus className="w-4 h-4 inline mr-1" />
-          <span className="hidden sm:inline">Custom</span>
+          <ChefHat className="w-4 h-4 inline mr-1" />
+          <span className="hidden sm:inline">Create</span>
         </button>
         <button
           onClick={() => setSearchMode('manage')}
