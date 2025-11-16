@@ -72,8 +72,8 @@ export function IOBDecayChart({ className = '' }: IOBDecayChartProps) {
       if (error) throw error;
 
       const now = new Date();
-      const activeLogs = (logs || []).filter(log => {
-        const logTime = new Date(log.taken_at);
+      const activeLogs = (logs || []).filter(log => log.taken_at).filter(log => {
+        const logTime = new Date(log.taken_at!);
         const hoursElapsed = (now.getTime() - logTime.getTime()) / (1000 * 60 * 60);
         const actionTime = log.insulin_type === 'short' ? 6 : 4;
         return hoursElapsed < actionTime;
@@ -82,10 +82,10 @@ export function IOBDecayChart({ className = '' }: IOBDecayChartProps) {
       setActiveDoses(activeLogs as InsulinLog[]);
 
       // Convert logs to IOB calculator format
-      const iobDoses: IOBInsulinDose[] = activeLogs.map(log => ({
-        id: log.id,
-        amount: log.units,
-        timestamp: new Date(log.taken_at),
+      const iobDoses: IOBInsulinDose[] = activeLogs.filter(log => log.id && log.units).map(log => ({
+        id: log.id!,
+        amount: log.units!,
+        timestamp: new Date(log.taken_at!),
         insulinType: log.insulin_type as 'rapid' | 'short' | 'intermediate' | 'long',
         duration: getInsulinDuration(log.insulin_type as any),
       }));

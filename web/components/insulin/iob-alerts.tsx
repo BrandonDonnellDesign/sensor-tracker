@@ -58,10 +58,10 @@ export function IOBAlerts({ className = '' }: IOBAlertsProps) {
 
       // Calculate current IOB using tested utility
       const now = new Date();
-      const iobDoses: InsulinDose[] = (logs || []).map(log => ({
+      const iobDoses: InsulinDose[] = (logs || []).filter(log => log.units && log.taken_at).map(log => ({
         id: log.id || `${log.taken_at}-${log.units}`,
-        amount: log.units,
-        timestamp: new Date(log.taken_at),
+        amount: log.units!,
+        timestamp: new Date(log.taken_at!),
         insulinType: log.insulin_type as 'rapid' | 'short' | 'intermediate' | 'long',
         duration: getInsulinDuration(log.insulin_type as any),
       }));
@@ -91,8 +91,8 @@ export function IOBAlerts({ className = '' }: IOBAlertsProps) {
       }
 
       // Check for stacking (multiple doses within 2 hours)
-      const recentDoses = logs?.filter(log => {
-        const logTime = new Date(log.taken_at);
+      const recentDoses = logs?.filter(log => log.taken_at).filter(log => {
+        const logTime = new Date(log.taken_at!);
         const hoursAgo = (now.getTime() - logTime.getTime()) / (1000 * 60 * 60);
         return hoursAgo < 2;
       });

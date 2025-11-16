@@ -53,7 +53,7 @@ export default function SettingsPage() {
         if (error && error.code === 'PGRST116') {
           // Profile doesn't exist, create a basic one with default values
           
-          const defaultProfile: Profile = {
+          const defaultProfile: any = {
             id: user.id,
             username: user.user_metadata?.username || user.email?.split('@')[0] || null,
             full_name: user.user_metadata?.full_name || null,

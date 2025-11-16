@@ -36,11 +36,11 @@ export async function GET(request: NextRequest) {
     }
 
     // Calculate basic statistics
-    const totalInsulin = logs?.reduce((sum, log) => sum + log.units, 0) || 0;
-    const totalBolus = logs?.filter(log => log.delivery_type !== 'basal').reduce((sum, log) => sum + log.units, 0) || 0;
-    const totalBasal = logs?.filter(log => log.delivery_type === 'basal').reduce((sum, log) => sum + log.units, 0) || 0;
+    const totalInsulin = logs?.reduce((sum, log) => sum + (log.units || 0), 0) || 0;
+    const totalBolus = logs?.filter(log => log.delivery_type !== 'basal').reduce((sum, log) => sum + (log.units || 0), 0) || 0;
+    const totalBasal = logs?.filter(log => log.delivery_type === 'basal').reduce((sum, log) => sum + (log.units || 0), 0) || 0;
     const totalEntries = logs?.length || 0;
-    const daysWithData = new Set(logs?.map(log => new Date(log.taken_at).toDateString())).size;
+    const daysWithData = new Set(logs?.filter(log => log.taken_at).map(log => new Date(log.taken_at!).toDateString())).size;
 
     // Calculate daily averages
     const dailyAverageTotal = daysWithData > 0 ? totalInsulin / daysWithData : 0;
@@ -53,24 +53,25 @@ export async function GET(request: NextRequest) {
 
     // Calculate insulin type breakdown
     const insulinTypeBreakdown = logs?.reduce((acc, log) => {
-      if (log.delivery_type !== 'basal') { // Only count bolus insulin types
+      if (log.delivery_type !== 'basal' && log.insulin_type && log.units) { // Only count bolus insulin types
         acc[log.insulin_type] = (acc[log.insulin_type] || 0) + log.units;
       }
       return acc;
     }, {} as Record<string, number>) || {};
 
     // Calculate daily totals for trend analysis
-    const dailyTotals = logs?.reduce((acc, log) => {
-      const date = new Date(log.taken_at).toDateString();
+    const dailyTotals = logs?.filter(log => log.taken_at).reduce((acc, log) => {
+      const date = new Date(log.taken_at!).toDateString();
       if (!acc[date]) {
         acc[date] = { bolus: 0, basal: 0, total: 0 };
       }
+      const units = log.units || 0;
       if (log.delivery_type === 'basal') {
-        acc[date].basal += log.units;
+        acc[date].basal += units;
       } else {
-        acc[date].bolus += log.units;
+        acc[date].bolus += units;
       }
-      acc[date].total += log.units;
+      acc[date].total += units;
       return acc;
     }, {} as Record<string, { bolus: number; basal: number; total: number }>) || {};
 
@@ -103,12 +104,12 @@ export async function GET(request: NextRequest) {
         .in('insulin_type', ['rapid', 'short']);
 
       let totalIOB = 0;
-      recentLogs?.forEach(log => {
-        const logTime = new Date(log.taken_at);
+      recentLogs?.filter(log => log.taken_at).forEach(log => {
+        const logTime = new Date(log.taken_at!);
         const hoursElapsed = (now.getTime() - logTime.getTime()) / (1000 * 60 * 60);
         const actionTime = log.insulin_type === 'short' ? 6 : 4;
         
-        if (hoursElapsed < actionTime) {
+        if (hoursElapsed < actionTime && log.units) {
           const remainingPercentage = Math.max(0, (actionTime - hoursElapsed) / actionTime);
           totalIOB += log.units * remainingPercentage;
         }

@@ -47,7 +47,7 @@ export function EnhancedDoseHistory() {
         .limit(500);
 
       if (error) throw error;
-      setLogs(data || []);
+      setLogs((data as any) || []);
     } catch (error) {
       console.error('Error loading logs:', error);
     } finally {

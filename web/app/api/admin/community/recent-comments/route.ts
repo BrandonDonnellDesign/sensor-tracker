@@ -54,14 +54,19 @@ export async function GET() {
     const commentIds = comments?.map(c => c.id) || [];
     let commentVotes: Record<string, { upvotes: number; downvotes: number }> = {};
 
-    if (commentIds.length > 0) {
-      const { data: votes } = await supabase
-        .from('community_comment_votes')
-        .select('comment_id, vote_type')
-        .in('comment_id', commentIds);
+    // TODO: Implement comment votes table
+    // if (commentIds.length > 0) {
+    //   const { data: votes } = await supabase
+    //     .from('community_comment_votes')
+    //     .select('comment_id, vote_type')
+    //     .in('comment_id', commentIds);
 
+    //   if (votes) {
+    //     commentVotes = votes.reduce((acc, vote) => {
+    if (false && commentIds.length > 0) {
+      const votes: any[] = [];
       if (votes) {
-        commentVotes = votes.reduce((acc, vote) => {
+        commentVotes = votes.reduce((acc: any, vote: any) => {
           if (vote.comment_id && !acc[vote.comment_id]) {
             acc[vote.comment_id] = { upvotes: 0, downvotes: 0 };
           }

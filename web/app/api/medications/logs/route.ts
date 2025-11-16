@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
         custom_name: log.insulin_name,
         brand_name: log.insulin_name,
         medication_type: {
-          name: `${log.insulin_type.charAt(0).toUpperCase() + log.insulin_type.slice(1)}-Acting Insulin`,
+          name: log.insulin_type ? `${log.insulin_type.charAt(0).toUpperCase() + log.insulin_type.slice(1)}-Acting Insulin` : 'Insulin',
           category: 'insulin'
         }
       }

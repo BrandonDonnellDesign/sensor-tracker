@@ -13,17 +13,14 @@ export async function GET() {
 
     // Get user notifications
     const { data: notifications, error } = await supabase
-      .from('user_notifications')
+      .from('notifications')
       .select(`
         id,
         type,
         title,
         message,
-        is_read,
-        created_at,
-        related_tip_id,
-        related_comment_id,
-        action_url
+        read,
+        created_at
       `)
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
@@ -35,10 +32,10 @@ export async function GET() {
 
     // Count unread notifications
     const { count: unreadCount } = await supabase
-      .from('user_notifications')
+      .from('notifications')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', user.id)
-      .eq('is_read', false);
+      .eq('read', false);
 
     return NextResponse.json({
       notifications: notifications || [],
@@ -63,20 +60,17 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { type, title, message, relatedTipId, relatedCommentId, actionUrl } = body;
+    const { type, title, message } = body;
 
     // Create notification
     const { data: notification, error } = await supabase
-      .from('user_notifications')
+      .from('notifications')
       .insert({
         user_id: user.id,
         type,
         title,
         message,
-        related_tip_id: relatedTipId,
-        related_comment_id: relatedCommentId,
-        action_url: actionUrl,
-        is_read: false
+        read: false
       })
       .select()
       .single();

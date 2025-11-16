@@ -13,10 +13,10 @@ export async function POST() {
 
     // Mark all notifications as read
     const { error } = await supabase
-      .from('user_notifications')
-      .update({ is_read: true })
+      .from('notifications')
+      .update({ read: true })
       .eq('user_id', user.id)
-      .eq('is_read', false);
+      .eq('read', false);
 
     if (error) {
       throw error;

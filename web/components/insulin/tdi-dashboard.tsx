@@ -63,14 +63,14 @@ export function TDIDashboard({ className = '' }: TDIDashboardProps) {
       // Group by date and calculate daily totals
       const dailyTotals = new Map<string, { bolus: number; basal: number }>();
       
-      logs?.forEach(log => {
-        const date = new Date(log.taken_at).toISOString().split('T')[0];
+      logs?.filter(log => log.taken_at && log.units).forEach(log => {
+        const date = new Date(log.taken_at!).toISOString().split('T')[0];
         const current = dailyTotals.get(date) || { bolus: 0, basal: 0 };
         
         if (log.delivery_type === 'basal') {
-          current.basal += log.units;
+          current.basal += log.units!;
         } else {
-          current.bolus += log.units;
+          current.bolus += log.units!;
         }
         
         dailyTotals.set(date, current);

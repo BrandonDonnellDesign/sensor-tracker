@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     
     // Build query
     let query = supabase
-      .from('community_comments_with_stats')
+      .from('community_tip_comments')
       .select('*', { count: 'exact' });
     
     // Apply filters
@@ -62,9 +62,9 @@ export async function GET(request: NextRequest) {
       tipTitle: 'Unknown', // tip_title not available in view
       parentId: comment.parent_comment_id,
       stats: {
-        upvotes: comment.upvotes || 0,
-        downvotes: comment.downvotes || 0,
-        netVotes: comment.net_votes || 0
+        upvotes: 0,
+        downvotes: 0,
+        netVotes: 0
       },
       createdAt: comment.created_at,
       updatedAt: comment.updated_at

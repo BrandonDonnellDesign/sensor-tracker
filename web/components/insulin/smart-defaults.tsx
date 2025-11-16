@@ -57,12 +57,14 @@ export function SmartDefaults({ onDefaultsCalculated, className = '' }: SmartDef
         
         // 1. Most common insulin type by time of day
         const hourlyInsulinTypes = logs
-          .filter(log => log.delivery_type !== 'basal')
+          .filter(log => log.delivery_type !== 'basal' && log.taken_at)
           .reduce((acc, log) => {
-            const hour = new Date(log.taken_at).getHours();
+            const hour = new Date(log.taken_at!).getHours();
             const timeRange = getTimeRange(hour);
             if (!acc[timeRange]) acc[timeRange] = {};
-            acc[timeRange][log.insulin_type] = (acc[timeRange][log.insulin_type] || 0) + 1;
+            if (log.insulin_type) {
+              acc[timeRange][log.insulin_type] = (acc[timeRange][log.insulin_type] || 0) + 1;
+            }
             return acc;
           }, {} as Record<string, Record<string, number>>);
 
@@ -84,12 +86,12 @@ export function SmartDefaults({ onDefaultsCalculated, className = '' }: SmartDef
 
         // 2. Average dose size by time of day
         const hourlyDoses = logs
-          .filter(log => log.delivery_type !== 'basal')
+          .filter(log => log.delivery_type !== 'basal' && log.taken_at && log.units)
           .reduce((acc, log) => {
-            const hour = new Date(log.taken_at).getHours();
+            const hour = new Date(log.taken_at!).getHours();
             const timeRange = getTimeRange(hour);
             if (!acc[timeRange]) acc[timeRange] = [];
-            acc[timeRange].push(log.units);
+            acc[timeRange].push(log.units!);
             return acc;
           }, {} as Record<string, number[]>);
 
@@ -106,9 +108,9 @@ export function SmartDefaults({ onDefaultsCalculated, className = '' }: SmartDef
 
         // 3. Most common meal relation by time
         const mealRelations = logs
-          .filter(log => log.meal_relation && log.delivery_type !== 'basal')
+          .filter(log => log.meal_relation && log.delivery_type !== 'basal' && log.taken_at)
           .reduce((acc, log) => {
-            const hour = new Date(log.taken_at).getHours();
+            const hour = new Date(log.taken_at!).getHours();
             const timeRange = getTimeRange(hour);
             if (!acc[timeRange]) acc[timeRange] = {};
             acc[timeRange][log.meal_relation!] = (acc[timeRange][log.meal_relation!] || 0) + 1;

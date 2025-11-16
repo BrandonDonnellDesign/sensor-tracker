@@ -19,7 +19,7 @@ export async function DELETE(
 
     // Delete notification
     const { error } = await supabase
-      .from('user_notifications')
+      .from('notifications')
       .delete()
       .eq('id', notificationId)
       .eq('user_id', user.id);

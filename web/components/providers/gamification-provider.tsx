@@ -289,7 +289,7 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
     try {
       const supabase = createClient();
       console.log('Recording activity:', { activity, userId: user.id });
-      const { error, data } = await (supabase as any).rpc('update_daily_activity', {
+      const { error } = await (supabase as any).rpc('update_daily_activity', {
         p_activity: activity,
         p_user_id: user.id
       });

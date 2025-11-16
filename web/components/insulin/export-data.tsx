@@ -56,8 +56,8 @@ export function ExportData({ className = '' }: ExportDataProps) {
 
       const csvContent = [
         headers.join(','),
-        ...logs.map(log => {
-          const date = new Date(log.taken_at);
+        ...logs.filter(log => log.taken_at).map(log => {
+          const date = new Date(log.taken_at!);
           return [
             date.toLocaleDateString(),
             date.toLocaleTimeString(),

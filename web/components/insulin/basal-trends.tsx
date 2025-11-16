@@ -63,10 +63,10 @@ export function BasalTrends({ className = '' }: BasalTrendsProps) {
       // Group by date and sum basal for each day
       const dailyBasal = new Map<string, number>();
       
-      logs?.forEach(log => {
-        const date = new Date(log.taken_at).toISOString().split('T')[0];
+      logs?.filter(log => log.taken_at && log.units).forEach(log => {
+        const date = new Date(log.taken_at!).toISOString().split('T')[0];
         const current = dailyBasal.get(date) || 0;
-        dailyBasal.set(date, current + log.units);
+        dailyBasal.set(date, current + log.units!);
       });
 
       // Create array with all days (including zeros)

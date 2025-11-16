@@ -1184,21 +1184,24 @@ async function handleCsvImport(file: File, userId: string, supabase: any) {
         }
 
         // Write directly to pump tables
-        const writeResult = await writePumpData(supabase, {
+        const pumpData: any = {
           user_id: userId,
           timestamp: takenAt.toISOString(),
           units: dose,
           insulin_type: insulinInfo.insulinType,
           insulin_name: insulinInfo.insulinName,
           delivery_type: insulinInfo.deliveryType,
-          meal_relation: mealRelation,
           injection_site: 'pump',
-          blood_glucose_before: bgBefore,
           notes: combinedNotes,
           logged_via: 'csv_import',
-          carbs: carbs ? parseFloat(carbs) : undefined,
-          carb_ratio: carbsRatio,
-        });
+        };
+        
+        if (mealRelation) pumpData.meal_relation = mealRelation;
+        if (bgBefore) pumpData.blood_glucose_before = bgBefore;
+        if (carbs) pumpData.carbs = parseFloat(carbs);
+        if (carbsRatio) pumpData.carb_ratio = carbsRatio;
+        
+        const writeResult = await writePumpData(supabase, pumpData);
 
         if (writeResult.success) {
           result.imported++;

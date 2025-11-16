@@ -183,18 +183,22 @@ export function SmartFoodLogger({
         })
       });
 
-      if (response.ok) {
-        // Reset form
-        setSelectedFood(null);
-        setSearchQuery('');
-        setServingSize('1');
-        setCustomCarbs('');
-        setShowInsulinSuggestion(false);
-        
-        onFoodLogged?.();
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Failed to log food: ${response.status}`);
       }
+
+      // Reset form
+      setSelectedFood(null);
+      setSearchQuery('');
+      setServingSize('1');
+      setCustomCarbs('');
+      setShowInsulinSuggestion(false);
+      
+      onFoodLogged?.();
     } catch (error) {
       logger.error('Error logging food:', error);
+      console.error('Full error details:', error);
     } finally {
       setIsLoading(false);
     }

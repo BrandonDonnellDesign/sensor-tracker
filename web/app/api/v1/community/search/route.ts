@@ -63,10 +63,10 @@ export async function GET(request: NextRequest) {
     // Search comments
     if (type === 'all' || type === 'comments') {
       const { data: comments, error: commentsError, count: commentsCount } = await supabase
-        .from('community_comments_with_stats')
+        .from('community_tip_comments')
         .select('*', { count: 'exact' })
         .ilike('content', `%${query}%`)
-        .order('net_votes', { ascending: false })
+        .order('created_at', { ascending: false })
         .range((page - 1) * limit, page * limit - 1);
       
       if (!commentsError && comments) {
@@ -80,9 +80,9 @@ export async function GET(request: NextRequest) {
           tipId: comment.tip_id,
           tipTitle: 'Unknown', // tip_title not available in view
           stats: {
-            upvotes: comment.upvotes || 0,
-            downvotes: comment.downvotes || 0,
-            netVotes: comment.net_votes || 0
+            upvotes: 0,
+            downvotes: 0,
+            netVotes: 0
           },
           createdAt: comment.created_at,
           relevanceScore: calculateRelevanceScore(query, '', comment.content || '')
