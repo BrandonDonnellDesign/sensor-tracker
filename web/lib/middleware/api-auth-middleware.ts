@@ -59,7 +59,7 @@ export async function withApiAuth(
       
       let authenticated = false;
       
-      // Try API Key authentication
+      // Try API Key authentication (x-api-key header)
       if (allowApiKey && apiKeyHeader) {
         const apiKeyData = await verifyApiKey(apiKeyHeader);
         if (apiKeyData) {
@@ -74,11 +74,29 @@ export async function withApiAuth(
         }
       }
       
-      // Try JWT authentication
-      if (allowJWT && !authenticated && authHeader?.startsWith('Bearer ')) {
-        // For now, skip JWT validation - we'll implement this later
-        // TODO: Implement JWT validation with proper Supabase client
-        console.log('JWT authentication not yet implemented');
+      // Try Bearer token authentication (could be API key or JWT)
+      if (!authenticated && authHeader?.startsWith('Bearer ')) {
+        const token = authHeader.substring(7);
+        
+        // Check if it's an API key (starts with sk_)
+        if (allowApiKey && token.startsWith('sk_')) {
+          const apiKeyData = await verifyApiKey(token);
+          if (apiKeyData) {
+            authContext.apiKey = {
+              id: apiKeyData.id,
+              userId: '', // We'll need to get this from the database
+              tier: apiKeyData.tier,
+              rateLimitPerHour: apiKeyData.rateLimitPerHour
+            };
+            rateLimitPerHour = apiKeyData.rateLimitPerHour;
+            authenticated = true;
+          }
+        } else if (allowJWT) {
+          // It's a JWT token
+          // For now, skip JWT validation - we'll implement this later
+          // TODO: Implement JWT validation with proper Supabase client
+          console.log('JWT authentication not yet implemented');
+        }
       }
       
       if (!authenticated) {

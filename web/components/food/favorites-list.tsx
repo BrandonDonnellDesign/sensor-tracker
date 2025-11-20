@@ -17,6 +17,7 @@ export function FavoritesList({ onSelectFood, onAddToMeal, onRefresh }: Favorite
   const [isLoading, setIsLoading] = useState(true);
   const [editingFavorite, setEditingFavorite] = useState<string | null>(null);
   const [editNickname, setEditNickname] = useState('');
+  const [addedToMeal, setAddedToMeal] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -253,11 +254,19 @@ export function FavoritesList({ onSelectFood, onAddToMeal, onRefresh }: Favorite
                   </button>
                   {onAddToMeal && (
                     <button
-                      onClick={() => onAddToMeal(favorite.food)}
-                      className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg transition-colors whitespace-nowrap"
+                      onClick={() => {
+                        onAddToMeal(favorite.food);
+                        setAddedToMeal(favorite.favoriteId);
+                        setTimeout(() => setAddedToMeal(null), 2000);
+                      }}
+                      className={`px-3 py-2 text-white text-sm rounded-lg transition-all whitespace-nowrap ${
+                        addedToMeal === favorite.favoriteId
+                          ? 'bg-green-700 scale-95'
+                          : 'bg-green-600 hover:bg-green-700'
+                      }`}
                       title="Add to meal cart"
                     >
-                      + Meal
+                      {addedToMeal === favorite.favoriteId ? '✓ Added!' : '+ Meal'}
                     </button>
                   )}
                 </div>

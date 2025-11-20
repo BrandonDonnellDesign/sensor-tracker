@@ -38,7 +38,7 @@ export async function authenticateApiRequest(request: NextRequest): Promise<Auth
     let apiKeyId: string | undefined;
     let rateLimit = 100; // default rate limit
 
-    // Try API key authentication first
+    // Try API key authentication first (x-api-key header)
     if (apiKeyHeader) {
       const apiKey = await verifyApiKey(apiKeyHeader);
       if (!apiKey) {
@@ -63,20 +63,48 @@ export async function authenticateApiRequest(request: NextRequest): Promise<Auth
         userId = keyData.user_id;
       }
     }
-    // Try JWT authentication
+    // Try Bearer token authentication (could be JWT or API key)
     else if (authHeader?.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
-      const supabase = await createClient();
       
-      const { data: { user }, error } = await supabase.auth.getUser(token);
-      if (error || !user) {
-        return {
-          success: false,
-          error: 'Invalid JWT token'
-        };
+      // Check if it's an API key (starts with sk_)
+      if (token.startsWith('sk_')) {
+        const apiKey = await verifyApiKey(token);
+        if (!apiKey) {
+          return {
+            success: false,
+            error: 'Invalid API key'
+          };
+        }
+        
+        apiKeyId = apiKey.id;
+        rateLimit = apiKey.rateLimitPerHour;
+        
+        // Get user ID from API key
+        const supabase = await createClient();
+        const { data: keyData } = await supabase
+          .from('api_keys')
+          .select('user_id')
+          .eq('id', apiKey.id)
+          .single();
+        
+        if (keyData) {
+          userId = keyData.user_id;
+        }
+      } else {
+        // It's a JWT token
+        const supabase = await createClient();
+        
+        const { data: { user }, error } = await supabase.auth.getUser(token);
+        if (error || !user) {
+          return {
+            success: false,
+            error: 'Invalid JWT token'
+          };
+        }
+        
+        userId = user.id;
       }
-      
-      userId = user.id;
     }
     else {
       return {

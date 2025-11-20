@@ -53,36 +53,63 @@ export async function PATCH(
     if (error) throw error;
 
     // If marking as delivered, increment inventory
-    if (status === 'delivered' && replacement.sensor_model_id) {
+    if (status === 'delivered') {
       try {
-        // Check if inventory exists for this sensor model
-        const { data: existingInventory } = await (supabase as any)
-          .from('sensor_inventory')
-          .select('id, quantity')
-          .eq('user_id', user.id)
-          .eq('sensor_model_id', replacement.sensor_model_id)
-          .single();
+        let sensorModelId = replacement.sensor_model_id;
+        
+        // If sensor_model_id is missing, try to find it from the sensor
+        if (!sensorModelId && replacement.sensor_serial_number) {
+          const { data: sensor } = await (supabase as any)
+            .from('sensors')
+            .select('sensor_model_id')
+            .eq('user_id', user.id)
+            .eq('serial_number', replacement.sensor_serial_number)
+            .single();
+          
+          if (sensor?.sensor_model_id) {
+            sensorModelId = sensor.sensor_model_id;
+            // Update the replacement record with the sensor_model_id
+            await (supabase as any)
+              .from('sensor_replacements')
+              .update({ sensor_model_id: sensorModelId })
+              .eq('id', id);
+          }
+        }
+        
+        if (sensorModelId) {
+          // Check if inventory exists for this sensor model
+          const { data: existingInventory } = await (supabase as any)
+            .from('sensor_inventory')
+            .select('id, quantity')
+            .eq('user_id', user.id)
+            .eq('sensor_model_id', sensorModelId)
+            .single();
 
-        if (existingInventory) {
-          // Update existing inventory - increment by 1
-          await (supabase as any)
-            .from('sensor_inventory')
-            .update({
-              quantity: existingInventory.quantity + 1,
-              last_updated: new Date().toISOString()
-            })
-            .eq('id', existingInventory.id);
+          if (existingInventory) {
+            // Update existing inventory - increment by 1
+            await (supabase as any)
+              .from('sensor_inventory')
+              .update({
+                quantity: existingInventory.quantity + 1,
+                last_updated: new Date().toISOString()
+              })
+              .eq('id', existingInventory.id);
+          } else {
+            // Create new inventory record with quantity 1
+            await (supabase as any)
+              .from('sensor_inventory')
+              .insert({
+                user_id: user.id,
+                sensor_model_id: sensorModelId,
+                quantity: 1,
+                location: 'Replacement delivery',
+                notes: `Added from replacement tracking: ${replacement.tracking_number}`
+              });
+          }
+          
+          console.log(`Successfully added 1 sensor to inventory for model ${sensorModelId}`);
         } else {
-          // Create new inventory record with quantity 1
-          await (supabase as any)
-            .from('sensor_inventory')
-            .insert({
-              user_id: user.id,
-              sensor_model_id: replacement.sensor_model_id,
-              quantity: 1,
-              location: 'Replacement delivery',
-              notes: `Added from replacement tracking: ${replacement.tracking_number}`
-            });
+          console.warn('Could not determine sensor_model_id for inventory update');
         }
       } catch (inventoryError) {
         console.error('Error updating inventory:', inventoryError);

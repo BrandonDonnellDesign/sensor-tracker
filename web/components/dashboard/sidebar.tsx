@@ -54,7 +54,12 @@ const primaryNavigation = [
     icon: Activity,
     description: 'Manage your sensors',
   },
-
+  {
+    name: 'Inventory',
+    href: '/dashboard/inventory',
+    icon: Package,
+    description: 'Supplies & stock',
+  },
   {
     name: 'Replacement Tracking',
     href: '/dashboard/replacement-tracking',

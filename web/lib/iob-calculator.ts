@@ -95,7 +95,7 @@ export function calculateIOB(
   let expiredIOB = 0;
   
   const doseDetails = doses.map(dose => {
-    const hoursElapsed = (currentTime.getTime() - dose.timestamp.getTime()) / (1000 * 60 * 60);
+    const hoursElapsed = Math.max(0, (currentTime.getTime() - dose.timestamp.getTime()) / (1000 * 60 * 60));
     const decayFactor = calculateDecayFactor(hoursElapsed, dose.duration);
     const remainingAmount = dose.amount * decayFactor;
     const percentageRemaining = decayFactor * 100;

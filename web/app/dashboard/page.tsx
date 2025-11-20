@@ -124,7 +124,8 @@ export default function DashboardPage() {
           sensor_models (
             manufacturer,
             model_name,
-            duration_days
+            duration_days,
+            grace_period_hours
           )
         `
           )
@@ -279,14 +280,20 @@ export default function DashboardPage() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [fetchSensors]);
 
-  // Filter out expired sensors for dashboard display
+  // Filter out expired sensors for dashboard display (include grace period)
   const activeSensorsData = sensors.filter((s) => {
-    const sensorModel = s.sensor_models || { duration_days: 10 };
+    const sensorModel = s.sensor_models || { duration_days: 10, grace_period_hours: 0 };
     const expirationDate = new Date(s.date_added);
     expirationDate.setDate(
       expirationDate.getDate() + sensorModel.duration_days
     );
-    return expirationDate > new Date(); // Only show non-expired sensors
+    
+    // Add grace period to expiration date
+    const gracePeriodHours = (sensorModel as any).grace_period_hours || 0;
+    const expirationWithGrace = new Date(expirationDate);
+    expirationWithGrace.setHours(expirationWithGrace.getHours() + gracePeriodHours);
+    
+    return expirationWithGrace > new Date(); // Show sensors within grace period
   });
 
   // Calculate dashboard metrics (using only active sensors)

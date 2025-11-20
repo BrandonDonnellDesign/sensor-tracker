@@ -313,20 +313,43 @@ export async function POST(request: NextRequest) {
     const supabase = await createClient();
     console.log('Supabase client created');
     
-    // Check authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    console.log('Auth check:', { user: user?.id, authError });
+    // Check for internal authentication first (from API key flow)
+    const internalUserId = request.headers.get('x-internal-user-id');
+    const internalAuth = request.headers.get('x-internal-auth');
     
-    if (authError || !user) {
-      console.log('Authentication failed:', authError);
-      return NextResponse.json({ 
-        error: 'Unauthorized',
-        success: false,
-        imported: 0,
-        skipped: 0,
-        errors: ['Unauthorized'],
-        duplicates: 0
-      }, { status: 401 });
+    let user: { id: string } | null = null;
+    let supabaseForInserts = supabase; // Default to regular client
+    
+    if (internalUserId && internalAuth === process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      // Internal authenticated request from API endpoint
+      console.log('Using internal authentication for user:', internalUserId);
+      user = { id: internalUserId };
+      
+      // Use service role client to bypass RLS for API key authenticated requests
+      const { createClient: createServiceClient } = await import('@supabase/supabase-js');
+      supabaseForInserts = createServiceClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+      );
+      console.log('Using service role client for inserts (bypassing RLS)');
+    } else {
+      // Regular session authentication
+      const { data: { user: sessionUser }, error: authError } = await supabase.auth.getUser();
+      console.log('Auth check:', { user: sessionUser?.id, authError });
+      
+      if (authError || !sessionUser) {
+        console.log('Authentication failed:', authError);
+        return NextResponse.json({ 
+          error: 'Unauthorized',
+          success: false,
+          imported: 0,
+          skipped: 0,
+          errors: ['Unauthorized'],
+          duplicates: 0
+        }, { status: 401 });
+      }
+      
+      user = sessionUser;
     }
 
     const formData = await request.formData();
@@ -368,9 +391,9 @@ export async function POST(request: NextRequest) {
     const isZipFile = file.name.toLowerCase().endsWith('.zip') || file.type === 'application/zip';
     
     if (isZipFile) {
-      return await handleZipImport(file, user.id, supabase);
+      return await handleZipImport(file, user.id, supabaseForInserts);
     } else {
-      return await handleCsvImport(file, user.id, supabase);
+      return await handleCsvImport(file, user.id, supabaseForInserts);
     }
   } catch (error) {
     console.error('Import error:', error);

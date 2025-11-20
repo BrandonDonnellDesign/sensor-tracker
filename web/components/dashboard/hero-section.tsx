@@ -52,6 +52,7 @@ export function HeroSection({ currentSensor, totalSensors }: HeroSectionProps) {
           manufacturer: currentSensor.sensor_models.manufacturer,
           modelName: currentSensor.sensor_models.model_name,
           duration_days: currentSensor.sensor_models.duration_days,
+          grace_period_hours: (currentSensor.sensor_models as any).grace_period_hours || 0,
           isActive: true,
           createdAt: new Date(),
           updatedAt: new Date(),
@@ -68,6 +69,8 @@ export function HeroSection({ currentSensor, totalSensors }: HeroSectionProps) {
               : 'FreeStyle Libre',
           duration_days:
             (currentSensor as any).sensor_type === 'dexcom' ? 10 : 14,
+          grace_period_hours:
+            (currentSensor as any).sensor_type === 'dexcom' ? 12 : 0,
           isActive: true,
           createdAt: new Date(),
           updatedAt: new Date(),
@@ -150,7 +153,14 @@ export function HeroSection({ currentSensor, totalSensors }: HeroSectionProps) {
 
       {/* PRIMARY ACTIVE SENSOR CARD */}
       {sensorStatus ? (
-        <div className='flex flex-col lg:flex-row justify-between items-start lg:items-center bg-gradient-to-r from-green-500 to-emerald-600 text-white p-6 md:p-8 mb-8 rounded-xl shadow-lg'>
+        <div className={`flex flex-col lg:flex-row justify-between items-start lg:items-center text-white p-6 md:p-8 mb-8 rounded-xl shadow-lg ${
+          getSensorExpirationInfo(
+            new Date(sensorStatus.sensor.date_added),
+            sensorStatus.model
+          ).inGracePeriod
+            ? 'bg-gradient-to-r from-red-500 to-red-600'
+            : 'bg-gradient-to-r from-green-500 to-emerald-600'
+        }`}>
           <div className='flex flex-col mb-4 lg:mb-0'>
             <span className='text-lg font-semibold'>
               {sensorStatus.model.manufacturer} {sensorStatus.model.modelName} -{' '}
@@ -174,30 +184,23 @@ export function HeroSection({ currentSensor, totalSensors }: HeroSectionProps) {
               )}
             </span>
 
-            <div className='font-light text-sm opacity-90'>Time Remaining</div>
-            <div className='flex items-baseline mt-1'>
-              <span className='text-4xl md:text-5xl font-extrabold'>
-                {Math.floor(
-                  getSensorExpirationInfo(
-                    new Date(sensorStatus.sensor.date_added),
-                    sensorStatus.model
-                  ).daysLeft
-                )}
-              </span>
-              <span className='text-xl md:text-2xl font-bold ml-1 mr-4'>
-                Days
-              </span>
-              <span className='text-2xl md:text-3xl font-extrabold'>
-                {Math.floor(
-                  (getSensorExpirationInfo(
-                    new Date(sensorStatus.sensor.date_added),
-                    sensorStatus.model
-                  ).expirationDate.getTime() -
-                    new Date().getTime()) /
-                    (1000 * 60 * 60)
-                ) % 24}
-              </span>
-              <span className='text-lg md:text-xl font-bold ml-1'>Hrs</span>
+            <div className='font-light text-sm opacity-90'>
+              {getSensorExpirationInfo(
+                new Date(sensorStatus.sensor.date_added),
+                sensorStatus.model
+              ).inGracePeriod ? 'Time Left in Grace Period' : 'Time Remaining'}
+            </div>
+            <div className='text-3xl md:text-4xl font-extrabold mt-1'>
+              {formatDaysLeft(
+                getSensorExpirationInfo(
+                  new Date(sensorStatus.sensor.date_added),
+                  sensorStatus.model
+                ).daysLeft,
+                getSensorExpirationInfo(
+                  new Date(sensorStatus.sensor.date_added),
+                  sensorStatus.model
+                )
+              )}
             </div>
 
             {/* Visual Progress Bar */}

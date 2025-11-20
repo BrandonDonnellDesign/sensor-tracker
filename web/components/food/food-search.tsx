@@ -102,7 +102,9 @@ export function FoodSearch({ onFoodLogged }: FoodSearchProps) {
 
 
   const handleAddToMeal = (food: any) => {
-    setMealItems([...mealItems, food]);
+    const updatedMeal = [...mealItems, food];
+    console.log('Adding to meal:', food.name, 'Total items:', updatedMeal.length);
+    setMealItems(updatedMeal);
     setSelectedFood(null);
     setSearchResults([]);
     setSearchQuery('');
@@ -173,14 +175,47 @@ export function FoodSearch({ onFoodLogged }: FoodSearchProps) {
   if (searchMode === 'favorites') {
     return (
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <button
-            onClick={() => setSearchMode('search')}
-            className="text-blue-600 hover:text-blue-700 text-sm"
-          >
-            ← Back to Search
-          </button>
-        </div>
+        {/* Meal Cart Badge - Show in favorites too */}
+        {mealItems.length > 0 && (
+          <div className="bg-gradient-to-r from-blue-50 to-green-50 dark:from-blue-900/20 dark:to-green-900/20 border-2 border-blue-300 dark:border-blue-700 rounded-xl p-4 shadow-lg">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <ShoppingCart className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                    {mealItems.length}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-base font-bold text-blue-700 dark:text-blue-300 block">
+                    {mealItems.length} item{mealItems.length > 1 ? 's' : ''} in meal
+                  </span>
+                  <span className="text-xs text-blue-600 dark:text-blue-400">
+                    Ready to log
+                  </span>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setMealItems([]);
+                    setShowMealReview(false);
+                  }}
+                  className="px-3 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-gray-700 dark:text-slate-300 text-sm rounded-lg transition-colors"
+                >
+                  Clear
+                </button>
+                <button
+                  onClick={() => setShowMealReview(true)}
+                  className="px-4 py-2 bg-gradient-to-r from-blue-600 to-green-600 hover:from-blue-700 hover:to-green-700 text-white text-sm font-semibold rounded-lg shadow-md transition-all hover:shadow-lg"
+                >
+                  Review & Log Meal →
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        
         <FavoritesList 
           onSelectFood={(food) => {
             setSelectedFood(food);
@@ -188,24 +223,28 @@ export function FoodSearch({ onFoodLogged }: FoodSearchProps) {
           }}
           onAddToMeal={handleAddToMeal}
         />
+        
+        {/* Floating Meal Cart Button for Favorites */}
+        {mealItems.length > 0 && (
+          <button
+            onClick={() => setShowMealReview(true)}
+            className="fixed bottom-6 right-6 z-50 bg-gradient-to-r from-blue-600 to-green-600 hover:from-blue-700 hover:to-green-700 text-white px-6 py-4 rounded-full shadow-2xl flex items-center gap-3 transition-all hover:scale-105"
+          >
+            <div className="relative">
+              <ShoppingCart className="w-6 h-6" />
+              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                {mealItems.length}
+              </span>
+            </div>
+            <span className="font-semibold">Review Meal</span>
+          </button>
+        )}
       </div>
     );
   }
 
   if (searchMode === 'manage') {
-    return (
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <button
-            onClick={() => setSearchMode('search')}
-            className="text-blue-600 hover:text-blue-700 text-sm"
-          >
-            ← Back to Search
-          </button>
-        </div>
-        <MyCustomFoods onAddToMeal={handleAddToMeal} />
-      </div>
-    );
+    return <MyCustomFoods onAddToMeal={handleAddToMeal} />;
   }
 
   // Type assertion to fix TypeScript narrowing issue
@@ -213,22 +252,43 @@ export function FoodSearch({ onFoodLogged }: FoodSearchProps) {
 
   return (
     <div className="space-y-4">
-      {/* Meal Cart Badge */}
+      {/* Meal Cart Badge - Enhanced */}
       {mealItems.length > 0 && (
-        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+        <div className="bg-gradient-to-r from-blue-50 to-green-50 dark:from-blue-900/20 dark:to-green-900/20 border-2 border-blue-300 dark:border-blue-700 rounded-xl p-4 shadow-lg animate-in slide-in-from-top">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <ShoppingCart className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-              <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
-                {mealItems.length} item{mealItems.length > 1 ? 's' : ''} in meal
-              </span>
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <ShoppingCart className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                  {mealItems.length}
+                </span>
+              </div>
+              <div>
+                <span className="text-base font-bold text-blue-700 dark:text-blue-300 block">
+                  {mealItems.length} item{mealItems.length > 1 ? 's' : ''} in meal
+                </span>
+                <span className="text-xs text-blue-600 dark:text-blue-400">
+                  Ready to log
+                </span>
+              </div>
             </div>
-            <button
-              onClick={() => setShowMealReview(true)}
-              className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg"
-            >
-              Review Meal
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  setMealItems([]);
+                  setShowMealReview(false);
+                }}
+                className="px-3 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-gray-700 dark:text-slate-300 text-sm rounded-lg transition-colors"
+              >
+                Clear
+              </button>
+              <button
+                onClick={() => setShowMealReview(true)}
+                className="px-4 py-2 bg-gradient-to-r from-blue-600 to-green-600 hover:from-blue-700 hover:to-green-700 text-white text-sm font-semibold rounded-lg shadow-md transition-all hover:shadow-lg"
+              >
+                Review & Log Meal →
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -397,7 +457,17 @@ export function FoodSearch({ onFoodLogged }: FoodSearchProps) {
                         </div>
                       </div>
                     </button>
-                    <div className="pr-2">
+                    <div className="flex items-center gap-2 pr-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleAddToMeal(food);
+                        }}
+                        className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg transition-colors whitespace-nowrap"
+                        title="Add to meal"
+                      >
+                        + Meal
+                      </button>
                       <FavoriteButton
                         foodId={food.id}
                         foodName={food.name}
@@ -519,6 +589,23 @@ export function FoodSearch({ onFoodLogged }: FoodSearchProps) {
         error={permissionError}
         isLoading={permissionLoading}
       />
+
+      {/* Floating Meal Cart Button */}
+      {mealItems.length > 0 && !showMealReview && (
+        <button
+          onClick={() => setShowMealReview(true)}
+          className="fixed bottom-6 right-6 z-50 bg-gradient-to-r from-blue-600 to-green-600 hover:from-blue-700 hover:to-green-700 text-white px-6 py-4 rounded-full shadow-2xl flex items-center gap-3 transition-all hover:scale-105 animate-bounce"
+          style={{ animationDuration: '2s' }}
+        >
+          <div className="relative">
+            <ShoppingCart className="w-6 h-6" />
+            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+              {mealItems.length}
+            </span>
+          </div>
+          <span className="font-semibold">Review Meal</span>
+        </button>
+      )}
     </div>
   );
 }

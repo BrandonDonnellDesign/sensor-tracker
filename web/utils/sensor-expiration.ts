@@ -38,6 +38,7 @@ export interface SensorModel {
   manufacturer: string;
   modelName: string;
   duration_days: number; // Match database column name
+  grace_period_hours?: number; // Optional grace period in hours
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -49,6 +50,8 @@ export interface SensorExpirationInfo {
   expirationStatus: 'normal' | 'warning' | 'critical';
   isExpired: boolean;
   isExpiringSoon: boolean;
+  gracePeriodHours: number;
+  inGracePeriod: boolean;
 }
 
 /**
@@ -71,6 +74,8 @@ export const getSensorExpirationInfo = (
       expirationStatus: 'critical',
       isExpired: true,
       isExpiringSoon: false,
+      gracePeriodHours: 0,
+      inGracePeriod: false,
     };
   }
 
@@ -84,26 +89,32 @@ export const getSensorExpirationInfo = (
   const daysLeft = Math.floor(timeLeft / (1000 * 60 * 60 * 24));
   const hoursLeft = Math.floor(timeLeft / (1000 * 60 * 60));
 
-  // Check if this is a Dexcom sensor (10-day duration typically)
-  const isDexcom = sensorModel.duration_days === 10 || 
-                   sensorModel.manufacturer?.toLowerCase().includes('dexcom') ||
-                   sensorModel.modelName?.toLowerCase().includes('g6') ||
-                   sensorModel.modelName?.toLowerCase().includes('g7');
+  // Get grace period from sensor model (default to 12 hours for Dexcom, 0 for others)
+  const gracePeriodHours = sensorModel.grace_period_hours ?? (
+    sensorModel.duration_days === 10 || 
+    sensorModel.manufacturer?.toLowerCase().includes('dexcom') ||
+    sensorModel.modelName?.toLowerCase().includes('g6') ||
+    sensorModel.modelName?.toLowerCase().includes('g7')
+      ? 12
+      : 0
+  );
 
-  // For Dexcom sensors, consider 12-hour grace period
-  let isExpired = timeLeft < 0;
-  if (isDexcom && timeLeft < 0) {
-    const hoursExpired = Math.abs(hoursLeft);
-    isExpired = hoursExpired >= 12; // Only truly expired after 12-hour grace period
-  }
+  // Calculate expiration with grace period
+  const expirationWithGrace = new Date(expirationDate);
+  expirationWithGrace.setHours(expirationWithGrace.getHours() + gracePeriodHours);
+  const timeLeftWithGrace = expirationWithGrace.getTime() - now.getTime();
+  
+  // Sensor is only truly expired after grace period ends
+  let isExpired = timeLeftWithGrace < 0;
 
   const isExpiringSoon = daysLeft <= 3 && daysLeft >= 0;
+  const inGracePeriod = timeLeft < 0 && !isExpired && gracePeriodHours > 0;
 
   let expirationStatus: 'normal' | 'warning' | 'critical' = 'normal';
   if (isExpired) {
     expirationStatus = 'critical';
-  } else if (timeLeft < 0 && isDexcom) {
-    // In grace period
+  } else if (inGracePeriod) {
+    // In grace period - show as critical but not expired
     expirationStatus = 'critical';
   } else if (hoursLeft <= 24) {
     expirationStatus = 'critical';
@@ -117,6 +128,8 @@ export const getSensorExpirationInfo = (
     expirationStatus,
     isExpired,
     isExpiringSoon,
+    gracePeriodHours,
+    inGracePeriod,
   };
 };
 
@@ -153,32 +166,35 @@ export const formatDaysLeft = (daysLeft: number, expirationInfo?: SensorExpirati
     const hoursLeft = Math.floor(timeLeft / (1000 * 60 * 60));
     const minutesLeft = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
     
-    // Handle expired sensors with grace period for Dexcom
-    if (timeLeft < 0) {
+    // Handle sensors in grace period
+    if (expirationInfo.inGracePeriod && expirationInfo.gracePeriodHours > 0) {
+      // Calculate time elapsed since expiration
       const timeExpired = Math.abs(timeLeft);
       const hoursExpired = Math.floor(timeExpired / (1000 * 60 * 60));
       const minutesExpired = Math.floor((timeExpired % (1000 * 60 * 60)) / (1000 * 60));
       
-      // Check if this is a Dexcom sensor (has 12-hour grace period)
-      const isDexcom = expirationInfo.expirationDate && (
-        // Assume Dexcom if 10-day duration (could be enhanced with sensor model info)
-        Math.abs(timeLeft) < (12 * 60 * 60 * 1000) // Within 12 hours of expiration
-      );
+      // Calculate grace period time remaining
+      const graceHoursLeft = expirationInfo.gracePeriodHours - hoursExpired - 1;
+      const graceMinutesLeft = 60 - minutesExpired;
       
-      if (isDexcom && hoursExpired < 12) {
-        // Still in grace period
-        const graceHoursLeft = 11 - hoursExpired;
-        const graceMinutesLeft = 60 - minutesExpired;
-        
-        if (graceHoursLeft === 0 && graceMinutesLeft <= 0) {
-          return 'Grace Period ending';
-        } else if (graceHoursLeft === 0) {
-          return `${graceMinutesLeft} min Grace Period left`;
-        } else if (graceMinutesLeft === 60) {
-          return `${graceHoursLeft + 1}h Grace Period left`;
-        } else {
-          return `${graceHoursLeft}h ${graceMinutesLeft}m Grace Period left`;
-        }
+      // Adjust if minutes roll over to next hour
+      const finalHoursLeft = graceMinutesLeft === 60 ? graceHoursLeft + 1 : graceHoursLeft;
+      const finalMinutesLeft = graceMinutesLeft === 60 ? 0 : graceMinutesLeft;
+      
+      if (finalHoursLeft <= 0 && finalMinutesLeft <= 0) {
+        return 'Grace period ending';
+      } else if (finalHoursLeft === 0) {
+        return finalMinutesLeft === 1 
+          ? '1 min grace period' 
+          : `${finalMinutesLeft} min grace period`;
+      } else if (finalHoursLeft === 1) {
+        return finalMinutesLeft === 0
+          ? '1h grace period'
+          : `1h ${finalMinutesLeft}m grace period`;
+      } else {
+        return finalMinutesLeft === 0
+          ? `${finalHoursLeft}h grace period`
+          : `${finalHoursLeft}h ${finalMinutesLeft}m grace period`;
       }
     }
     
