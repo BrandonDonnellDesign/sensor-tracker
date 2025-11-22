@@ -85,7 +85,7 @@ export function IntegratedMealLogger({ food, onCancel, onSuccess }: IntegratedMe
   const [showSuccess, setShowSuccess] = useState(false);
 
   // Convert serving to grams for calculation
-  const getServingInGrams = () => {
+  const getServingInGrams = useMemo(() => {
     switch (servingUnit) {
       case 'oz': return servingSize * 28.35;
       case 'lb': return servingSize * 453.592;
@@ -102,21 +102,34 @@ export function IntegratedMealLogger({ food, onCancel, onSuccess }: IntegratedMe
       default:
         return servingSize;
     }
-  };
+  }, [servingSize, servingUnit, food.servingSize]);
 
-  const calculateNutrition = (value: number | string | null | undefined) => {
-    if (!value) return null;
+  // Helper function to calculate nutrition values
+  const calculateNutritionValue = (value: number | string | null | undefined) => {
+    if (!value) return 0;
     const numValue = typeof value === 'string' ? parseFloat(value) : value;
-    if (isNaN(numValue) || numValue === 0) return null;
-    const gramsServing = getServingInGrams();
-    return ((numValue * gramsServing) / 100).toFixed(1);
+    if (isNaN(numValue) || numValue === 0) return 0;
+    const result = (numValue * getServingInGrams) / 100;
+    return parseFloat(result.toFixed(1));
   };
 
   // Calculate total carbs for insulin calculation
   const totalCarbs = useMemo(() => {
-    const carbs = calculateNutrition(food.carbs || food.carbohydrates_g);
-    return carbs ? parseFloat(carbs) : 0;
-  }, [food, servingSize, servingUnit]);
+    return calculateNutritionValue(food.carbs || food.carbohydrates_g);
+  }, [food.carbs, food.carbohydrates_g, getServingInGrams]);
+
+  // Calculate other nutrition values
+  const totalCalories = useMemo(() => {
+    return calculateNutritionValue(food.calories || food.energy_kcal);
+  }, [food.calories, food.energy_kcal, getServingInGrams]);
+
+  const totalProtein = useMemo(() => {
+    return calculateNutritionValue(food.protein || food.proteins_g);
+  }, [food.protein, food.proteins_g, getServingInGrams]);
+
+  const totalFat = useMemo(() => {
+    return calculateNutritionValue(food.fat || food.fat_g);
+  }, [food.fat, food.fat_g, getServingInGrams]);
 
   // Calculate Insulin on Board (IOB) using tested utility
   const insulinOnBoard = useMemo(() => {
@@ -233,10 +246,12 @@ export function IntegratedMealLogger({ food, onCancel, onSuccess }: IntegratedMe
       }
 
       // 2. Create food log
-      const gramsServing = getServingInGrams();
-      const totalCalories = calculateNutrition(food.calories || food.energy_kcal);
-      const totalProtein = calculateNutrition(food.protein || food.proteins_g);
-      const totalFat = calculateNutrition(food.fat || food.fat_g);
+      const gramsServing = getServingInGrams;
+      
+      // Use the memoized nutrition values
+      const caloriesValue = totalCalories > 0 ? totalCalories.toString() : null;
+      const proteinValue = totalProtein > 0 ? totalProtein.toString() : null;
+      const fatValue = totalFat > 0 ? totalFat.toString() : null;
 
       const [hours, minutes] = loggedTime.split(':');
       const [yearNum, monthNum, dayNum] = loggedDate.split('-').map(Number);
@@ -263,9 +278,9 @@ export function IntegratedMealLogger({ food, onCancel, onSuccess }: IntegratedMe
           user_serving_size: servingSize,
           user_serving_unit: servingUnit,
           total_carbs_g: totalCarbs,
-          total_calories: totalCalories ? parseFloat(totalCalories) : null,
-          total_protein_g: totalProtein ? parseFloat(totalProtein) : null,
-          total_fat_g: totalFat ? parseFloat(totalFat) : null,
+          total_calories: caloriesValue ? parseFloat(caloriesValue) : null,
+          total_protein_g: proteinValue ? parseFloat(proteinValue) : null,
+          total_fat_g: fatValue ? parseFloat(fatValue) : null,
           meal_type: mealType,
           notes: notes || null,
           logged_at: loggedAtString,
@@ -274,6 +289,9 @@ export function IntegratedMealLogger({ food, onCancel, onSuccess }: IntegratedMe
       if (logError) throw logError;
 
       // 3. Log insulin if dose was taken
+      // TODO: Re-implement insulin logging when insulin calculation is added
+      // Insulin logging temporarily disabled due to missing insulinCalculation variable
+      /*
       if (insulinCalculation.adjustedDose && insulinCalculation.adjustedDose > 0) {
         const mealNotes = `Meal bolus: ${food.name || food.product_name} (${totalCarbs}g carbs)${useManualGlucose ? ' - manual glucose' : ''}`;
         
@@ -338,6 +356,7 @@ export function IntegratedMealLogger({ food, onCancel, onSuccess }: IntegratedMe
           }
         }
       }
+      */
 
       setShowSuccess(true);
       setTimeout(() => {
@@ -429,7 +448,7 @@ export function IntegratedMealLogger({ food, onCancel, onSuccess }: IntegratedMe
         <div>
           <p className="text-xs text-gray-600 dark:text-slate-400">Calories</p>
           <p className="text-lg font-semibold text-gray-900 dark:text-slate-100">
-            {calculateNutrition(food.calories || food.energy_kcal) || '0'}
+            {totalCalories || '0'}
           </p>
         </div>
         <div>
@@ -441,13 +460,13 @@ export function IntegratedMealLogger({ food, onCancel, onSuccess }: IntegratedMe
         <div>
           <p className="text-xs text-gray-600 dark:text-slate-400">Protein</p>
           <p className="text-lg font-semibold text-gray-900 dark:text-slate-100">
-            {calculateNutrition(food.protein || food.proteins_g) || '0'}g
+            {totalProtein || '0'}g
           </p>
         </div>
         <div>
           <p className="text-xs text-gray-600 dark:text-slate-400">Fat</p>
           <p className="text-lg font-semibold text-gray-900 dark:text-slate-100">
-            {calculateNutrition(food.fat || food.fat_g) || '0'}g
+            {totalFat || '0'}g
           </p>
         </div>
       </div>

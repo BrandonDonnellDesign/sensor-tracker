@@ -348,22 +348,35 @@ export function FoodLogList({ userId }: FoodLogListProps) {
           </div>
         ) : (
           (() => {
-            // Group logs by meal type
-            const groupedLogs = logs.reduce((acc: any, log: any) => {
-              const mealType = log.meal_type;
-              if (!acc[mealType]) {
-                acc[mealType] = [];
-              }
-              acc[mealType].push(log);
-              return acc;
-            }, {});
+            // Group logs by time (within 30 minutes of each other)
+            const timeGroups: any[] = [];
+            const sortedLogs = [...logs].sort((a, b) => 
+              new Date(a.logged_at).getTime() - new Date(b.logged_at).getTime()
+            );
 
-            // Define meal order
-            const mealOrder = ['breakfast', 'lunch', 'dinner', 'snack', 'other'];
+            sortedLogs.forEach(log => {
+              const logTime = new Date(log.logged_at).getTime();
+              
+              // Find a group within 30 minutes
+              const existingGroup = timeGroups.find(group => {
+                const groupTime = new Date(group.logs[0].logged_at).getTime();
+                const timeDiff = Math.abs(logTime - groupTime);
+                return timeDiff <= 30 * 60 * 1000; // 30 minutes in milliseconds
+              });
+
+              if (existingGroup) {
+                existingGroup.logs.push(log);
+              } else {
+                timeGroups.push({
+                  logs: [log],
+                  time: log.logged_at,
+                  mealType: log.meal_type
+                });
+              }
+            });
             
-            return mealOrder.map(mealType => {
-              const mealLogs = groupedLogs[mealType];
-              if (!mealLogs || mealLogs.length === 0) return null;
+            return timeGroups.map((group, index) => {
+              const mealLogs = group.logs;
 
               // Calculate meal totals
               const mealTotals = mealLogs.reduce((acc: any, log: any) => ({
@@ -373,18 +386,23 @@ export function FoodLogList({ userId }: FoodLogListProps) {
                 fat: acc.fat + (Number(log.total_fat_g) || 0),
               }), { calories: 0, carbs: 0, protein: 0, fat: 0 });
 
-              // Get CGM readings from the first log (they should be similar for the same meal time)
+              // Get CGM readings from the first log
               const firstLog = mealLogs[0];
               const hasCGM = firstLog.cgm_1hr_post_meal || firstLog.cgm_2hr_post_meal;
 
               return (
-                <div key={mealType} className="bg-[#1e293b] rounded-lg shadow-lg border border-slate-700/30 overflow-hidden">
+                <div key={`meal-${index}`} className="bg-[#1e293b] rounded-lg shadow-lg border border-slate-700/30 overflow-hidden">
                   {/* Meal Header */}
                   <div className="bg-gradient-to-r from-slate-800 to-slate-700 px-4 py-3 border-b border-slate-600">
                     <div className="flex items-center justify-between flex-wrap gap-2">
-                      <h3 className="text-lg font-semibold text-white">
-                        {mealType.charAt(0).toUpperCase() + mealType.slice(1)}
-                      </h3>
+                      <div>
+                        <h3 className="text-lg font-semibold text-white">
+                          {group.mealType.charAt(0).toUpperCase() + group.mealType.slice(1)}
+                        </h3>
+                        <p className="text-sm text-slate-400">
+                          {dateFormatter.formatTime(new Date(group.time))}
+                        </p>
+                      </div>
                       <div className="flex flex-col gap-3">
                         {/* Primary Metrics */}
                         <div className="flex gap-3 text-sm flex-wrap items-center">
@@ -396,8 +414,24 @@ export function FoodLogList({ userId }: FoodLogListProps) {
                           </span>
                         </div>
                         
-                        {/* Insulin & CGM Data */}
-                        {(hasCGM || firstLog.total_insulin_units > 0) && (
+                        {/* Glucose Readings */}
+                        {hasCGM && (
+                          <div className="flex gap-2 text-sm">
+                            {firstLog.cgm_1hr_post_meal && (
+                              <span className="px-3 py-1.5 bg-green-900/40 text-green-300 rounded-lg border border-green-700/30">
+                                1hr: {firstLog.cgm_1hr_post_meal} mg/dL
+                              </span>
+                            )}
+                            {firstLog.cgm_2hr_post_meal && (
+                              <span className="px-3 py-1.5 bg-green-900/40 text-green-300 rounded-lg border border-green-700/30">
+                                2hr: {firstLog.cgm_2hr_post_meal} mg/dL
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        
+                        {/* Insulin Data */}
+                        {firstLog.total_insulin_units > 0 && (
                           <div className="flex flex-wrap gap-3">
                             {/* Insulin Dose */}
                             {firstLog.total_insulin_units > 0 && (

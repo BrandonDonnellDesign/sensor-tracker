@@ -269,25 +269,26 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* Tab Navigation */}
-      <div className="border-b border-gray-200 dark:border-slate-700 overflow-x-auto -mx-4 lg:-mx-6 px-4 lg:px-6">
-        <nav className="-mb-px flex space-x-3 lg:space-x-8">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`py-3 px-1 border-b-2 font-medium text-xs lg:text-sm whitespace-nowrap flex items-center flex-shrink-0 ${
-                activeTab === tab.id
-                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300 hover:border-gray-300'
-              }`}
-            >
-              <tab.icon className="w-4 h-4 mr-1.5 lg:mr-2" />
-              <span className="hidden sm:inline">{tab.label}</span>
-              <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
-            </button>
-          ))}
-        </nav>
+      {/* Tab Navigation - Improved Design */}
+      <div className="px-4 lg:px-6">
+        <div className="bg-slate-800/30 rounded-xl border border-slate-700/30 p-2">
+          <nav className="flex flex-wrap gap-2">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all ${
+                  activeTab === tab.id
+                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
+                    : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
+                }`}
+              >
+                <tab.icon className="w-4 h-4" />
+                <span className="hidden sm:inline">{tab.label}</span>
+              </button>
+            ))}
+          </nav>
+        </div>
       </div>
 
       {/* Tab Content */}

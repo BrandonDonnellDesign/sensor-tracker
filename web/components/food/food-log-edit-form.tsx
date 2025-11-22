@@ -66,33 +66,58 @@ export function FoodLogEditForm({ log, onCancel, onSuccess }: FoodLogEditFormPro
 
   // Get food nutrition per 100g from the log (which includes food item data from the view)
   const nutritionPer100g = {
-    calories: log.energy_kcal || 0,
-    carbs: log.carbohydrates_g || 0,
-    protein: log.proteins_g || 0,
-    fat: log.fat_g || 0,
+    calories: parseFloat(log.energy_kcal) || parseFloat(log.calories_per_100g) || 0,
+    carbs: parseFloat(log.carbohydrates_g) || parseFloat(log.carbs_per_100g) || 0,
+    protein: parseFloat(log.proteins_g) || parseFloat(log.protein_per_100g) || 0,
+    fat: parseFloat(log.fat_g) || parseFloat(log.fat_per_100g) || 0,
   };
 
   // Convert serving to grams for calculation
   const getServingInGrams = () => {
+    const size = parseFloat(String(servingSize)) || 0;
+    if (size <= 0) return 0;
+    
     switch (servingUnit) {
       case 'oz':
-        return servingSize * 28.35;
+        return size * 28.35;
       case 'lb':
-        return servingSize * 453.592;
+        return size * 453.592;
       case 'cup':
-        return servingSize * 240;
+        return size * 240;
       case 'tbsp':
-        return servingSize * 15;
+        return size * 15;
       case 'tsp':
-        return servingSize * 5;
+        return size * 5;
       case 'serving':
-        // Use the food item's defined serving size in grams
-        // This is the key fix - use food_serving_size from the food item
-        const foodServingSize = parseFloat(log.food_serving_size) || 100;
-        return servingSize * foodServingSize;
+        // If we have the original serving_size in grams and user_serving_size, calculate the per-serving grams
+        if (log.user_serving_size && log.serving_size) {
+          // The original serving_size is in grams, user_serving_size is the number of servings
+          // So grams per serving = total grams / number of servings
+          const gramsPerServing = parseFloat(log.serving_size) / parseFloat(log.user_serving_size);
+          return size * gramsPerServing;
+        }
+        
+        // Otherwise try to get the food item's defined serving size
+        let foodServingSize = parseFloat(log.food_serving_size) || 
+                             parseFloat(log.food_item_serving_size) ||
+                             parseFloat(log.item_serving_size) ||
+                             100;
+        
+        // If the serving size seems too small (less than 10g), it's probably wrong - use a reasonable default
+        if (foodServingSize < 10) {
+          // For sandwiches and meals, use a larger default
+          const foodName = (log.product_name || log.custom_food_name || '').toLowerCase();
+          if (foodName.includes('sandwich') || foodName.includes('burger') || foodName.includes('meal')) {
+            foodServingSize = 200; // 200g default for meals
+          } else {
+            foodServingSize = 100; // 100g default for other items
+          }
+        }
+        
+        return size * foodServingSize;
       case 'g':
       default:
-        return servingSize;
+        return size;
     }
   };
 
@@ -100,6 +125,7 @@ export function FoodLogEditForm({ log, onCancel, onSuccess }: FoodLogEditFormPro
     const numValue = typeof valuePer100g === 'string' ? parseFloat(valuePer100g) : valuePer100g;
     if (isNaN(numValue) || numValue === 0) return '0';
     const gramsServing = getServingInGrams();
+    if (gramsServing === 0) return '0';
     return ((numValue * gramsServing) / 100).toFixed(1);
   };
 

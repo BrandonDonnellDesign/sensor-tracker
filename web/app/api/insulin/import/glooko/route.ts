@@ -834,21 +834,29 @@ async function handleZipImport(zipFile: File, userId: string, supabase: any) {
           continue; // Skip invalid dates
         }
         
-        // Check for duplicates in pump tables
-        const isDuplicate = await checkPumpDuplicate(
-          supabase,
-          userId,
-          basalDate.toISOString(),
-          basalAmount,
-          'basal'
-        );
+        // Check for existing basal entries and delete them (override on re-import)
+        const timeWindow = 60000; // 1 minute window
+        const timestampDate = new Date(basalDate.toISOString());
+        const startTime = new Date(timestampDate.getTime() - timeWindow);
+        const endTime = new Date(timestampDate.getTime() + timeWindow);
+
+        // Delete existing basal entries for this timestamp
+        await supabase
+          .from('pump_basal_events')
+          .delete()
+          .eq('user_id', userId)
+          .gte('timestamp', startTime.toISOString())
+          .lte('timestamp', endTime.toISOString());
+
+        await supabase
+          .from('pump_delivery_logs')
+          .delete()
+          .eq('user_id', userId)
+          .eq('delivery_type', 'basal')
+          .gte('timestamp', startTime.toISOString())
+          .lte('timestamp', endTime.toISOString());
         
-        if (isDuplicate) {
-          basalDuplicates++;
-          continue;
-        }
-        
-        // Write directly to pump tables
+        // Write directly to pump tables (will override any existing entries)
         const result = await writePumpData(supabase, {
           user_id: userId,
           timestamp: basalDate.toISOString(),
@@ -1352,21 +1360,28 @@ async function handleBasalSummaryCsv(lines: string[], headerRowIndex: number, he
       const dayEnd = new Date(basalDate);
       dayEnd.setHours(23, 59, 59, 999);
 
-      // Check for duplicates in pump tables
-      const isDuplicate = await checkPumpDuplicate(
-        supabase,
-        userId,
-        basalDate.toISOString(),
-        basalAmount,
-        'basal'
-      );
+      // Delete existing basal entries for this timestamp (override on re-import)
+      const timeWindow = 60000; // 1 minute window
+      const timestampDate = new Date(basalDate.toISOString());
+      const startTime = new Date(timestampDate.getTime() - timeWindow);
+      const endTime = new Date(timestampDate.getTime() + timeWindow);
 
-      if (isDuplicate) {
-        result.basalDuplicates++;
-        continue;
-      }
+      await supabase
+        .from('pump_basal_events')
+        .delete()
+        .eq('user_id', userId)
+        .gte('timestamp', startTime.toISOString())
+        .lte('timestamp', endTime.toISOString());
 
-      // Write directly to pump tables
+      await supabase
+        .from('pump_delivery_logs')
+        .delete()
+        .eq('user_id', userId)
+        .eq('delivery_type', 'basal')
+        .gte('timestamp', startTime.toISOString())
+        .lte('timestamp', endTime.toISOString());
+
+      // Write directly to pump tables (will override any existing entries)
       const writeResult = await writePumpData(supabase, {
         user_id: userId,
         timestamp: basalDate.toISOString(),
