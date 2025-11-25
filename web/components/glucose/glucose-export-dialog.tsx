@@ -5,6 +5,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Download, FileText, Database, CheckCircle, Calendar } from 'lucide-react';
 
 
@@ -92,7 +94,7 @@ export function GlucoseExportDialog({ open, onOpenChange, dataType }: GlucoseExp
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md bg-slate-900 border-slate-700">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Download className="h-5 w-5" />
@@ -111,11 +113,10 @@ export function GlucoseExportDialog({ open, onOpenChange, dataType }: GlucoseExp
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
-                <label className={`flex items-center p-3 border-2 rounded-lg cursor-pointer transition-all ${
-                  exportFormat === 'csv' 
-                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' 
-                    : 'border-gray-200 dark:border-gray-700'
-                }`}>
+                <label className={`flex items-center p-3 border-2 rounded-lg cursor-pointer transition-all ${exportFormat === 'csv'
+                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                    : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+                  }`}>
                   <input
                     type="radio"
                     name="format"
@@ -131,11 +132,10 @@ export function GlucoseExportDialog({ open, onOpenChange, dataType }: GlucoseExp
                   </div>
                 </label>
 
-                <label className={`flex items-center p-3 border-2 rounded-lg cursor-pointer transition-all ${
-                  exportFormat === 'json' 
-                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' 
-                    : 'border-gray-200 dark:border-gray-700'
-                }`}>
+                <label className={`flex items-center p-3 border-2 rounded-lg cursor-pointer transition-all ${exportFormat === 'json'
+                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                    : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+                  }`}>
                   <input
                     type="radio"
                     name="format"
@@ -164,22 +164,24 @@ export function GlucoseExportDialog({ open, onOpenChange, dataType }: GlucoseExp
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-sm font-medium">Start Date</label>
-                  <input
+                <div className="space-y-1">
+                  <Label htmlFor="start-date" className="text-xs">Start Date</Label>
+                  <Input
+                    id="start-date"
                     type="date"
                     value={dateRange.start}
                     onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-                    className="w-full mt-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm"
+                    className="bg-slate-800 border-slate-600 text-sm"
                   />
                 </div>
-                <div>
-                  <label className="text-sm font-medium">End Date</label>
-                  <input
+                <div className="space-y-1">
+                  <Label htmlFor="end-date" className="text-xs">End Date</Label>
+                  <Input
+                    id="end-date"
                     type="date"
                     value={dateRange.end}
                     onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-                    className="w-full mt-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm"
+                    className="bg-slate-800 border-slate-600 text-sm"
                   />
                 </div>
               </div>

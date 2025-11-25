@@ -295,7 +295,7 @@ export function AdvancedAnalytics({ readings, loading }: AdvancedAnalyticsProps)
         {/* Advanced Metrics */}
         <div>
           <h4 className="text-md font-semibold text-white mb-4">Advanced Metrics</h4>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="bg-slate-700/30 rounded-lg p-4">
               <div className="text-sm text-slate-400 mb-1">Mean Absolute Glucose (MAG)</div>
               <div className="text-xl font-bold text-white">{analytics.variability.mag}</div>
@@ -304,13 +304,13 @@ export function AdvancedAnalytics({ readings, loading }: AdvancedAnalyticsProps)
               </div>
             </div>
 
-            <div className="bg-slate-700/30 rounded-lg p-4">
+            {/* <div className="bg-slate-700/30 rounded-lg p-4">
               <div className="text-sm text-slate-400 mb-1">J-Index</div>
               <div className="text-xl font-bold text-white">{analytics.variability.jIndex}</div>
               <div className="text-xs text-slate-500">
                 Lower is better
               </div>
-            </div>
+            </div> */}
 
             <div className="bg-slate-700/30 rounded-lg p-4">
               <div className="text-sm text-slate-400 mb-1">ADRR Risk Score</div>
