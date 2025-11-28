@@ -35,7 +35,7 @@ export function FoodLogList({ userId }: FoodLogListProps) {
     setIsLoading(true);
     try {
       const supabase = createClient();
-      
+
       // Get all logs for the user and filter client-side by local date
       // This ensures we capture logs that might cross timezone boundaries
       const { data, error } = await (supabase as any)
@@ -45,14 +45,14 @@ export function FoodLogList({ userId }: FoodLogListProps) {
         .order('logged_at', { ascending: false });
 
       if (error) throw error;
-      
+
       // Filter by selected date in local timezone
       const filteredLogs = (data || []).filter((log: any) => {
         const logDate = new Date(log.logged_at);
         const logLocalDate = logDate.toLocaleDateString('en-CA'); // YYYY-MM-DD format
         return logLocalDate === selectedDate;
       });
-      
+
       setLogs(filteredLogs);
 
     } catch (error) {
@@ -68,11 +68,11 @@ export function FoodLogList({ userId }: FoodLogListProps) {
 
     try {
       const supabase = createClient();
-      
+
       // Get start and end of selected date in local timezone
       const startOfDay = new Date(selectedDate + 'T00:00:00');
       const endOfDay = new Date(selectedDate + 'T23:59:59');
-      
+
       // Get all insulin logs for the selected date
       const { data, error } = await supabase
         .from('all_insulin_delivery')
@@ -83,7 +83,7 @@ export function FoodLogList({ userId }: FoodLogListProps) {
         .in('delivery_type', ['bolus', 'meal', 'correction']); // Only bolus insulin
 
       if (error) throw error;
-      
+
       // Calculate total bolus insulin for the day
       const total = (data || []).reduce((sum, log) => sum + (log.units || 0), 0);
       setTotalDayInsulin(total);
@@ -113,11 +113,12 @@ export function FoodLogList({ userId }: FoodLogListProps) {
 
   const handleLogAgain = async (originalLog: any) => {
     if (!userId) return;
-    
+
     try {
       const supabase = createClient();
-      
+
       // Create a new log entry with the same food and serving details
+      // Don't copy the totals - let the system recalculate them
       const { error } = await supabase
         .from('food_logs')
         .insert({
@@ -127,10 +128,11 @@ export function FoodLogList({ userId }: FoodLogListProps) {
           serving_unit: originalLog.serving_unit || 'g',
           user_serving_size: originalLog.user_serving_size || null,
           user_serving_unit: originalLog.user_serving_unit || null,
-          total_carbs_g: originalLog.total_carbs_g || null,
-          total_calories: originalLog.total_calories || null,
-          total_protein_g: originalLog.total_protein_g || null,
-          total_fat_g: originalLog.total_fat_g || null,
+          // Remove the pre-calculated totals - they will be recalculated
+          // total_carbs_g: originalLog.total_carbs_g || null,
+          // total_calories: originalLog.total_calories || null,
+          // total_protein_g: originalLog.total_protein_g || null,
+          // total_fat_g: originalLog.total_fat_g || null,
           meal_type: 'snack', // Default to snack, user can edit if needed
           logged_at: new Date().toISOString(),
         } as any); // Type assertion to bypass TypeScript issues
@@ -208,7 +210,7 @@ export function FoodLogList({ userId }: FoodLogListProps) {
                 {totals.carbs.toFixed(1)}<span className="text-2xl">g</span>
               </p>
             </div>
-            
+
             {/* Other Macros */}
             <div className="text-center p-4 bg-slate-800/50 rounded-lg">
               <p className="text-sm text-slate-400">Calories</p>
@@ -223,25 +225,25 @@ export function FoodLogList({ userId }: FoodLogListProps) {
               </p>
             </div>
           </div>
-          
+
           {/* Daily Summary - Glucose & Insulin */}
           {(() => {
             const mealsWithCGM = logs.filter(log => log.cgm_1hr_post_meal || log.cgm_2hr_post_meal);
             const mealsWithInsulin = logs.filter(log => log.total_insulin_units > 0);
             const totalInsulin = logs.reduce((sum, log) => sum + (log.total_insulin_units || 0), 0);
-            
+
             if (mealsWithCGM.length === 0 && mealsWithInsulin.length === 0) return null;
-            
+
             const avgPeak = mealsWithCGM.length > 0 ? mealsWithCGM.reduce((sum, log) => {
               const peak = Math.max(log.cgm_1hr_post_meal || 0, log.cgm_2hr_post_meal || 0);
               return sum + peak;
             }, 0) / mealsWithCGM.length : 0;
-            
-            const highReadings = mealsWithCGM.filter(log => 
-              (log.cgm_1hr_post_meal && log.cgm_1hr_post_meal > 180) || 
+
+            const highReadings = mealsWithCGM.filter(log =>
+              (log.cgm_1hr_post_meal && log.cgm_1hr_post_meal > 180) ||
               (log.cgm_2hr_post_meal && log.cgm_2hr_post_meal > 180)
             ).length;
-            
+
             return (
               <div className="mt-4 p-4 bg-gradient-to-r from-slate-800/40 to-slate-700/40 rounded-lg border border-slate-600/40">
                 <h4 className="text-sm font-medium text-slate-200 mb-4 flex items-center gap-2">
@@ -257,9 +259,8 @@ export function FoodLogList({ userId }: FoodLogListProps) {
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
                           <span className="text-slate-400">Avg Peak:</span>
-                          <span className={`font-semibold ${
-                            avgPeak > 180 ? 'text-orange-400' : avgPeak > 140 ? 'text-yellow-400' : 'text-green-400'
-                          }`}>
+                          <span className={`font-semibold ${avgPeak > 180 ? 'text-orange-400' : avgPeak > 140 ? 'text-yellow-400' : 'text-green-400'
+                            }`}>
                             {avgPeak.toFixed(0)}
                           </span>
                         </div>
@@ -272,7 +273,7 @@ export function FoodLogList({ userId }: FoodLogListProps) {
                       </div>
                     </div>
                   )}
-                  
+
                   {/* Insulin Summary */}
                   {mealsWithInsulin.length > 0 && (
                     <div className="bg-orange-900/20 p-3 rounded-lg border border-orange-700/30">
@@ -295,7 +296,7 @@ export function FoodLogList({ userId }: FoodLogListProps) {
                         <div className="flex justify-between">
                           <span className="text-orange-300">I:C Ratio:</span>
                           <span className="font-semibold text-orange-200">
-                            {totalInsulin > 0 && totals.carbs > 0 
+                            {totalInsulin > 0 && totals.carbs > 0
                               ? `1:${(totals.carbs / totalInsulin).toFixed(1)}`
                               : 'N/A'
                             }
@@ -304,7 +305,7 @@ export function FoodLogList({ userId }: FoodLogListProps) {
                       </div>
                     </div>
                   )}
-                  
+
                   {/* Nutrition Summary */}
                   <div className="bg-blue-900/20 p-3 rounded-lg border border-blue-700/30">
                     <h5 className="text-xs font-medium text-blue-200 mb-2 flex items-center gap-1">
@@ -350,13 +351,13 @@ export function FoodLogList({ userId }: FoodLogListProps) {
           (() => {
             // Group logs by time (within 30 minutes of each other)
             const timeGroups: any[] = [];
-            const sortedLogs = [...logs].sort((a, b) => 
+            const sortedLogs = [...logs].sort((a, b) =>
               new Date(a.logged_at).getTime() - new Date(b.logged_at).getTime()
             );
 
             sortedLogs.forEach(log => {
               const logTime = new Date(log.logged_at).getTime();
-              
+
               // Find a group within 30 minutes
               const existingGroup = timeGroups.find(group => {
                 const groupTime = new Date(group.logs[0].logged_at).getTime();
@@ -374,7 +375,7 @@ export function FoodLogList({ userId }: FoodLogListProps) {
                 });
               }
             });
-            
+
             return timeGroups.map((group, index) => {
               const mealLogs = group.logs;
 
@@ -413,7 +414,7 @@ export function FoodLogList({ userId }: FoodLogListProps) {
                             {mealTotals.calories.toFixed(0)} cal
                           </span>
                         </div>
-                        
+
                         {/* Glucose Readings */}
                         {hasCGM && (
                           <div className="flex gap-2 text-sm">
@@ -429,7 +430,7 @@ export function FoodLogList({ userId }: FoodLogListProps) {
                             )}
                           </div>
                         )}
-                        
+
                         {/* Insulin Data */}
                         {firstLog.total_insulin_units > 0 && (
                           <div className="flex flex-wrap gap-3">
@@ -442,8 +443,8 @@ export function FoodLogList({ userId }: FoodLogListProps) {
                                 </span>
                                 {firstLog.insulin_dose && (() => {
                                   try {
-                                    const insulinData = typeof firstLog.insulin_dose === 'string' 
-                                      ? JSON.parse(firstLog.insulin_dose) 
+                                    const insulinData = typeof firstLog.insulin_dose === 'string'
+                                      ? JSON.parse(firstLog.insulin_dose)
                                       : firstLog.insulin_dose;
                                     return (
                                       <span className="text-orange-300 text-xs">
@@ -460,7 +461,7 @@ export function FoodLogList({ userId }: FoodLogListProps) {
                                 })()}
                               </div>
                             )}
-                            
+
                             {/* CGM Readings */}
                             {hasCGM && (
                               <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-700/40 border border-slate-600/40 rounded-lg">
@@ -469,13 +470,12 @@ export function FoodLogList({ userId }: FoodLogListProps) {
                                   {firstLog.cgm_1hr_post_meal && (
                                     <div className="flex items-center gap-1">
                                       <span className="text-slate-400 text-xs">1h</span>
-                                      <span className={`px-2 py-0.5 rounded text-xs font-bold ${
-                                        firstLog.cgm_1hr_post_meal < 70 
+                                      <span className={`px-2 py-0.5 rounded text-xs font-bold ${firstLog.cgm_1hr_post_meal < 70
                                           ? 'bg-red-800/60 text-red-200' :
-                                        firstLog.cgm_1hr_post_meal > 180 
-                                          ? 'bg-orange-800/60 text-orange-200' :
-                                          'bg-green-800/60 text-green-200'
-                                      }`}>
+                                          firstLog.cgm_1hr_post_meal > 180
+                                            ? 'bg-orange-800/60 text-orange-200' :
+                                            'bg-green-800/60 text-green-200'
+                                        }`}>
                                         {firstLog.cgm_1hr_post_meal}
                                       </span>
                                     </div>
@@ -483,27 +483,25 @@ export function FoodLogList({ userId }: FoodLogListProps) {
                                   {firstLog.cgm_2hr_post_meal && (
                                     <div className="flex items-center gap-1">
                                       <span className="text-slate-400 text-xs">2h</span>
-                                      <span className={`px-2 py-0.5 rounded text-xs font-bold ${
-                                        firstLog.cgm_2hr_post_meal < 70 
+                                      <span className={`px-2 py-0.5 rounded text-xs font-bold ${firstLog.cgm_2hr_post_meal < 70
                                           ? 'bg-red-800/60 text-red-200' :
-                                        firstLog.cgm_2hr_post_meal > 180 
-                                          ? 'bg-orange-800/60 text-orange-200' :
-                                          'bg-green-800/60 text-green-200'
-                                      }`}>
+                                          firstLog.cgm_2hr_post_meal > 180
+                                            ? 'bg-orange-800/60 text-orange-200' :
+                                            'bg-green-800/60 text-green-200'
+                                        }`}>
                                         {firstLog.cgm_2hr_post_meal}
                                       </span>
                                     </div>
                                   )}
                                   {/* Trend indicator */}
                                   {firstLog.cgm_1hr_post_meal && firstLog.cgm_2hr_post_meal && (
-                                    <span className={`text-sm ${
-                                      firstLog.cgm_2hr_post_meal < firstLog.cgm_1hr_post_meal 
+                                    <span className={`text-sm ${firstLog.cgm_2hr_post_meal < firstLog.cgm_1hr_post_meal
                                         ? 'text-green-400' :
-                                      firstLog.cgm_2hr_post_meal > firstLog.cgm_1hr_post_meal 
-                                        ? 'text-orange-400' : 'text-slate-400'
-                                    }`}>
+                                        firstLog.cgm_2hr_post_meal > firstLog.cgm_1hr_post_meal
+                                          ? 'text-orange-400' : 'text-slate-400'
+                                      }`}>
                                       {firstLog.cgm_2hr_post_meal < firstLog.cgm_1hr_post_meal ? '↓' :
-                                       firstLog.cgm_2hr_post_meal > firstLog.cgm_1hr_post_meal ? '↑' : '→'}
+                                        firstLog.cgm_2hr_post_meal > firstLog.cgm_1hr_post_meal ? '↑' : '→'}
                                     </span>
                                   )}
                                 </div>
@@ -522,90 +520,90 @@ export function FoodLogList({ userId }: FoodLogListProps) {
                         key={log.id}
                         className="p-4 hover:bg-slate-800/30 transition-colors"
                       >
-              <div className="flex items-start gap-4">
-                {/* Always reserve space for image to maintain alignment */}
-                <div className="w-16 h-16 flex-shrink-0">
-                  {log.image_url ? (
-                    <img
-                      src={log.image_url}
-                      alt={log.product_name || log.custom_food_name}
-                      className="w-full h-full object-cover rounded border border-slate-600"
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-slate-700/50 border border-slate-600 rounded flex items-center justify-center">
-                      <span className="text-slate-500 text-2xl">🍽️</span>
-                    </div>
-                  )}
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h4 className="font-medium text-white">
-                        {log.custom_food_name || log.product_name}
-                      </h4>
-                      <p className="text-sm text-slate-400">
-                        {log.user_serving_size && log.user_serving_unit 
-                          ? `${log.user_serving_size} ${log.user_serving_unit}`
-                          : `${log.serving_size} g`
-                        }
-                      </p>
-                      <p className="text-xs text-slate-500 mt-1">
-                        {dateFormatter.formatTime(log.logged_at)}
-                      </p>
-                    </div>
-                    <div className="flex gap-1">
-                      <div title="Add to favorites">
-                        <FavoriteButton
-                          foodId={log.food_item_id}
-                          foodName={log.custom_food_name || log.product_name}
-                          defaultServingSize={log.user_serving_size || log.serving_size}
-                          defaultServingUnit={log.user_serving_unit || log.serving_unit}
-                          className="p-1.5"
-                        />
-                      </div>
-                      <button
-                        onClick={() => handleLogAgain(log)}
-                        className="p-2 text-green-400 hover:bg-green-900/20 rounded-lg transition-colors"
-                        title="Log this food again"
-                      >
-                        <Plus className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => setEditingLog(log)}
-                        className="p-2 text-blue-400 hover:bg-blue-900/20 rounded-lg transition-colors"
-                        title="Edit food log"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(log.id)}
-                        className="p-2 text-red-400 hover:bg-red-900/20 rounded-lg transition-colors"
-                        title="Delete food log"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                  <div className="flex gap-2 mt-2 text-sm flex-wrap">
-                    <span className="px-2.5 py-1 bg-blue-900/40 text-blue-300 font-semibold rounded-lg text-xs">
-                      {Number(log.total_carbs_g).toFixed(1)}g carbs
-                    </span>
-                    <span className="px-2.5 py-1 bg-slate-700/40 text-slate-300 rounded-lg text-xs">
-                      {Number(log.total_calories).toFixed(0)} cal
-                    </span>
-                    {log.total_protein_g && (
-                      <span className="px-2.5 py-1 bg-slate-700/40 text-slate-300 rounded-lg text-xs">
-                        {Number(log.total_protein_g).toFixed(1)}g protein
-                      </span>
-                    )}
-                  </div>
-                  {log.notes && (
-                    <p className="text-sm text-slate-400 mt-2 italic">
-                      {log.notes}
-                    </p>
-                  )}
-                </div>
-              </div>
+                        <div className="flex items-start gap-4">
+                          {/* Always reserve space for image to maintain alignment */}
+                          <div className="w-16 h-16 flex-shrink-0">
+                            {log.image_url ? (
+                              <img
+                                src={log.image_url}
+                                alt={log.product_name || log.custom_food_name}
+                                className="w-full h-full object-cover rounded border border-slate-600"
+                              />
+                            ) : (
+                              <div className="w-full h-full bg-slate-700/50 border border-slate-600 rounded flex items-center justify-center">
+                                <span className="text-slate-500 text-2xl">🍽️</span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-start justify-between">
+                              <div>
+                                <h4 className="font-medium text-white">
+                                  {log.custom_food_name || log.product_name}
+                                </h4>
+                                <p className="text-sm text-slate-400">
+                                  {log.user_serving_size && log.user_serving_unit
+                                    ? `${log.user_serving_size} ${log.user_serving_unit}`
+                                    : `${log.serving_size} g`
+                                  }
+                                </p>
+                                <p className="text-xs text-slate-500 mt-1">
+                                  {dateFormatter.formatTime(log.logged_at)}
+                                </p>
+                              </div>
+                              <div className="flex gap-1">
+                                <div title="Add to favorites">
+                                  <FavoriteButton
+                                    foodId={log.food_item_id}
+                                    foodName={log.custom_food_name || log.product_name}
+                                    defaultServingSize={log.user_serving_size || log.serving_size}
+                                    defaultServingUnit={log.user_serving_unit || log.serving_unit}
+                                    className="p-1.5"
+                                  />
+                                </div>
+                                <button
+                                  onClick={() => handleLogAgain(log)}
+                                  className="p-2 text-green-400 hover:bg-green-900/20 rounded-lg transition-colors"
+                                  title="Log this food again"
+                                >
+                                  <Plus className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => setEditingLog(log)}
+                                  className="p-2 text-blue-400 hover:bg-blue-900/20 rounded-lg transition-colors"
+                                  title="Edit food log"
+                                >
+                                  <Edit2 className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleDelete(log.id)}
+                                  className="p-2 text-red-400 hover:bg-red-900/20 rounded-lg transition-colors"
+                                  title="Delete food log"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
+                            <div className="flex gap-2 mt-2 text-sm flex-wrap">
+                              <span className="px-2.5 py-1 bg-blue-900/40 text-blue-300 font-semibold rounded-lg text-xs">
+                                {Number(log.total_carbs_g).toFixed(1)}g carbs
+                              </span>
+                              <span className="px-2.5 py-1 bg-slate-700/40 text-slate-300 rounded-lg text-xs">
+                                {Number(log.total_calories).toFixed(0)} cal
+                              </span>
+                              {log.total_protein_g && (
+                                <span className="px-2.5 py-1 bg-slate-700/40 text-slate-300 rounded-lg text-xs">
+                                  {Number(log.total_protein_g).toFixed(1)}g protein
+                                </span>
+                              )}
+                            </div>
+                            {log.notes && (
+                              <p className="text-sm text-slate-400 mt-2 italic">
+                                {log.notes}
+                              </p>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>

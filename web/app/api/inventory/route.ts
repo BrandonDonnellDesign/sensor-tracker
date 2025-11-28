@@ -18,19 +18,28 @@ export async function GET() {
       .order('last_updated', { ascending: false });
 
     if (inventoryError) throw inventoryError;
-    
+
     // Get sensor models separately
     const modelIds = inventory?.map((i: any) => i.sensor_model_id).filter(Boolean) || [];
     const { data: models } = await supabase
       .from('sensor_models')
       .select('*')
       .in('id', modelIds);
-    
+
     // Attach models to inventory
     const inventoryWithModels = inventory?.map((item: any) => ({
       ...item,
       sensorModel: models?.find(m => m.id === item.sensor_model_id)
     }));
+
+    // Get latest sensor order
+    const { data: latestOrder } = await supabase
+      .from('sensor_orders')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('order_date', { ascending: false })
+      .limit(1)
+      .single();
 
     // Calculate usage statistics
     const { data: sensors, error: sensorsError } = await supabase
@@ -58,20 +67,41 @@ export async function GET() {
 
     const daysUntilEmpty = totalDaysOfSupply;
 
-    // Calculate recommended reorder date (when you'll have 2 sensors left)
-    // Assume average sensor duration for calculation
-    const avgSensorDuration = inventoryWithModels && inventoryWithModels.length > 0
-      ? inventoryWithModels.reduce((sum: number, item: any) => sum + (item.sensorModel?.duration_days || 10), 0) / inventoryWithModels.length
-      : 10;
-    
-    const daysUntilReorder = Math.max(0, totalDaysOfSupply - (2 * avgSensorDuration));
-    const recommendedReorderDate = new Date(Date.now() + daysUntilReorder * 24 * 60 * 60 * 1000);
+    // Calculate recommended reorder date using new logic
+    // If supply > 30 days: reorder in 30 days from last order
+    // If supply <= 30 days: reorder when supply runs low (3-day buffer)
+    let recommendedReorderDate: Date;
+    let lastOrderDate: Date | null = null;
+
+    if (latestOrder) {
+      lastOrderDate = new Date(latestOrder.order_date);
+
+      if (totalDaysOfSupply > 30) {
+        // Reorder in 30 days from last order
+        recommendedReorderDate = new Date(lastOrderDate);
+        recommendedReorderDate.setDate(recommendedReorderDate.getDate() + 30);
+      } else {
+        // Reorder when supply runs low (3-day buffer)
+        recommendedReorderDate = new Date();
+        recommendedReorderDate.setDate(recommendedReorderDate.getDate() + Math.max(0, totalDaysOfSupply - 3));
+      }
+    } else {
+      // No order history, use old calculation
+      const avgSensorDuration = inventoryWithModels && inventoryWithModels.length > 0
+        ? inventoryWithModels.reduce((sum: number, item: any) => sum + (item.sensorModel?.duration_days || 10), 0) / inventoryWithModels.length
+        : 10;
+
+      const daysUntilReorder = Math.max(0, totalDaysOfSupply - (2 * avgSensorDuration));
+      recommendedReorderDate = new Date(Date.now() + daysUntilReorder * 24 * 60 * 60 * 1000);
+    }
 
     const stats = {
       totalQuantity,
       usageRate: Math.round(usageRate * 10) / 10,
       daysUntilEmpty: Math.round(daysUntilEmpty),
       recommendedReorderDate: recommendedReorderDate.toISOString(),
+      lastOrderDate: lastOrderDate ? lastOrderDate.toISOString() : null,
+      lastOrderQuantity: latestOrder?.quantity || null,
       lowStock: totalQuantity <= 2,
       byModel: inventoryWithModels?.map((item: any) => {
         const sensorDuration = item.sensorModel?.duration_days || 10;

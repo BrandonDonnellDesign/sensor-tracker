@@ -10,14 +10,24 @@ export function useDashboardWidgets() {
   useEffect(() => {
     // Load saved configuration from localStorage
     const saved = localStorage.getItem('main-dashboard-widgets');
-    if (saved) {
+    const version = localStorage.getItem('dashboard-widgets-version');
+    const CURRENT_VERSION = '2'; // Increment when DEFAULT_DASHBOARD_WIDGETS changes
+
+    if (saved && version === CURRENT_VERSION) {
       try {
         const parsed = JSON.parse(saved);
         setWidgets(parsed);
       } catch (error) {
         console.error('Failed to load saved widgets:', error);
         setWidgets(DEFAULT_DASHBOARD_WIDGETS);
+        localStorage.setItem('dashboard-widgets-version', CURRENT_VERSION);
       }
+    } else {
+      // Force update to new default configuration
+      console.log('Updating dashboard widgets to new version');
+      setWidgets(DEFAULT_DASHBOARD_WIDGETS);
+      localStorage.setItem('main-dashboard-widgets', JSON.stringify(DEFAULT_DASHBOARD_WIDGETS));
+      localStorage.setItem('dashboard-widgets-version', CURRENT_VERSION);
     }
     setLoading(false);
   }, []);
@@ -25,6 +35,7 @@ export function useDashboardWidgets() {
   const updateWidgets = (newWidgets: DashboardWidget[]) => {
     setWidgets(newWidgets);
     localStorage.setItem('main-dashboard-widgets', JSON.stringify(newWidgets));
+    localStorage.setItem('dashboard-widgets-version', '2');
   };
 
   const getEnabledWidgets = () => {

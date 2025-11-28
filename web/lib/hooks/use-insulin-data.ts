@@ -41,9 +41,9 @@ export function useInsulinData(): UseInsulinDataReturn {
     try {
       const response = await fetch('/api/insulin/doses?limit=50');
       if (!response.ok) throw new Error('Failed to fetch insulin doses');
-      
+
       const data = await response.json();
-      
+
       // Transform API data to match our interface
       const transformedDoses: InsulinDose[] = data.doses?.map((dose: any) => ({
         id: dose.id,
@@ -66,21 +66,22 @@ export function useInsulinData(): UseInsulinDataReturn {
 
   const fetchGlucoseData = async () => {
     try {
-      const response = await fetch('/api/glucose/readings?limit=10&sort=desc');
+      // Fetch more readings for better chart visualization (24h of 5-min readings = ~288)
+      const response = await fetch('/api/glucose/readings?limit=300');
       if (!response.ok) throw new Error('Failed to fetch glucose readings');
-      
+
       const data = await response.json();
-      
-      // Transform API data to match our interface
-      const transformedReadings: GlucoseReading[] = data.readings?.map((reading: any) => ({
+
+      // Transform API data to match GlucoseChart interface
+      const transformedReadings: GlucoseReading[] = (Array.isArray(data) ? data : data.readings || []).map((reading: any) => ({
         id: reading.id,
         value: parseFloat(reading.value),
         timestamp: new Date(reading.system_time || reading.timestamp),
         trend: reading.trend
-      })) || [];
+      }));
 
       setRecentReadings(transformedReadings);
-      
+
       // Set current glucose to the most recent reading
       if (transformedReadings.length > 0) {
         setCurrentGlucose(transformedReadings[0].value);
@@ -94,7 +95,7 @@ export function useInsulinData(): UseInsulinDataReturn {
   const refetch = async () => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
       await Promise.all([
         fetchInsulinDoses(),

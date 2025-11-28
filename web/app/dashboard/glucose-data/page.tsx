@@ -59,7 +59,7 @@ export default function GlucoseDataPage() {
   const [showManualSync, setShowManualSync] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [dateRange, setDateRange] = useState('7d');
-  
+
   const supabase = createClient();
 
   useEffect(() => {
@@ -71,13 +71,13 @@ export default function GlucoseDataPage() {
   const loadGlucoseData = async () => {
     try {
       setLoading(true);
-      
+
       // Calculate date range
       const endDate = new Date();
       const startDate = new Date();
-      
+
       console.log('Loading glucose data for date range:', dateRange);
-      
+
       switch (dateRange) {
         case '24h':
           startDate.setHours(startDate.getHours() - 24);
@@ -94,28 +94,59 @@ export default function GlucoseDataPage() {
       }
 
       console.log('Querying glucose_readings from', startDate.toISOString(), 'to', endDate.toISOString());
-      
-      // First, try to get any glucose readings to test table existence
-      const { data: testData, error: testError } = await supabase
+
+      // Get the actual total count first
+      const { count: totalCount, error: countError } = await supabase
         .from('glucose_readings')
-        .select('count(*)')
-        .limit(1);
-      
-      console.log('Table existence test:', { testData, testError });
-      
-      const { data, error } = await supabase
-        .from('glucose_readings')
-        .select('*')
+        .select('*', { count: 'exact', head: true })
         .gte('system_time', startDate.toISOString())
-        .lte('system_time', endDate.toISOString())
-        .order('system_time', { ascending: false })
-        .limit(1000);
+        .lte('system_time', endDate.toISOString());
 
-      console.log('Supabase query result:', { data, error });
+      console.log('📊 Total readings in date range:', totalCount);
 
-      if (error) throw error;
-      
-      setReadings(data || []);
+      if (countError) {
+        console.error('Error getting count:', countError);
+      }
+
+      // Fetch all data using pagination (Supabase has 1000 row limit per query)
+      const pageSize = 1000;
+      let allReadings: GlucoseReading[] = [];
+      let currentPage = 0;
+      let hasMore = true;
+
+      while (hasMore) {
+        const from = currentPage * pageSize;
+        const to = from + pageSize - 1;
+
+        console.log(`📄 Fetching page ${currentPage + 1} (rows ${from}-${to})...`);
+
+        const { data, error } = await supabase
+          .from('glucose_readings')
+          .select('*')
+          .gte('system_time', startDate.toISOString())
+          .lte('system_time', endDate.toISOString())
+          .order('system_time', { ascending: false })
+          .range(from, to);
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          allReadings = [...allReadings, ...data];
+          console.log(`✅ Fetched ${data.length} readings (total so far: ${allReadings.length})`);
+
+          // Check if we got less than pageSize, meaning we're done
+          if (data.length < pageSize) {
+            hasMore = false;
+          } else {
+            currentPage++;
+          }
+        } else {
+          hasMore = false;
+        }
+      }
+
+      console.log(`🎉 Finished loading ${allReadings.length} total readings`);
+      setReadings(allReadings);
     } catch (error) {
       console.error('Error loading glucose data:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -133,7 +164,7 @@ export default function GlucoseDataPage() {
       // Calculate date range
       const endDate = new Date();
       const startDate = new Date();
-      
+
       switch (dateRange) {
         case '24h':
           startDate.setHours(startDate.getHours() - 24);
@@ -217,7 +248,7 @@ export default function GlucoseDataPage() {
 
       // Be more lenient - if we have any token data, consider it potentially active
       const hasAnyToken = !!tokenData;
-      
+
       setSyncStatus({
         isActive: hasAnyToken, // More lenient check
         lastSync: syncSettings?.last_successful_sync || tokenData?.last_sync_at || null,
@@ -245,7 +276,7 @@ export default function GlucoseDataPage() {
 
       // Use the same working method as glucose-test
       console.log('🔄 Starting Dexcom sync for user:', user.id);
-      
+
       const response = await fetch('/api/dexcom/sync', {
         method: 'POST',
         headers: {
@@ -264,12 +295,12 @@ export default function GlucoseDataPage() {
           const errorData = await response.json();
           console.error('🔄 Sync error data:', errorData);
           console.error('🔄 Response status:', response.status);
-          
+
           // Handle empty error objects
           if (Object.keys(errorData).length === 0) {
             throw new Error(`Sync failed with status ${response.status}. Server returned empty error object.`);
           }
-          
+
           throw new Error(errorData.error || errorData.message || 'Sync failed');
         } else {
           const textResponse = await response.text();
@@ -280,15 +311,15 @@ export default function GlucoseDataPage() {
 
       const result = await response.json();
       console.log('Sync result:', result);
-      
+
       let message = `Synced ${result.glucose_readings || 0} glucose readings.`;
       if (result.token_auto_refreshed) {
         message += ' (Token was automatically refreshed)';
       }
-      
+
       const newReadings = result.glucose_readings || 0;
       toast.success(`Sync completed! ${newReadings} new readings imported`);
-      
+
       await loadGlucoseData();
       await loadFoodAndInsulinData();
       await checkSyncStatus();
@@ -319,14 +350,14 @@ export default function GlucoseDataPage() {
     if (!syncStatus.isActive) {
       return <Badge variant="destructive">Not Connected</Badge>;
     }
-    
+
     if (!syncStatus.syncEnabled) {
       return <Badge variant="secondary">Sync Disabled</Badge>;
     }
 
     const tokenExpiry = syncStatus.tokenExpiry ? new Date(syncStatus.tokenExpiry) : null;
     const isExpired = tokenExpiry && tokenExpiry <= new Date();
-    
+
     if (isExpired) {
       return <Badge variant="destructive">Token Expired</Badge>;
     }
@@ -354,7 +385,7 @@ export default function GlucoseDataPage() {
               Monitor your continuous glucose readings and sync status
             </p>
           </div>
-          
+
           <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"
@@ -365,7 +396,7 @@ export default function GlucoseDataPage() {
               <Download className="h-4 w-4 mr-2" />
               Export
             </Button>
-            
+
             <Button
               variant="outline"
               size="sm"
@@ -375,7 +406,7 @@ export default function GlucoseDataPage() {
               <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
               Manual Sync
             </Button>
-            
+
             <Button
               onClick={handleManualSync}
               disabled={syncing}
@@ -385,7 +416,7 @@ export default function GlucoseDataPage() {
               <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
               {syncing ? 'Syncing...' : syncStatus.isActive ? 'Quick Sync' : 'Try Sync'}
             </Button>
-            
+
 
           </div>
         </div>
@@ -401,17 +432,17 @@ export default function GlucoseDataPage() {
                 Dexcom connection issue detected. Please check your connection status or reconnect your account.
               </p>
               <div className="flex gap-2 mt-2">
-                <Button 
-                  variant="link" 
-                  className="p-0 h-auto text-amber-300 hover:text-amber-200 text-sm" 
+                <Button
+                  variant="link"
+                  className="p-0 h-auto text-amber-300 hover:text-amber-200 text-sm"
                   onClick={checkSyncStatus}
                 >
                   Refresh Status
                 </Button>
                 <span className="text-amber-400">•</span>
-                <Button 
-                  variant="link" 
-                  className="p-0 h-auto text-amber-300 hover:text-amber-200 text-sm" 
+                <Button
+                  variant="link"
+                  className="p-0 h-auto text-amber-300 hover:text-amber-200 text-sm"
                   asChild
                 >
                   <a href="/dashboard/settings/integrations">Check Settings →</a>
@@ -562,22 +593,22 @@ export default function GlucoseDataPage() {
                 <RefreshCw className="w-5 h-5" />
                 Real-time Safety Monitoring
               </h3>
-              <GlucosePredictor 
+              <GlucosePredictor
                 autoRefresh={true}
                 refreshInterval={300}
               />
             </div>
-            
+
             {/* Advanced Predictive Analytics */}
             <PredictiveAnalytics readings={readings} loading={loading} />
           </TabsContent>
 
           <TabsContent value="patterns" className="p-4">
-            <PatternInsights 
-              readings={readings} 
+            <PatternInsights
+              readings={readings}
               foodLogs={foodLogs}
               insulinLogs={insulinLogs}
-              loading={loading} 
+              loading={loading}
             />
           </TabsContent>
 
@@ -586,8 +617,8 @@ export default function GlucoseDataPage() {
           </TabsContent>
 
           <TabsContent value="readings" className="p-4">
-            <GlucoseReadingsList 
-              readings={readings} 
+            <GlucoseReadingsList
+              readings={readings}
               loading={loading}
               onRefresh={loadGlucoseData}
             />

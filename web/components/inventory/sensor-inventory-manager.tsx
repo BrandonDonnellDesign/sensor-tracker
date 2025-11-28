@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Package, Plus, Minus, AlertTriangle, TrendingDown, Calendar } from 'lucide-react';
+import { Package, Plus, Minus, AlertTriangle, TrendingDown, Calendar, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { AddInventoryDialog } from './add-inventory-dialog';
+import { LogReorderDialog } from './log-reorder-dialog';
 import type { SensorInventory, InventoryStats } from '@/types/inventory';
 
 export function SensorInventoryManager() {
@@ -13,6 +14,7 @@ export function SensorInventoryManager() {
   const [stats, setStats] = useState<InventoryStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showReorderDialog, setShowReorderDialog] = useState(false);
 
   useEffect(() => {
     loadInventory();
@@ -132,10 +134,16 @@ export function SensorInventoryManager() {
             Sensor Inventory
           </h3>
           {inventory.length > 0 && (
-            <Button variant="outline" size="sm" onClick={() => setShowAddDialog(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Sensors
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => setShowReorderDialog(true)}>
+                <ShoppingCart className="h-4 w-4 mr-2" />
+                Log Reorder
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setShowAddDialog(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Sensors
+              </Button>
+            </div>
           )}
         </div>
 
@@ -208,6 +216,14 @@ export function SensorInventoryManager() {
         open={showAddDialog}
         onOpenChange={setShowAddDialog}
         onSuccess={loadInventory}
+      />
+
+      {/* Log Reorder Dialog */}
+      <LogReorderDialog
+        open={showReorderDialog}
+        onOpenChange={setShowReorderDialog}
+        onSuccess={loadInventory}
+        sensorModelId={inventory[0]?.sensor_model_id || undefined}
       />
     </div>
   );

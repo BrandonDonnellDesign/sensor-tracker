@@ -5,7 +5,18 @@ import { useEffect } from 'react';
 export function ServiceWorkerRegistration() {
   useEffect(() => {
     if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-      registerServiceWorker();
+      // Only register service worker in production
+      if (process.env.NODE_ENV === 'production') {
+        registerServiceWorker();
+      } else {
+        // In development, unregister any existing service workers to prevent caching issues
+        navigator.serviceWorker.getRegistrations().then((registrations) => {
+          for (const registration of registrations) {
+            registration.unregister();
+            console.log('Service Worker: Unregistered in development mode');
+          }
+        });
+      }
     }
   }, []);
 
@@ -67,9 +78,9 @@ export function ServiceWorkerRegistration() {
         </button>
       </div>
     `;
-    
+
     document.body.appendChild(notification);
-    
+
     // Auto-remove after 10 seconds
     setTimeout(() => {
       if (notification.parentNode) {
@@ -81,10 +92,10 @@ export function ServiceWorkerRegistration() {
   const requestNotificationPermission = async () => {
     try {
       const permission = await Notification.requestPermission();
-      
+
       if (permission === 'granted') {
         console.log('Service Worker: Notification permission granted');
-        
+
         // Show welcome notification
         new Notification('CGM Tracker', {
           body: 'Notifications enabled! You\'ll get reminders for sensor replacements.',
@@ -116,7 +127,7 @@ export const offlineUtils = {
         timestamp: Date.now()
       };
       localStorage.setItem('offline-data', JSON.stringify(offlineData));
-      
+
       // Register for background sync when online
       if ('serviceWorker' in navigator && 'sync' in window.ServiceWorkerRegistration.prototype) {
         const registration = await navigator.serviceWorker.ready;
@@ -159,7 +170,7 @@ export const offlineUtils = {
     indicator.id = 'offline-indicator';
     indicator.className = 'fixed top-0 left-0 right-0 bg-yellow-500 text-white text-center py-2 text-sm z-50';
     indicator.textContent = '📱 You\'re offline - Changes will sync when reconnected';
-    
+
     if (!document.getElementById('offline-indicator')) {
       document.body.appendChild(indicator);
     }

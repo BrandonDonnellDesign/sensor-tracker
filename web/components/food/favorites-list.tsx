@@ -255,7 +255,7 @@ export function FavoritesList({ onSelectFood, onAddToMeal, onRefresh }: Favorite
                   {onAddToMeal && (
                     <button
                       onClick={() => {
-                        onAddToMeal(favorite.food);
+                        onAddToMeal({ ...favorite.food, defaultServingSize: favorite.defaultServingSize, defaultServingUnit: favorite.defaultServingUnit, nickname: favorite.nickname, isFavorite: true });
                         setAddedToMeal(favorite.favoriteId);
                         setTimeout(() => setAddedToMeal(null), 2000);
                       }}

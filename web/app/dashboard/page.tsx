@@ -26,6 +26,9 @@ import { DashboardNotifications } from '@/components/dashboard/dashboard-with-no
 import { useInsulinData } from '@/lib/hooks/use-insulin-data';
 import SensorExpirationAlerts from '@/components/notifications/sensor-expiration-alerts';
 
+// Glucose components
+import { GlucoseChart } from '@/components/glucose/glucose-chart';
+
 // Insulin components
 import { IOBTracker } from '@/components/insulin/iob-tracker';
 import { TDIDashboard } from '@/components/insulin/tdi-dashboard';
@@ -61,7 +64,7 @@ export default function DashboardPage() {
   const [isMobile, setIsMobile] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
   const [recentFoodLogs, setRecentFoodLogs] = useState<any[]>([]);
-  
+
   // Customizable dashboard widgets
   const { widgets, updateWidgets, isWidgetEnabled } = useDashboardWidgets();
 
@@ -69,7 +72,7 @@ export default function DashboardPage() {
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const errorParam = urlParams.get('error');
-    
+
     if (errorParam === 'admin_required') {
       setAdminError('Admin access required. You do not have permission to access the admin panel.');
     } else if (errorParam === 'no_profile') {
@@ -79,7 +82,7 @@ export default function DashboardPage() {
     } else if (errorParam === 'middleware_error') {
       setAdminError('System error occurred during access verification. Please try again.');
     }
-    
+
     // Clear the error parameter from URL
     if (errorParam) {
       const newUrl = window.location.pathname;
@@ -92,16 +95,16 @@ export default function DashboardPage() {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 1024);
     };
-    
+
     checkMobile();
     window.addEventListener('resize', checkMobile);
-    
+
     // Check if user is new (no sensors and hasn't seen welcome)
     const hasSeenWelcome = localStorage.getItem('hasSeenWelcome');
     if (!hasSeenWelcome && sensors.length === 0 && !loading) {
       setShowWelcome(true);
     }
-    
+
     return () => window.removeEventListener('resize', checkMobile);
   }, [sensors.length, loading]);
 
@@ -153,7 +156,7 @@ export default function DashboardPage() {
   // Fetch recent food logs for notifications
   const fetchRecentFoodLogs = useCallback(async () => {
     if (!user?.id) return;
-    
+
     try {
       const supabase = createClient();
       const { data } = await supabase
@@ -162,7 +165,7 @@ export default function DashboardPage() {
         .eq('user_id', user.id)
         .gte('logged_at', new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString()) // Last 6 hours
         .order('logged_at', { ascending: false });
-      
+
       setRecentFoodLogs(data || []);
     } catch (error) {
       console.error('Error fetching recent food logs:', error);
@@ -287,12 +290,12 @@ export default function DashboardPage() {
     expirationDate.setDate(
       expirationDate.getDate() + sensorModel.duration_days
     );
-    
+
     // Add grace period to expiration date
     const gracePeriodHours = (sensorModel as any).grace_period_hours || 0;
     const expirationWithGrace = new Date(expirationDate);
     expirationWithGrace.setHours(expirationWithGrace.getHours() + gracePeriodHours);
-    
+
     return expirationWithGrace > new Date(); // Show sensors within grace period
   });
 
@@ -391,7 +394,7 @@ export default function DashboardPage() {
   // Show welcome flow for new users
   if (showWelcome && sensors.length === 0) {
     return (
-      <WelcomeFlow 
+      <WelcomeFlow
         onComplete={handleWelcomeComplete}
         onSkip={handleWelcomeComplete}
       />
@@ -404,6 +407,57 @@ export default function DashboardPage() {
       <RealtimeNotificationProvider>
         <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
           <div className="p-4">
+            {/* Admin Access Error */}
+            {adminError && (
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-4 text-center mb-6">
+                <h3 className="text-sm font-medium text-yellow-800 dark:text-yellow-300 mb-2">Access Denied</h3>
+                <p className="text-sm text-yellow-700 dark:text-yellow-400 mb-2">{adminError}</p>
+                <button
+                  onClick={() => setAdminError(null)}
+                  className="text-sm text-yellow-800 dark:text-yellow-300 underline hover:text-yellow-900 dark:hover:text-yellow-200">
+                  Dismiss
+                </button>
+              </div>
+            )}
+
+            {/* Error State */}
+            {error && (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 text-center mb-6">
+                <h3 className="text-sm font-medium text-red-800 dark:text-red-300 mb-2">Error loading sensors</h3>
+                <p className="text-sm text-red-700 dark:text-red-400 mb-2">{error}</p>
+                <button
+                  onClick={() => fetchSensors(true)}
+                  className="text-sm text-red-800 dark:text-red-300 underline hover:text-red-900 dark:hover:text-red-200">
+                  Try again
+                </button>
+              </div>
+            )}
+
+            {/* Sensor Expiration Alerts */}
+            <SensorExpirationAlerts
+              sensors={sensors}
+              className="mb-4"
+            />
+
+            {/* Combined Notifications (Smart + WebSocket) */}
+            <DashboardNotifications
+              {...notificationData}
+              maxVisible={1}
+            />
+
+            {/* Mobile Dashboard */}
+            <MobileDashboard />
+          </div>
+        </div>
+      </RealtimeNotificationProvider>
+    );
+  }
+
+  // Desktop dashboard
+  return (
+    <RealtimeNotificationProvider>
+      <div className="min-h-screen">
+        <div>
           {/* Admin Access Error */}
           {adminError && (
             <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-4 text-center mb-6">
@@ -430,207 +484,190 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* Sensor Expiration Alerts */}
-          <SensorExpirationAlerts 
-            sensors={sensors}
-            className="mb-4"
-          />
+
 
           {/* Combined Notifications (Smart + WebSocket) */}
-          <DashboardNotifications 
+          <DashboardNotifications
             {...notificationData}
-            maxVisible={1}
+            maxVisible={2}
           />
 
-          {/* Mobile Dashboard */}
-          <MobileDashboard />
-        </div>
-      </div>
-      </RealtimeNotificationProvider>
-    );
-  }
-
-  // Desktop dashboard
-  return (
-    <RealtimeNotificationProvider>
-      <div className="min-h-screen">
-        <div>
-        {/* Admin Access Error */}
-        {adminError && (
-          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-4 text-center mb-6">
-            <h3 className="text-sm font-medium text-yellow-800 dark:text-yellow-300 mb-2">Access Denied</h3>
-            <p className="text-sm text-yellow-700 dark:text-yellow-400 mb-2">{adminError}</p>
-            <button
-              onClick={() => setAdminError(null)}
-              className="text-sm text-yellow-800 dark:text-yellow-300 underline hover:text-yellow-900 dark:hover:text-yellow-200">
-              Dismiss
-            </button>
-          </div>
-        )}
-
-        {/* Error State */}
-        {error && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 text-center mb-6">
-            <h3 className="text-sm font-medium text-red-800 dark:text-red-300 mb-2">Error loading sensors</h3>
-            <p className="text-sm text-red-700 dark:text-red-400 mb-2">{error}</p>
-            <button
-              onClick={() => fetchSensors(true)}
-              className="text-sm text-red-800 dark:text-red-300 underline hover:text-red-900 dark:hover:text-red-200">
-              Try again
-            </button>
-          </div>
-        )}
-
-
-
-        {/* Combined Notifications (Smart + WebSocket) */}
-        <DashboardNotifications 
-          {...notificationData}
-          maxVisible={2}
-        />
-
-        {/* Dashboard Customizer - Small button in corner */}
-        <div className="flex justify-end mb-4">
-          <UnifiedDashboardCustomizer 
-            widgets={widgets}
-            onWidgetsChange={updateWidgets}
-          />
-        </div>
-
-        {/* Hero Section */}
-        {isWidgetEnabled('hero') && currentSensor && (
-          <HeroSection 
-            currentSensor={currentSensor}
-            totalSensors={totalSensors}
-          />
-        )}
-
-        {/* Enhanced Stats Grid */}
-        {isWidgetEnabled('stats') && (
-          <EnhancedStatsGrid stats={statsData} />
-        )}
-
-        {/* Sensor Alerts */}
-        {isWidgetEnabled('sensor-alerts') && (
-          <div className="mb-6">
-            <SensorExpirationAlerts sensors={activeSensorsData} />
-          </div>
-        )}
-
-        {/* Main Content Grid - Original 2-column layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-          {/* Left Column - Activity & Insights */}
-          <div className="lg:col-span-2 space-y-4">
-            {/* AI Insights Panel */}
-            {isWidgetEnabled('ai-insights') && sensors.length > 0 && (
-              <AIInsightsPanel data={insightData} />
-            )}
-
-            {/* Activity Timeline */}
-            {isWidgetEnabled('activity-timeline') && (
-              <ActivityTimeline 
-                sensors={activeSensorsData}
-                userAchievements={userAchievements || []}
-              />
-            )}
-
-            {/* TDI Dashboard (if enabled) */}
-            {isWidgetEnabled('tdi') && (
-              <TDIDashboard />
-            )}
-
-            {/* Basal Trends (if enabled) */}
-            {isWidgetEnabled('basal-trends') && (
-              <BasalTrends />
-            )}
-
-            {/* Glucose Chart (if enabled) */}
-            {isWidgetEnabled('glucose-chart') && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Glucose Trends</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-gray-500 text-sm">Glucose chart - Coming soon</p>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Food Summary (if enabled) */}
-            {isWidgetEnabled('food-summary') && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Recent Meals</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-gray-500 text-sm">Food summary - Coming soon</p>
-                </CardContent>
-              </Card>
-            )}
+          {/* Dashboard Customizer - Small button in corner */}
+          <div className="flex justify-end mb-4">
+            <UnifiedDashboardCustomizer
+              widgets={widgets}
+              onWidgetsChange={updateWidgets}
+            />
           </div>
 
-          {/* Right Column - Actions & Gamification */}
-          <div className="space-y-4">
-            {/* IOB Tracker */}
-            {isWidgetEnabled('iob-tracker') && (
-              <IOBTracker showDetails />
-            )}
+          {/* Hero Section */}
+          {isWidgetEnabled('hero') && currentSensor && (
+            <HeroSection
+              currentSensor={currentSensor}
+              totalSensors={totalSensors}
+            />
+          )}
 
-            {/* Quick Dose Logger (if enabled) */}
-            {isWidgetEnabled('quick-dose') && (
-              <QuickDoseLogger onDoseLogged={fetchRecentFoodLogs} />
-            )}
+          {/* Enhanced Stats Grid */}
+          {isWidgetEnabled('stats') && (
+            <EnhancedStatsGrid stats={statsData} />
+          )}
 
-            {/* Compact Gamification */}
-            {isWidgetEnabled('gamification') && (
-              <CompactGamification />
-            )}
+          {/* Sensor Alerts */}
+          {isWidgetEnabled('sensor-alerts') && (
+            <div className="mb-6">
+              <SensorExpirationAlerts sensors={activeSensorsData} />
+            </div>
+          )}
 
-            {/* Streamlined Quick Actions */}
-            {isWidgetEnabled('quick-actions') && (
-              <StreamlinedQuickActions 
-                onRefresh={() => fetchSensors(true)}
-                isRefreshing={refreshing}
-                problematicCount={problematicSensors}
-              />
-            )}
+          {/* Main Content Grid - Original 2-column layout */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+            {/* Left Column - Activity & Insights */}
+            <div className="lg:col-span-2 space-y-4">
+              {/* AI Insights Panel */}
+              {isWidgetEnabled('ai-insights') && sensors.length > 0 && (
+                <AIInsightsPanel data={insightData} />
+              )}
+
+              {/* Activity Timeline */}
+              {isWidgetEnabled('activity-timeline') && (
+                <ActivityTimeline
+                  sensors={activeSensorsData}
+                  userAchievements={userAchievements || []}
+                />
+              )}
+
+              {/* TDI Dashboard (if enabled) */}
+              {isWidgetEnabled('tdi') && (
+                <TDIDashboard />
+              )}
+
+              {/* Basal Trends (if enabled) */}
+              {isWidgetEnabled('basal-trends') && (
+                <BasalTrends />
+              )}
+
+              {/* Glucose Chart (if enabled) */}
+              {isWidgetEnabled('glucose-chart') && (
+                <GlucoseChart
+                  readings={recentReadings.map(r => ({
+                    id: r.id,
+                    value: r.value,
+                    system_time: r.timestamp.toISOString(),
+                    trend: r.trend || null,
+                    source: 'dexcom'
+                  }))}
+                  loading={false}
+                />
+              )}
+
+              {/* Food Summary (if enabled) */}
+              {isWidgetEnabled('food-summary') && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Recent Meals</CardTitle>
+                    <p className="text-sm text-slate-400 mt-1">Your food logs from the last 24 hours</p>
+                  </CardHeader>
+                  <CardContent>
+                    {recentFoodLogs.length > 0 ? (
+                      <div className="space-y-3">
+                        {recentFoodLogs.slice(0, 5).map((log) => (
+                          <div key={log.id} className="flex items-center justify-between p-3 bg-slate-800/30 rounded-lg border border-slate-700/30">
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-white">
+                                {new Date(log.logged_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </p>
+                              <p className="text-xs text-slate-400">
+                                {log.total_carbs_g}g carbs
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                        <Link
+                          href="/dashboard/food"
+                          className="text-sm text-blue-400 hover:text-blue-300 block text-center mt-4"
+                        >
+                          View all meals →
+                        </Link>
+                      </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <p className="text-slate-400 text-sm mb-4">No recent meals logged</p>
+                        <Link
+                          href="/dashboard/food"
+                          className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition-colors"
+                        >
+                          Log your first meal
+                        </Link>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+
+            {/* Right Column - Actions & Gamification */}
+            <div className="space-y-4">
+              {/* IOB Tracker */}
+              {isWidgetEnabled('iob-tracker') && (
+                <IOBTracker showDetails />
+              )}
+
+              {/* Quick Dose Logger (if enabled) */}
+              {isWidgetEnabled('quick-dose') && (
+                <QuickDoseLogger onDoseLogged={fetchRecentFoodLogs} />
+              )}
+
+              {/* Compact Gamification */}
+              {isWidgetEnabled('gamification') && (
+                <CompactGamification />
+              )}
+
+              {/* Streamlined Quick Actions */}
+              {isWidgetEnabled('quick-actions') && (
+                <StreamlinedQuickActions
+                  onRefresh={() => fetchSensors(true)}
+                  isRefreshing={refreshing}
+                  problematicCount={problematicSensors}
+                />
+              )}
+            </div>
           </div>
-        </div>
 
 
 
-        {/* Empty State for New Users */}
-        {totalSensors === 0 && (
-          <div className="bg-[#1e293b] rounded-lg p-12 border border-slate-700/30 text-center">
-            <div className="max-w-md mx-auto">
-              <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-6">
-                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-              </div>
-              <h2 className="text-xl font-bold text-white mb-3">
-                Welcome to CGM Tracker!
-              </h2>
-              <p className="text-slate-400 mb-6 text-sm">
-                Start tracking your continuous glucose monitor sensors to unlock powerful insights, 
-                achievements, and optimize your CGM experience.
-              </p>
-              <div className="space-y-3">
-                <Link
-                  href="/dashboard/sensors/new"
-                  className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-lg transition-all duration-200 transform hover:scale-105 shadow-lg">
-                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+          {/* Empty State for New Users */}
+          {totalSensors === 0 && (
+            <div className="bg-[#1e293b] rounded-lg p-12 border border-slate-700/30 text-center">
+              <div className="max-w-md mx-auto">
+                <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                   </svg>
-                  Add Your First Sensor
-                </Link>
-                <div className="text-xs text-slate-500">
-                  Or press <kbd className="bg-slate-700 px-2 py-1 rounded text-xs">Alt+N</kbd>
+                </div>
+                <h2 className="text-xl font-bold text-white mb-3">
+                  Welcome to CGM Tracker!
+                </h2>
+                <p className="text-slate-400 mb-6 text-sm">
+                  Start tracking your continuous glucose monitor sensors to unlock powerful insights,
+                  achievements, and optimize your CGM experience.
+                </p>
+                <div className="space-y-3">
+                  <Link
+                    href="/dashboard/sensors/new"
+                    className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-lg transition-all duration-200 transform hover:scale-105 shadow-lg">
+                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                    Add Your First Sensor
+                  </Link>
+                  <div className="text-xs text-slate-500">
+                    Or press <kbd className="bg-slate-700 px-2 py-1 rounded text-xs">Alt+N</kbd>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
         </div>
       </div>
     </RealtimeNotificationProvider>

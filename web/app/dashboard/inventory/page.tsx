@@ -1,5 +1,8 @@
+'use client';
+
 import { SensorInventoryManager } from '@/components/inventory/sensor-inventory-manager';
 import { DiabetesSuppliesInventory } from '@/components/inventory/diabetes-supplies-inventory';
+import { PendingOrdersList } from '@/components/inventory/pending-orders-list';
 import { Package, Activity } from 'lucide-react';
 
 export default function InventoryPage() {
@@ -25,6 +28,9 @@ export default function InventoryPage() {
           </h2>
           <SensorInventoryManager />
         </div>
+
+        {/* Pending Orders Section */}
+        <PendingOrdersList onOrderUpdated={() => window.location.reload()} />
 
         {/* Diabetes Supplies Section */}
         <div>
