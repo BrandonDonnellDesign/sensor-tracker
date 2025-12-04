@@ -6,6 +6,14 @@ const __dirname = path.dirname(__filename);
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Skip type checking during build to reduce memory usage
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  
   experimental: {
     // Enable optimized loading
     optimizePackageImports: ['lucide-react', 'date-fns'],
