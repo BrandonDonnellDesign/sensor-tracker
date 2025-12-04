@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Dispatch, SetStateAction } from 'react';
 import { Calendar, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -17,9 +17,9 @@ import { toast } from 'sonner';
 
 interface LogReorderDialogProps {
     open: boolean;
-    onOpenChange: (open: boolean) => void;
+    onOpenChange: Dispatch<SetStateAction<boolean>>;
     onSuccess: () => void;
-    sensorModelId?: string;
+    sensorModelId?: string | undefined;
 }
 
 export function LogReorderDialog({

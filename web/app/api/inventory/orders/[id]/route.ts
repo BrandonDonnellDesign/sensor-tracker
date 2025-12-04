@@ -4,8 +4,9 @@ import { createClient } from '@/lib/supabase-server';
 // PATCH - Update order status
 export async function PATCH(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    props: { params: Promise<{ id: string }> }
 ) {
+    const params = await props.params;
     try {
         const supabase = await createClient();
         const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -15,7 +16,7 @@ export async function PATCH(
         }
 
         const body = await request.json();
-        const { status, actual_delivery_date } = body;
+        const { status, actual_delivery_date, quantity } = body;
 
         // Update the order
         const { data: order, error: updateError } = await (supabase as any)
@@ -23,6 +24,7 @@ export async function PATCH(
             .update({
                 status,
                 actual_delivery_date,
+                quantity, // Allow updating quantity
                 updated_at: new Date().toISOString()
             })
             .eq('id', params.id)
@@ -34,18 +36,11 @@ export async function PATCH(
 
         // If status is delivered, add to inventory
         if (status === 'delivered' && order.sensor_model_id) {
-            const { error: inventoryError } = await (supabase as any)
-                .from('sensor_inventory')
-                .upsert({
-                    user_id: user.id,
-                    sensor_model_id: order.sensor_model_id,
-                    quantity: order.quantity,
-                    notes: `Added from order ${order.order_number || order.id}`,
-                    last_updated: new Date().toISOString()
-                }, {
-                    onConflict: 'user_id,sensor_model_id',
-                    ignoreDuplicates: false
-                });
+            const { error: inventoryError } = await (supabase as any).rpc('increment_inventory', {
+                p_user_id: user.id,
+                p_sensor_model_id: order.sensor_model_id,
+                p_quantity: order.quantity || 1
+            });
 
             if (inventoryError) {
                 console.error('Error updating inventory:', inventoryError);

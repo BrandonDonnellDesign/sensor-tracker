@@ -220,29 +220,68 @@ export const GamificationWidget = memo(function GamificationWidget({ compact = f
           Current Goals
         </h4>
         <div className="space-y-3">
-          {/* Next Achievement Goal */}
+          {/* Show progress for all unearned achievements */}
           {(() => {
-            const nextAchievement = visibleAchievements.find(ach => 
-              !userAchievements.some(ua => ua.achievement_id === ach.id) &&
-              ach.requirement_type === 'sensor_count'  // Fixed: matches database requirement_type
+            // Get list of earned achievement IDs for easier comparison
+            const earnedAchievementIds = new Set(
+              userAchievements.map(ua => ua.achievement_id)
             );
             
-            if (nextAchievement) {
-              const current = userStats.sensors_tracked || 0;
-              const target = nextAchievement.requirement_value;
+            const unearnedAchievements = visibleAchievements
+              .filter(ach => {
+                // Skip if already earned
+                if (earnedAchievementIds.has(ach.id)) return false;
+                // Skip if no requirement type (can't track progress)
+                if (!ach.requirement_type) return false;
+                return true;
+              })
+              .sort((a, b) => (a.requirement_value || 0) - (b.requirement_value || 0))
+              .slice(0, 3); // Show top 3 closest goals
+            
+            return unearnedAchievements.map(achievement => {
+              let current = 0;
+              let target = achievement.requirement_value;
+              let label = '';
+              
+              // Determine current progress based on requirement type
+              switch (achievement.requirement_type) {
+                case 'sensor_count':
+                  current = userStats.sensors_tracked || 0;
+                  label = 'sensors';
+                  break;
+                case 'glucose_reading_count':
+                  current = 0; // Field not yet tracked in user stats
+                  label = 'readings';
+                  break;
+                case 'food_log_count':
+                  current = 0; // Field not yet tracked in user stats
+                  label = 'meals';
+                  break;
+                case 'streak_days':
+                  current = userStats.current_streak || 0;
+                  target = achievement.requirement_value;
+                  label = 'days';
+                  break;
+                default:
+                  return null;
+              }
+              
+              // Only show if we haven't reached the target yet
+              if (current >= target) return null;
+              
               const percentage = Math.max(0, Math.min(100, (current / target) * 100));
               
               return (
-                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                <div key={achievement.id} className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center space-x-2">
-                      <span className="text-sm">{nextAchievement.icon}</span>
+                      <span className="text-sm">{achievement.icon}</span>
                       <span className="text-sm font-medium text-blue-900 dark:text-blue-300">
-                        {nextAchievement.name}
+                        {achievement.name}
                       </span>
                     </div>
                     <span className="text-xs text-blue-600 dark:text-blue-400">
-                      {current}/{target}
+                      {current}/{target} {label}
                     </span>
                   </div>
                   <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-2">
@@ -253,12 +292,16 @@ export const GamificationWidget = memo(function GamificationWidget({ compact = f
                   </div>
                 </div>
               );
-            }
-            return null;
+            }).filter(Boolean);
           })()}
           
-          {/* Streak Goal */}
-          {userStats.current_streak >= 0 && userStats.current_streak < 7 && (
+          {/* Legacy Streak Goal - only show if no streak achievement is in progress */}
+          {userStats.current_streak >= 0 && userStats.current_streak < 7 && 
+           !visibleAchievements.some(ach => 
+             ach.requirement_type === 'streak_days' && 
+             !userAchievements.some(ua => ua.achievement_id === ach.id) &&
+             userStats.current_streak < ach.requirement_value
+           ) && (
             <div className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center space-x-2">

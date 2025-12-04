@@ -61,7 +61,7 @@ export default function HomePage() {
             {/* Left: Copy */}
             <div>
               <div className="inline-block px-4 py-2 bg-blue-100 dark:bg-blue-900/30 rounded-full mb-6">
-                <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">🎉 Now with Dexcom Auto-Sync</span>
+                <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">🚀 Dexcom Auto-Sync Coming Soon</span>
               </div>
 
               <h1 className="text-5xl md:text-6xl font-extrabold mb-6 text-gray-900 dark:text-white leading-tight">
@@ -73,15 +73,11 @@ export default function HomePage() {
 
               <p className="text-xl text-gray-700 dark:text-slate-300 mb-8 leading-relaxed">
                 Track glucose, log meals, manage insulin, and gain insights—all in one place.
-                Auto-sync with Dexcom CGM, access 500K+ foods, and optimize your health with smart analytics.
+                Access 500K+ foods, advanced IOB calculator, and optimize your health with smart analytics.
               </p>
 
               {/* Value Props */}
               <div className="space-y-3 mb-8">
-                <div className="flex items-center gap-3">
-                  <Check className="w-5 h-5 text-green-600 flex-shrink-0" />
-                  <span className="text-gray-700 dark:text-slate-300">Dexcom CGM auto-sync (1-hour delay)</span>
-                </div>
                 <div className="flex items-center gap-3">
                   <Check className="w-5 h-5 text-green-600 flex-shrink-0" />
                   <span className="text-gray-700 dark:text-slate-300">500,000+ food database with barcode scanner</span>
@@ -93,6 +89,12 @@ export default function HomePage() {
                 <div className="flex items-center gap-3">
                   <Check className="w-5 h-5 text-green-600 flex-shrink-0" />
                   <span className="text-gray-700 dark:text-slate-300">Predictive glucose analytics & pattern insights</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
+                    <span className="text-blue-600">🚀</span>
+                  </div>
+                  <span className="text-gray-700 dark:text-slate-300">Dexcom CGM auto-sync <span className="text-blue-600 font-medium">(Coming Soon)</span></span>
                 </div>
               </div>
 
@@ -153,7 +155,7 @@ export default function HomePage() {
               <div className="text-gray-600 dark:text-gray-400">Food Database</div>
             </div>
             <div className="text-center">
-              <div className="text-4xl font-bold text-indigo-600 dark:text-indigo-400 mb-2">1-Hour</div>
+              <div className="text-4xl font-bold text-indigo-600 dark:text-indigo-400 mb-2">Coming</div>
               <div className="text-gray-600 dark:text-gray-400">Dexcom Sync</div>
             </div>
             <div className="text-center">
@@ -189,10 +191,10 @@ export default function HomePage() {
               </div>
               <h3 className="text-xl font-bold mb-3 text-center">Glucose Data & Analytics</h3>
               <p className="text-gray-600 dark:text-gray-300 text-center mb-4">
-                Auto-sync with Dexcom CGM (1-hour delay), view detailed charts, analyze patterns, and get predictive insights for better control.
+                Manual glucose tracking, view detailed charts, analyze patterns, and get predictive insights for better control. Dexcom auto-sync coming soon!
               </p>
               <div className="flex flex-wrap gap-2 justify-center">
-                <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full text-sm">Dexcom Sync</span>
+                <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full text-sm">Manual Entry</span>
                 <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full text-sm">Predictions</span>
               </div>
             </div>
@@ -294,7 +296,7 @@ export default function HomePage() {
               { title: 'CGM Tracker', subtitle: 'Complete solution', highlight: true },
             ]}
             rows={[
-              { feature: 'Dexcom Auto-Sync', values: [false, '⚠️ Limited', '✓ 1-hour delay'] },
+              { feature: 'Dexcom Auto-Sync', values: [false, '⚠️ Limited', '🚀 Coming Soon'] },
               { feature: 'Food Database', values: [false, '✓ Basic', '✓ 500K+ foods'] },
               { feature: 'Barcode Scanner', values: [false, '⚠️ Some', '✓ Full support'] },
               { feature: 'IOB Calculator', values: [false, false, true] },
@@ -333,7 +335,7 @@ export default function HomePage() {
                 <span className="text-2xl group-open:rotate-180 transition-transform">+</span>
               </summary>
               <p className="mt-4 text-gray-600 dark:text-gray-300">
-                Currently, we support Dexcom CGM with automatic sync (1-hour delay via Dexcom API). You can also manually enter data from any CGM system.
+                Currently, you can manually enter glucose data from any CGM system. Dexcom automatic sync is coming soon! We're working on seamless integration with Dexcom API.
               </p>
             </details>
 

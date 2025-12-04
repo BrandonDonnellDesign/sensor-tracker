@@ -28,3 +28,6 @@
 
 [functions."scheduled-reorder-check"]
   schedule = "0 9 * * *"
+
+[functions."scheduled-gmail-sync"]
+  schedule = "0 10 * * *"

@@ -3,6 +3,7 @@
 import { useAuth } from '@/components/providers/auth-provider';
 import { DexcomSettings } from '@/components/dexcom-settings';
 import { MyFitnessPalIntegration } from '@/components/settings/myfitnesspal-integration';
+import { GmailConnectionCard } from '@/components/settings/gmail-connection-card';
 import { Settings, Zap, Activity } from 'lucide-react';
 
 interface IntegrationCardProps {
@@ -101,7 +102,7 @@ export function CgmIntegrations() {
             ]}
           />
         )}
-        
+
         {/* Freestyle Libre - Coming Soon */}
         <IntegrationCard
           title='Freestyle Libre Integration'
@@ -120,6 +121,9 @@ export function CgmIntegrations() {
       <div className='bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-gray-200 dark:border-slate-700 p-6'>
         <MyFitnessPalIntegration />
       </div>
+
+      {/* Gmail Integration */}
+      <GmailConnectionCard />
       {/* Footer */}
       <div className='text-center bg-gray-50 dark:bg-slate-700/50 rounded-lg p-6'>
         <h3 className='text-lg font-semibold text-gray-900 dark:text-slate-100 mb-2'>

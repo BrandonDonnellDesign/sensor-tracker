@@ -37,6 +37,7 @@ export function PendingOrdersList({ onOrderUpdated }: PendingOrdersListProps) {
     const [showUpdateDialog, setShowUpdateDialog] = useState(false);
     const [updating, setUpdating] = useState(false);
     const [newStatus, setNewStatus] = useState<'pending' | 'shipped' | 'delivered'>('pending');
+    const [newQuantity, setNewQuantity] = useState<number>(1);
 
     useEffect(() => {
         loadOrders();
@@ -72,6 +73,7 @@ export function PendingOrdersList({ onOrderUpdated }: PendingOrdersListProps) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     status: newStatus,
+                    quantity: newQuantity,
                     actual_delivery_date: newStatus === 'delivered' ? new Date().toISOString() : null,
                 }),
             });
@@ -79,7 +81,7 @@ export function PendingOrdersList({ onOrderUpdated }: PendingOrdersListProps) {
             const data = await response.json();
 
             if (data.success) {
-                toast.success(`Order status updated to ${newStatus}`);
+                toast.success(`Order updated successfully`);
                 setShowUpdateDialog(false);
                 setSelectedOrder(null);
                 loadOrders();
@@ -98,6 +100,7 @@ export function PendingOrdersList({ onOrderUpdated }: PendingOrdersListProps) {
     const openUpdateDialog = (order: SensorOrder) => {
         setSelectedOrder(order);
         setNewStatus(order.status);
+        setNewQuantity(order.quantity || 1);
         setShowUpdateDialog(true);
     };
 
@@ -221,12 +224,30 @@ export function PendingOrdersList({ onOrderUpdated }: PendingOrdersListProps) {
                                 <option value="shipped">Shipped</option>
                                 <option value="delivered">Delivered</option>
                             </select>
-                            {newStatus === 'delivered' && (
-                                <p className="text-xs text-green-400">
-                                    ✓ This will add {selectedOrder?.quantity} sensors to your inventory
-                                </p>
-                            )}
                         </div>
+
+                        <div className="grid gap-2">
+                            <Label htmlFor="quantity" className="text-slate-200">
+                                Quantity (Sensors)
+                            </Label>
+                            <input
+                                id="quantity"
+                                type="number"
+                                min="1"
+                                value={newQuantity}
+                                onChange={(e) => setNewQuantity(parseInt(e.target.value) || 1)}
+                                className="flex h-10 w-full rounded-md border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-white ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                            />
+                        </div>
+
+                        {newStatus === 'delivered' && (
+                            <div className="bg-green-500/10 border border-green-500/20 p-3 rounded-md">
+                                <p className="text-sm text-green-400 flex items-center gap-2">
+                                    <CheckCircle className="h-4 w-4" />
+                                    This will add <strong>{newQuantity} sensors</strong> to your inventory
+                                </p>
+                            </div>
+                        )}
                     </div>
 
                     <DialogFooter>

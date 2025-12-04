@@ -266,7 +266,9 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
 
       if (updateError) {
         console.error('Error updating sensor count:', updateError);
+        return;
       }
+      
     } catch (error) {
       console.error('Error in updateSensorCount:', error);
     }
@@ -423,6 +425,15 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
       setLoading(false);
     }
   }, [user, refreshStats]);
+
+  // Check for achievements after stats are loaded
+  useEffect(() => {
+    if (user && userStats && !loading) {
+      checkAchievements().catch(err => 
+        console.error('Error checking achievements:', err)
+      );
+    }
+  }, [user, userStats, loading, checkAchievements]);
 
   const value: GamificationContextType = {
     userStats,

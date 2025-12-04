@@ -401,6 +401,9 @@ export function GlucoseFoodCorrelation() {
                 stroke="#3B82F6"
                 strokeWidth={2}
                 dot={({ cx, cy, payload, index }) => {
+                  // Type guard for cx and cy
+                  if (cx === undefined || cy === undefined) return null;
+                  
                   // Show different markers for glucose vs food events
                   if (payload.isFoodEvent && payload.mealGroup) {
                     // Position food events at the bottom of the chart
