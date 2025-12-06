@@ -3,6 +3,8 @@ import { ParsedOrder, EmailParser } from './base-parser';
 import { AmazonParser } from './amazon-parser';
 import { DexcomParser } from './dexcom-parser';
 import { OmnipodParser } from './omnipod-parser';
+import { CVSParser } from './cvs-parser';
+import { WalgreensParser } from './walgreens-parser';
 
 export class ParserRegistry {
     private parsers: EmailParser[] = [];
@@ -11,6 +13,8 @@ export class ParserRegistry {
         this.register(new AmazonParser());
         this.register(new DexcomParser());
         this.register(new OmnipodParser());
+        this.register(new CVSParser());
+        this.register(new WalgreensParser());
     }
 
     register(parser: EmailParser) {

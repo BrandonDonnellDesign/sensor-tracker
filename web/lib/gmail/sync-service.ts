@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase-server';
 import { GmailService } from './gmail-service';
 import { parserRegistry } from './parsers/registry';
 import { orderMatcher } from './order-matcher';
+import { gmailErrorLogger } from './error-logger';
 
 /**
  * Sync Gmail emails for a specific user
@@ -14,14 +15,23 @@ export async function syncGmailForUser(userId: string) {
     const gmailService = await GmailService.create(userId);
 
     if (!gmailService) {
-        throw new Error('Gmail not connected or token expired');
+        const error = new Error('Gmail not connected or token expired');
+        await gmailErrorLogger.logGmailApiError(userId, error, 'initialize');
+        throw error;
     }
 
     // Search for order emails (Amazon Pharmacy, Dexcom, CVS, Walgreens, US Med, Edgepark, Omnipod)
     // Includes keywords for orders, shipping, delivery, tracking, invoices, and replacements
     // Note: Using "from:pharmacy.amazon.com" instead of just "amazon" to avoid non-pharmacy Amazon emails
     const query = 'subject:(order OR confirmation OR shipped OR delivery OR tracking OR invoice OR replacement OR "your supply") (from:pharmacy.amazon.com OR from:amazonpharmacy.com OR dexcom OR cvs OR walgreens OR "us med" OR edgepark OR omnipod OR insulet OR theomnipodteam) newer_than:90d';
-    const messages = await gmailService.searchEmails(query, 20);
+    
+    let messages;
+    try {
+        messages = await gmailService.searchEmails(query, 20);
+    } catch (error) {
+        await gmailErrorLogger.logGmailApiError(userId, error as Error, 'search_emails');
+        throw error;
+    }
 
     const results = [];
     const unparsed = [];
@@ -64,6 +74,12 @@ export async function syncGmailForUser(userId: string) {
                 orderId = matchResult.orderId;
             } catch (error) {
                 console.error('Error processing order:', error);
+                await gmailErrorLogger.logInventoryError(
+                    userId,
+                    orderId || 'unknown',
+                    error as Error,
+                    matchResult?.action === 'delivered' ? 'increase' : 'decrease'
+                );
                 parsingStatus = 'failed';
             }
         } else {
@@ -75,6 +91,40 @@ export async function syncGmailForUser(userId: string) {
                 date: content.date,
                 snippet: content.snippet
             });
+
+            // Log parsing failure
+            const vendor = content.from.includes('amazon') ? 'Amazon Pharmacy' :
+                          content.from.includes('dexcom') ? 'Dexcom' :
+                          content.from.includes('cvs') ? 'CVS' :
+                          content.from.includes('walgreens') ? 'Walgreens' :
+                          content.from.includes('omnipod') || content.from.includes('insulet') ? 'Omnipod' :
+                          'Unknown';
+            
+            // Log parsing error (gracefully handles missing table)
+            await gmailErrorLogger.logParsingError(
+                userId,
+                msg.id,
+                vendor,
+                new Error('Failed to parse email'),
+                content.body.substring(0, 500)
+            );
+
+            // Save to unmatched_emails for review (gracefully handles missing table)
+            try {
+                await (supabase as any)
+                    .from('unmatched_emails')
+                    .insert({
+                        user_id: userId,
+                        email_id: msg.id,
+                        vendor,
+                        subject: content.subject,
+                        parsed_data: { from: content.from, snippet: content.snippet },
+                        email_date: content.date.toISOString(),
+                    });
+            } catch (unmatchedError) {
+                // Table doesn't exist yet, just log to console
+                console.warn('Could not save unmatched email (table may not exist yet):', unmatchedError);
+            }
         }
 
         // Save to parsed_emails table

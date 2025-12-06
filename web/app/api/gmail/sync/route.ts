@@ -21,13 +21,22 @@ export async function POST() {
         return NextResponse.json({
             success: true,
             message: `Synced ${result.emailsProcessed} emails`,
-            emails: result.results,
+            emailsProcessed: result.emailsProcessed,
+            totalFound: result.totalFound,
+            results: result.results,
+            unparsed: result.unparsed,
         });
 
     } catch (error) {
         console.error('Error syncing Gmail:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Failed to sync emails';
         return NextResponse.json(
-            { error: 'Failed to sync emails' },
+            { 
+                success: false,
+                error: 'Failed to sync emails',
+                message: errorMessage,
+                details: error instanceof Error ? error.stack : undefined
+            },
             { status: 500 }
         );
     }
