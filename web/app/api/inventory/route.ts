@@ -32,9 +32,9 @@ export async function GET() {
       sensorModel: models?.find(m => m.id === item.sensor_model_id)
     }));
 
-    // Get latest sensor order
+    // Get latest order
     const { data: latestOrder } = await supabase
-      .from('sensor_orders')
+      .from('orders')
       .select('*')
       .eq('user_id', user.id)
       .order('order_date', { ascending: false })

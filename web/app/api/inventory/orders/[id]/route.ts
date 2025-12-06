@@ -20,7 +20,7 @@ export async function PATCH(
 
         // Update the order
         const { data: order, error: updateError } = await (supabase as any)
-            .from('sensor_orders')
+            .from('orders')
             .update({
                 status,
                 actual_delivery_date,

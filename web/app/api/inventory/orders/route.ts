@@ -12,7 +12,7 @@ export async function GET() {
         }
 
         const { data: orders, error } = await (supabase as any)
-            .from('sensor_orders')
+            .from('orders')
             .select('*')
             .eq('user_id', user.id)
             .order('order_date', { ascending: false });

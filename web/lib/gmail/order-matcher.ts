@@ -11,7 +11,7 @@ export class OrderMatcher {
         // 1. Check if order already exists by order number
         if (order.orderNumber) {
             const { data: existingOrder } = await supabase
-                .from('sensor_orders')
+                .from('orders')
                 .select('*')
                 .eq('user_id', userId)
                 .eq('order_number', order.orderNumber)
@@ -38,7 +38,7 @@ export class OrderMatcher {
                 // Only update if we have something new
                 if (hasUpdates) {
                     await supabase
-                        .from('sensor_orders')
+                        .from('orders')
                         .update(updates)
                         .eq('id', existingOrder.id);
 
@@ -64,7 +64,7 @@ export class OrderMatcher {
             sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
             const { data: recentOrders } = await supabase
-                .from('sensor_orders')
+                .from('orders')
                 .select('*')
                 .eq('user_id', userId)
                 .eq('supplier', order.supplier)
@@ -108,7 +108,7 @@ export class OrderMatcher {
                     }
 
                     await supabase
-                        .from('sensor_orders')
+                        .from('orders')
                         .update(updates)
                         .eq('id', candidateOrder.id);
 
@@ -131,7 +131,7 @@ export class OrderMatcher {
         const orderDateStr = order.orderDate?.toISOString().split('T')[0] || new Date().toISOString().split('T')[0];
 
         const { data: duplicateCheck } = await supabase
-            .from('sensor_orders')
+            .from('orders')
             .select('*')
             .eq('user_id', userId)
             .eq('supplier', order.supplier)
@@ -161,7 +161,7 @@ export class OrderMatcher {
 
             if (hasUpdates) {
                 await supabase
-                    .from('sensor_orders')
+                    .from('orders')
                     .update(updates)
                     .eq('id', duplicateCheck.id);
 
@@ -189,7 +189,7 @@ export class OrderMatcher {
             .single();
 
         const { data: newOrder, error } = await supabase
-            .from('sensor_orders')
+            .from('orders')
             .insert({
                 user_id: userId,
                 order_date: order.orderDate?.toISOString().split('T')[0] || new Date().toISOString().split('T')[0],

@@ -33,9 +33,9 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Insert into sensor_orders table
+        // Insert into orders table
         const { data, error } = await (supabase as any)
-            .from('sensor_orders')
+            .from('orders')
             .insert({
                 user_id: user.id,
                 order_date,

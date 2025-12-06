@@ -17,9 +17,10 @@ export async function syncGmailForUser(userId: string) {
         throw new Error('Gmail not connected or token expired');
     }
 
-    // Search for order emails (Amazon, Dexcom, CVS, Walgreens, US Med, Edgepark, Omnipod)
+    // Search for order emails (Amazon Pharmacy, Dexcom, CVS, Walgreens, US Med, Edgepark, Omnipod)
     // Includes keywords for orders, shipping, delivery, tracking, invoices, and replacements
-    const query = 'subject:(order OR confirmation OR shipped OR delivery OR tracking OR invoice OR replacement OR "your supply") (amazon OR dexcom OR cvs OR walgreens OR "us med" OR edgepark OR omnipod OR insulet OR theomnipodteam) newer_than:90d';
+    // Note: Using "from:pharmacy.amazon.com" instead of just "amazon" to avoid non-pharmacy Amazon emails
+    const query = 'subject:(order OR confirmation OR shipped OR delivery OR tracking OR invoice OR replacement OR "your supply") (from:pharmacy.amazon.com OR from:amazonpharmacy.com OR dexcom OR cvs OR walgreens OR "us med" OR edgepark OR omnipod OR insulet OR theomnipodteam) newer_than:90d';
     const messages = await gmailService.searchEmails(query, 20);
 
     const results = [];

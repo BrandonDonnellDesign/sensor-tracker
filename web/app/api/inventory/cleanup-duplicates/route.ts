@@ -19,7 +19,7 @@ export async function POST() {
 
         // Get all orders for this user
         const { data: orders, error: fetchError } = await supabase
-            .from('sensor_orders')
+            .from('orders')
             .select('*')
             .eq('user_id', user.id)
             .order('created_at', { ascending: false });
@@ -110,7 +110,7 @@ export async function POST() {
                     // Update Master if needed
                     if (bestStatus !== master.status || deliveryDate !== master.actual_delivery_date) {
                         await supabase
-                            .from('sensor_orders')
+                            .from('orders')
                             .update({
                                 status: bestStatus,
                                 actual_delivery_date: deliveryDate
@@ -124,7 +124,7 @@ export async function POST() {
         // Delete duplicates
         if (duplicatesToDelete.length > 0) {
             const { error: deleteError } = await supabase
-                .from('sensor_orders')
+                .from('orders')
                 .delete()
                 .in('id', duplicatesToDelete);
 

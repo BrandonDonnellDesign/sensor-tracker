@@ -16,7 +16,7 @@ export class AmazonParser extends RegexParser {
     ];
 
     fromPatterns = [
-        /amazon\.com/i,
+        // /amazon\.com/i,
         /amazonpharmacy\.com/i,
         /pharmacy\.amazon\.com/i
     ];

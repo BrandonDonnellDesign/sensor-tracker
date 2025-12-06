@@ -78,7 +78,7 @@ export class OmnipodParser extends RegexParser {
 
         const quantity = replacementQty ? parseInt(replacementQty) :
             orderQty ? parseInt(orderQty) :
-                5; // Default to 5 pods
+                1; // Default to 5 pods
 
         // Determine product type
         let items = ['Omnipod DASH Pod'];
@@ -91,7 +91,7 @@ export class OmnipodParser extends RegexParser {
         return {
             orderNumber,
             orderDate: email.date,
-            quantity,
+            quantity: 1,
             supplier: 'Omnipod',
             status,
             trackingNumber: trackingNumber || undefined,

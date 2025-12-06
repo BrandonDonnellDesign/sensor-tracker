@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { CommunityTips } from './community-tips';
 import { ActivityFeed } from './activity-feed';
-import { NotificationSystem } from './notification-system';
 import { 
   Users, 
   TrendingUp, 
@@ -151,17 +150,14 @@ export function CommunityDashboard({ className = '' }: CommunityDashboardProps) 
 
   return (
     <div className={`space-y-6 ${className}`}>
-      {/* Header with Notifications */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">
-            Community Hub
-          </h1>
-          <p className="text-gray-600 dark:text-slate-400 mt-1">
-            Connect, share, and learn with fellow CGM users
-          </p>
-        </div>
-        <NotificationSystem />
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">
+          Community Hub
+        </h1>
+        <p className="text-gray-600 dark:text-slate-400 mt-1">
+          Connect, share, and learn with fellow CGM users
+        </p>
       </div>
 
       {/* Community Stats */}
