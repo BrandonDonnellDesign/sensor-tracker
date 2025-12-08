@@ -61,13 +61,6 @@ const primaryNavigation = [
     description: 'Supplies & stock',
   },
   {
-    name: 'Replacement Tracking',
-    href: '/dashboard/replacement-tracking',
-    icon: Package,
-    description: 'Track shipments',
-    badge: 'NEW',
-  },
-  {
     name: 'Food & Insulin',
     href: '/dashboard/food',
     icon: UtensilsCrossed,

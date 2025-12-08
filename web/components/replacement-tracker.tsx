@@ -210,31 +210,22 @@ export default function ReplacementTracker() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-slate-100">
-            Replacement Sensor Tracking
-          </h1>
-          <p className="text-lg text-gray-600 dark:text-slate-400 mt-2">
-            Track replacement sensors from warranty claims and monitor delivery status
-          </p>
+          <h2 className="text-2xl font-bold text-white mb-1">Replacement Tracking</h2>
+          <p className="text-sm text-gray-400">Track replacement sensors from warranty claims</p>
         </div>
-        <div className="flex items-center space-x-3">
-          {sensors.length > 0 && (
-            <span className="text-sm text-gray-600 dark:text-slate-400">
-              {sensors.length} sensor{sensors.length !== 1 ? 's' : ''} available
-            </span>
-          )}
-          <Button 
-            onClick={() => setIsAddingNew(true)} 
-            className="btn-primary flex items-center space-x-2"
-          >
-            <Plus className="w-5 h-5" />
-            <span>Add Tracking</span>
-          </Button>
-        </div>
+        <Button 
+          onClick={() => setIsAddingNew(true)} 
+          variant="outline"
+          size="sm"
+          className="bg-gray-800 hover:bg-gray-700 border-gray-700"
+        >
+          <Plus className="w-4 h-4 mr-2" />
+          <span>Add Tracking</span>
+        </Button>
       </div>
 
       {/* Status Banner */}
@@ -258,14 +249,15 @@ export default function ReplacementTracker() {
       )}
 
       {isAddingNew && (
-        <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-slate-700">
+        <div className="bg-gray-900/50 rounded-xl border border-gray-800 p-6">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100 flex items-center gap-2">
-              <Plus className="h-5 w-5 text-blue-600" />
+            <h3 className="text-xl font-semibold text-white flex items-center gap-2">
+              <Plus className="h-5 w-5 text-blue-400" />
               Add New Replacement Tracking
-            </h2>
+            </h3>
             <Button 
               variant="outline" 
+              size="sm"
               onClick={() => {
                 setIsAddingNew(false);
                 setSelectedSensorId('');
@@ -280,51 +272,38 @@ export default function ReplacementTracker() {
                   notes: ''
                 });
               }}
-              className="text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200"
+              className="bg-gray-800 hover:bg-gray-700 border-gray-700"
             >
               Cancel
             </Button>
           </div>
-          <div className="space-y-8">
+          <div className="space-y-6">
             {/* Sensor Selection */}
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-slate-800 dark:to-slate-700/50 p-8 rounded-2xl border border-blue-200 dark:border-slate-600 shadow-sm">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg">
-                    <Package className="h-6 w-6 text-white" />
-                  </div>
+            <div className="bg-gray-800/50 p-6 rounded-lg border border-gray-700">
+                <div className="flex items-center gap-3 mb-4">
+                  <Package className="h-5 w-5 text-blue-400" />
                   <div>
-                    <Label htmlFor="sensor-select" className="text-xl font-bold text-gray-900 dark:text-slate-100 block">
+                    <Label htmlFor="sensor-select" className="text-base font-semibold text-white block">
                       Sensor Information
                     </Label>
-                    <p className="text-sm text-blue-700 dark:text-blue-300">Select a sensor or enter details manually</p>
+                    <p className="text-sm text-gray-400">Select a sensor or enter details manually</p>
                   </div>
                 </div>
                 
-                <div className="space-y-6">
+                <div className="space-y-4">
                   {sensors.length > 0 && (
                     <div className="space-y-2">
-                      <Label htmlFor="sensor-select" className="text-base font-semibold text-gray-900 dark:text-slate-100">
+                      <Label htmlFor="sensor-select" className="text-sm font-medium text-gray-300">
                         Quick Select (Optional)
                       </Label>
                       <Select value={selectedSensorId} onValueChange={handleSensorSelect}>
-                        <SelectTrigger className="h-14 text-base border-2 border-gray-300 dark:border-slate-600 focus:border-blue-600 focus:ring-2 focus:ring-blue-200 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 font-medium shadow-sm">
-                          <SelectValue placeholder="Choose a sensor from your list (optional)" />
+                        <SelectTrigger className="h-10 bg-gray-800 border-gray-700 text-white">
+                          <SelectValue placeholder="Choose a sensor from your list" />
                         </SelectTrigger>
-                        <SelectContent className="max-h-60 bg-white dark:bg-slate-800 border-2 border-gray-400 dark:border-slate-600 shadow-lg">
+                        <SelectContent className="bg-gray-800 border-gray-700">
                           {sensors.map((sensor) => (
-                            <SelectItem key={sensor.id} value={sensor.id} className="py-4 px-4 hover:bg-blue-50 dark:hover:bg-slate-700 focus:bg-blue-100 dark:focus:bg-slate-600">
-                              <div className="flex flex-col">
-                                <span className="font-bold text-gray-900 dark:text-slate-100 text-base">{sensor.serial_number}</span>
-                                <span className="text-sm text-gray-700 dark:text-slate-400 font-medium">
-                                  {sensor.sensor_models?.manufacturer} {sensor.sensor_models?.model_name}
-                                  {sensor.lot_number && ` • Lot: ${sensor.lot_number}`}
-                                  {sensor.is_problematic && (
-                                    <span className="ml-2 px-2 py-1 bg-red-200 text-red-800 rounded text-xs font-bold">
-                                      Problematic
-                                    </span>
-                                  )}
-                                </span>
-                              </div>
+                            <SelectItem key={sensor.id} value={sensor.id} className="text-white hover:bg-gray-700">
+                              {sensor.serial_number} - {sensor.sensor_models?.manufacturer} {sensor.sensor_models?.model_name}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -332,30 +311,29 @@ export default function ReplacementTracker() {
                     </div>
                   )}
                   
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="manual-serial" className="text-base font-semibold text-gray-900 dark:text-slate-100 flex items-center gap-2">
-                        <span className="w-2 h-2 bg-red-500 rounded-full"></span>
-                        Serial Number
+                      <Label htmlFor="manual-serial" className="text-sm font-medium text-gray-300">
+                        Serial Number *
                       </Label>
                       <Input
                         id="manual-serial"
                         value={newReplacement.sensor_serial_number}
                         onChange={(e) => setNewReplacement({ ...newReplacement, sensor_serial_number: e.target.value })}
                         placeholder="Enter sensor serial number"
-                        className="h-14 border-2 border-gray-300 dark:border-slate-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 text-base bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 placeholder:text-gray-500 dark:placeholder:text-slate-400 font-medium shadow-sm rounded-xl"
+                        className="h-10 bg-gray-800 border-gray-700 text-white placeholder:text-gray-500"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="manual-lot" className="text-base font-semibold text-gray-900 dark:text-slate-100">
-                        Lot Number (Optional)
+                      <Label htmlFor="manual-lot" className="text-sm font-medium text-gray-300">
+                        Lot Number
                       </Label>
                       <Input
                         id="manual-lot"
                         value={newReplacement.sensor_lot_number}
                         onChange={(e) => setNewReplacement({ ...newReplacement, sensor_lot_number: e.target.value })}
                         placeholder="Enter lot number"
-                        className="h-14 border-2 border-gray-300 dark:border-slate-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 text-base bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 placeholder:text-gray-500 dark:placeholder:text-slate-400 font-medium shadow-sm rounded-xl"
+                        className="h-10 bg-gray-800 border-gray-700 text-white placeholder:text-gray-500"
                       />
                     </div>
                   </div>
@@ -363,31 +341,28 @@ export default function ReplacementTracker() {
               </div>
 
             {/* Shipping Information */}
-            <div className="bg-gradient-to-br from-green-50 to-green-100/50 dark:from-slate-800 dark:to-slate-700/50 p-8 rounded-2xl border border-green-200 dark:border-slate-600 shadow-sm">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 bg-green-600 rounded-xl flex items-center justify-center shadow-lg">
-                  <Truck className="h-6 w-6 text-white" />
-                </div>
+            <div className="bg-gray-800/50 p-6 rounded-lg border border-gray-700">
+              <div className="flex items-center gap-3 mb-4">
+                <Truck className="h-5 w-5 text-green-400" />
                 <div>
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100">
+                  <h3 className="text-base font-semibold text-white">
                     Shipping Information
                   </h3>
-                  <p className="text-sm text-green-700 dark:text-green-300">Enter carrier and tracking details</p>
+                  <p className="text-sm text-gray-400">Enter carrier and tracking details</p>
                 </div>
               </div>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="carrier" className="text-base font-semibold text-gray-900 dark:text-slate-100 flex items-center gap-2">
-                    <span className="w-2 h-2 bg-red-500 rounded-full"></span>
-                    Carrier
+                  <Label htmlFor="carrier" className="text-sm font-medium text-gray-300">
+                    Carrier *
                   </Label>
                   <Select value={newReplacement.carrier} onValueChange={(value) => setNewReplacement({ ...newReplacement, carrier: value })}>
-                    <SelectTrigger className="h-14 border-2 border-gray-300 dark:border-slate-600 focus:border-green-500 focus:ring-2 focus:ring-green-200 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 text-base font-medium shadow-sm rounded-xl">
+                    <SelectTrigger className="h-10 bg-gray-800 border-gray-700 text-white">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-white dark:bg-slate-800 border-2 border-gray-300 dark:border-slate-600 shadow-xl rounded-xl">
+                    <SelectContent className="bg-gray-800 border-gray-700">
                       {Object.entries(CARRIERS).map(([key, carrier]) => (
-                        <SelectItem key={key} value={key} className="py-4 px-4 hover:bg-green-50 dark:hover:bg-slate-700 focus:bg-green-100 dark:focus:bg-slate-600 text-base font-medium">
+                        <SelectItem key={key} value={key} className="text-white hover:bg-gray-700">
                           {carrier.name}
                         </SelectItem>
                       ))}
@@ -395,20 +370,19 @@ export default function ReplacementTracker() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="tracking" className="text-base font-semibold text-gray-900 dark:text-slate-100 flex items-center gap-2">
-                    <span className="w-2 h-2 bg-red-500 rounded-full"></span>
-                    Tracking Number
+                  <Label htmlFor="tracking" className="text-sm font-medium text-gray-300">
+                    Tracking Number *
                   </Label>
                   <Input
                     id="tracking"
                     value={newReplacement.tracking_number}
                     onChange={(e) => setNewReplacement({ ...newReplacement, tracking_number: e.target.value })}
                     placeholder="Enter tracking number"
-                    className="h-14 border-2 border-gray-300 dark:border-slate-600 focus:border-green-500 focus:ring-2 focus:ring-green-200 text-base bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 placeholder:text-gray-500 dark:placeholder:text-slate-400 font-medium shadow-sm rounded-xl"
+                    className="h-10 bg-gray-800 border-gray-700 text-white placeholder:text-gray-500"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="claim" className="text-base font-semibold text-gray-900 dark:text-slate-100">
+                  <Label htmlFor="claim" className="text-sm font-medium text-gray-300">
                     Warranty Claim Number
                   </Label>
                   <Input
@@ -416,11 +390,11 @@ export default function ReplacementTracker() {
                     value={newReplacement.warranty_claim_number}
                     onChange={(e) => setNewReplacement({ ...newReplacement, warranty_claim_number: e.target.value })}
                     placeholder="Enter claim number"
-                    className="h-14 border-2 border-gray-300 dark:border-slate-600 focus:border-green-500 focus:ring-2 focus:ring-green-200 text-base bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 placeholder:text-gray-500 dark:placeholder:text-slate-400 font-medium shadow-sm rounded-xl"
+                    className="h-10 bg-gray-800 border-gray-700 text-white placeholder:text-gray-500"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="delivery" className="text-base font-semibold text-gray-900 dark:text-slate-100">
+                  <Label htmlFor="delivery" className="text-sm font-medium text-gray-300">
                     Expected Delivery
                   </Label>
                   <Input
@@ -428,208 +402,182 @@ export default function ReplacementTracker() {
                     type="date"
                     value={newReplacement.expected_delivery}
                     onChange={(e) => setNewReplacement({ ...newReplacement, expected_delivery: e.target.value })}
-                    className="h-14 border-2 border-gray-300 dark:border-slate-600 focus:border-green-500 focus:ring-2 focus:ring-green-200 text-base bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 font-medium shadow-sm rounded-xl"
+                    className="h-10 bg-gray-800 border-gray-700 text-white"
                   />
                 </div>
               </div>
               </div>
 
             {/* Notes */}
-            <div className="bg-gradient-to-br from-amber-50 to-amber-100/50 dark:from-slate-800 dark:to-slate-700/50 p-8 rounded-2xl border border-amber-200 dark:border-slate-600 shadow-sm">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 bg-amber-600 rounded-xl flex items-center justify-center shadow-lg">
-                  <svg className="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                </div>
-                <div>
-                  <Label htmlFor="notes" className="text-xl font-bold text-gray-900 dark:text-slate-100 block">
-                    Additional Notes
-                  </Label>
-                  <p className="text-sm text-amber-700 dark:text-amber-300">Optional information about this replacement</p>
-                </div>
+            <div className="bg-gray-800/50 p-6 rounded-lg border border-gray-700">
+              <div className="space-y-2">
+                <Label htmlFor="notes" className="text-sm font-medium text-gray-300">
+                  Additional Notes
+                </Label>
+                <Textarea
+                  id="notes"
+                  value={newReplacement.notes}
+                  onChange={(e) => setNewReplacement({ ...newReplacement, notes: e.target.value })}
+                  placeholder="Any additional notes about this replacement..."
+                  rows={3}
+                  className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 resize-none"
+                />
               </div>
-              <Textarea
-                id="notes"
-                value={newReplacement.notes}
-                onChange={(e) => setNewReplacement({ ...newReplacement, notes: e.target.value })}
-                placeholder="Any additional notes about this replacement..."
-                rows={4}
-                className="border-2 border-gray-300 dark:border-slate-600 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 text-base bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 placeholder:text-gray-500 dark:placeholder:text-slate-400 font-medium resize-none shadow-sm p-4 rounded-xl"
-              />
-              </div>
+            </div>
 
             {/* Action Buttons */}
-            <div className="flex gap-4 pt-8 border-t-2 border-gray-200 dark:border-slate-600">
+            <div className="flex gap-3 pt-2">
               <Button 
                 onClick={handleAddReplacement} 
-                className="btn-primary flex items-center space-x-3 px-8 py-4 text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
+                className="bg-blue-600 hover:bg-blue-700 text-white"
                 disabled={!newReplacement.sensor_serial_number || !newReplacement.tracking_number}
               >
-                <Plus className="w-5 h-5" />
-                <span>Add Replacement Tracking</span>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Tracking
               </Button>
-              <div className="text-sm text-gray-500 dark:text-slate-400 flex items-center">
-                <span className="w-2 h-2 bg-red-500 rounded-full mr-2"></span>
-                Required fields
-              </div>
+              <span className="text-sm text-gray-400 flex items-center">
+                * Required fields
+              </span>
             </div>
           </div>
         </div>
       )}
 
-      {/* Replacements List */}
-      {replacements.length === 0 ? (
-        <div className="bg-white dark:bg-slate-800 rounded-2xl p-12 text-center shadow-sm border border-gray-200 dark:border-slate-700">
-          <div className="w-16 h-16 mx-auto bg-gray-100 dark:bg-slate-700 rounded-2xl flex items-center justify-center mb-6">
-            <Package className="w-8 h-8 text-gray-400 dark:text-slate-500" />
+      {/* Replacements Table */}
+      <div className="bg-gray-900/50 rounded-xl border border-gray-800 overflow-hidden">
+        {replacements.length === 0 ? (
+          <div className="p-12 text-center">
+            <Package className="h-16 w-16 text-gray-600 mx-auto mb-4" />
+            <p className="text-gray-400 mb-4 text-lg">No replacement tracking yet</p>
+            <Button 
+              onClick={() => setIsAddingNew(true)} 
+              variant="outline"
+              size="sm"
+              className="bg-gray-800 hover:bg-gray-700 border-gray-700"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add First Tracking
+            </Button>
           </div>
-          <h3 className="text-xl font-semibold text-gray-900 dark:text-slate-100 mb-2">
-            No replacement tracking yet
-          </h3>
-          <p className="text-gray-600 dark:text-slate-400 mb-8 max-w-md mx-auto">
-            Start tracking replacement sensors from your warranty claims. Select a sensor from your list and add the shipping details.
-          </p>
-          <Button 
-            onClick={() => setIsAddingNew(true)} 
-            className="btn-primary inline-flex items-center space-x-2"
-          >
-            <Plus className="w-5 h-5" />
-            <span>Add First Tracking</span>
-          </Button>
-        </div>
-      ) : (
-        <div className="grid gap-4">
-          {replacements.map((replacement) => (
-            <div key={replacement.id} className="bg-white dark:bg-slate-800 rounded-2xl p-8 shadow-lg border border-gray-200 dark:border-slate-700 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-              <div className="flex items-start justify-between mb-8">
-                <div className="flex-1">
-                  <div className="flex items-center gap-4 mb-3">
-                    <div className={`w-4 h-4 rounded-full shadow-lg ${replacement.status === 'delivered' ? 'bg-green-500' : replacement.status === 'shipped' ? 'bg-blue-500' : replacement.status === 'in_transit' ? 'bg-yellow-500' : 'bg-orange-500'}`} />
-                    <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100">
-                      {replacement.sensor_serial_number}
-                    </h3>
-                  </div>
-                  <div className="flex flex-wrap gap-6 text-sm text-gray-600 dark:text-slate-400">
-                    {replacement.sensor_lot_number && (
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-800">
+                  <th className="text-left py-4 px-6 text-sm font-semibold text-gray-400 uppercase tracking-wide">Sensor</th>
+                  <th className="text-left py-4 px-6 text-sm font-semibold text-gray-400 uppercase tracking-wide">Carrier</th>
+                  <th className="text-left py-4 px-6 text-sm font-semibold text-gray-400 uppercase tracking-wide">Tracking Number</th>
+                  <th className="text-left py-4 px-6 text-sm font-semibold text-gray-400 uppercase tracking-wide">Expected Delivery</th>
+                  <th className="text-left py-4 px-6 text-sm font-semibold text-gray-400 uppercase tracking-wide">Status</th>
+                  <th className="text-left py-4 px-6 text-sm font-semibold text-gray-400 uppercase tracking-wide">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {replacements.filter(r => r.status !== 'delivered').map((replacement, index) => (
+                  <tr 
+                    key={replacement.id} 
+                    className={`border-b border-gray-800/50 hover:bg-gray-800/30 transition-colors ${
+                      index === replacements.length - 1 ? 'border-b-0' : ''
+                    }`}
+                  >
+                    <td className="py-4 px-6">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <Package className="w-5 h-5 text-blue-400" />
+                        </div>
+                        <div>
+                          <div className="font-semibold text-white">
+                            {replacement.sensor_serial_number}
+                          </div>
+                          {replacement.sensor_lot_number && (
+                            <div className="text-sm text-gray-400 mt-0.5">Lot: {replacement.sensor_lot_number}</div>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-4 px-6">
                       <div className="flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
-                        <span><span className="font-semibold">Lot:</span> {replacement.sensor_lot_number}</span>
+                        <Truck className="w-4 h-4 text-gray-400" />
+                        <span className="text-white font-medium">
+                          {CARRIERS[replacement.carrier as keyof typeof CARRIERS]?.name}
+                        </span>
                       </div>
-                    )}
-                    {replacement.warranty_claim_number && (
+                    </td>
+                    <td className="py-4 px-6">
                       <div className="flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
-                        <span><span className="font-semibold">Claim:</span> {replacement.warranty_claim_number}</span>
+                        <span className="text-white font-mono">{replacement.tracking_number}</span>
+                        {getTrackingUrl(replacement.carrier, replacement.tracking_number) && (
+                          <a
+                            href={getTrackingUrl(replacement.carrier, replacement.tracking_number)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-400 hover:text-blue-300"
+                            title="Track package"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </a>
+                        )}
                       </div>
-                    )}
-                  </div>
-                </div>
-                <Badge className={`${STATUS_COLORS[replacement.status as keyof typeof STATUS_COLORS]} px-4 py-2 text-sm font-bold rounded-xl shadow-md`}>
-                  {replacement.status.replace('_', ' ').toUpperCase()}
-                </Badge>
-              </div>
-
-              {/* Tracking Information */}
-              <div className="bg-gray-50 dark:bg-slate-700/50 p-4 rounded-xl mb-4">
-
-
-                {/* Tracking Details */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
-                      <Truck className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">
-                        {CARRIERS[replacement.carrier as keyof typeof CARRIERS]?.name}
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-slate-400">Carrier</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
-                      <Package className="h-5 w-5 text-green-600 dark:text-green-400" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-semibold text-gray-900 dark:text-slate-100 font-mono">
-                        {replacement.tracking_number}
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-slate-400">Tracking Number</p>
-                    </div>
-                    {getTrackingUrl(replacement.carrier, replacement.tracking_number) && (
-                      <a
-                        href={getTrackingUrl(replacement.carrier, replacement.tracking_number)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-2 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-                        title="Track package on carrier website"
-                      >
-                        <ExternalLink className="h-4 w-4" />
-                      </a>
-                    )}
-                  </div>
-                  {replacement.expected_delivery && (
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center">
-                        <Calendar className="h-5 w-5 text-orange-600 dark:text-orange-400" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">
-                          {new Date(replacement.expected_delivery).toLocaleDateString()}
-                        </p>
-                        <p className="text-xs text-gray-500 dark:text-slate-400">Expected Delivery</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {replacement.notes && (
-                <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl">
-                  <p className="text-sm text-blue-900 dark:text-blue-100">
-                    <span className="font-semibold">Notes:</span> {replacement.notes}
-                  </p>
-                </div>
-              )}
-
-              <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-slate-600">
-                <div className="text-sm text-gray-500 dark:text-slate-400">
-                  <span className="font-medium">Added:</span> {new Date(replacement.created_at).toLocaleDateString()}
-                  {replacement.delivered_at && (
-                    <span className="ml-4">
-                      <span className="font-medium">Delivered:</span> {new Date(replacement.delivered_at).toLocaleDateString()}
-                    </span>
-                  )}
-                </div>
-                <div className="flex gap-3">
-                  {replacement.status !== 'delivered' && (
-                    <Select value={replacement.status} onValueChange={(value) => updateStatus(replacement.id, value)}>
-                      <SelectTrigger className="w-40 h-10 border border-gray-300 dark:border-slate-600 focus:border-blue-500 dark:focus:border-blue-400 bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600">
-                        <SelectItem value="shipped" className="hover:bg-gray-50 dark:hover:bg-slate-700">
-                          Shipped
-                        </SelectItem>
-                        <SelectItem value="in_transit" className="hover:bg-gray-50 dark:hover:bg-slate-700">
-                          In Transit
-                        </SelectItem>
-                        <SelectItem value="out_for_delivery" className="hover:bg-gray-50 dark:hover:bg-slate-700">
-                          Out for Delivery
-                        </SelectItem>
-                        <SelectItem value="delivered" className="hover:bg-gray-50 dark:hover:bg-slate-700">
+                    </td>
+                    <td className="py-4 px-6">
+                      {replacement.expected_delivery ? (
+                        <div className="flex items-center gap-2 text-gray-300">
+                          <Calendar className="w-4 h-4 text-gray-400" />
+                          <span>{new Date(replacement.expected_delivery).toLocaleDateString()}</span>
+                        </div>
+                      ) : (
+                        <span className="text-gray-500">Not specified</span>
+                      )}
+                    </td>
+                    <td className="py-4 px-6">
+                      {replacement.status === 'delivered' ? (
+                        <span className="px-3 py-1 bg-green-900/30 text-green-400 text-xs font-semibold rounded-full border border-green-800">
                           Delivered
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+                        </span>
+                      ) : replacement.status === 'shipped' ? (
+                        <span className="px-3 py-1 bg-blue-900/30 text-blue-400 text-xs font-semibold rounded-full border border-blue-800">
+                          Shipped
+                        </span>
+                      ) : replacement.status === 'in_transit' ? (
+                        <span className="px-3 py-1 bg-yellow-900/30 text-yellow-400 text-xs font-semibold rounded-full border border-yellow-800">
+                          In Transit
+                        </span>
+                      ) : (
+                        <span className="px-3 py-1 bg-orange-900/30 text-orange-400 text-xs font-semibold rounded-full border border-orange-800">
+                          Out for Delivery
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-4 px-6">
+                      {replacement.status !== 'delivered' && (
+                        <Select value={replacement.status} onValueChange={(value) => updateStatus(replacement.id, value)}>
+                          <SelectTrigger className="w-36 h-8 bg-gray-800 hover:bg-gray-700 border-gray-700 text-white text-sm">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-gray-800 border-gray-700">
+                            <SelectItem value="shipped" className="text-white hover:bg-gray-700">
+                              Shipped
+                            </SelectItem>
+                            <SelectItem value="in_transit" className="text-white hover:bg-gray-700">
+                              In Transit
+                            </SelectItem>
+                            <SelectItem value="out_for_delivery" className="text-white hover:bg-gray-700">
+                              Out for Delivery
+                            </SelectItem>
+                            <SelectItem value="delivered" className="text-white hover:bg-gray-700">
+                              Delivered
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

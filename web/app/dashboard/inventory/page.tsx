@@ -1,9 +1,9 @@
 'use client';
 
-import { SensorInventoryManager } from '@/components/inventory/sensor-inventory-manager';
-import { DiabetesSuppliesInventory } from '@/components/inventory/diabetes-supplies-inventory';
+import { InventoryManager } from '@/components/inventory/inventory-manager';
 import { PendingOrdersList } from '@/components/inventory/pending-orders-list';
-import { Package, Activity } from 'lucide-react';
+import ReplacementTracker from '@/components/replacement-tracker';
+import { Package } from 'lucide-react';
 
 export default function InventoryPage() {
   return (
@@ -13,33 +13,21 @@ export default function InventoryPage() {
         <div className="mb-6">
           <h1 className="text-3xl font-bold mb-2 text-white flex items-center gap-3">
             <Package className="w-8 h-8" />
-            Supplies & Inventory
+            Inventory
           </h1>
           <p className="text-slate-400">
-            Track your sensor supply and diabetes supplies - never run out
+            Track all your diabetes supplies - never run out
           </p>
         </div>
 
-        {/* Sensor Inventory Section */}
-        <div>
-          <h2 className="text-2xl font-semibold text-white flex items-center gap-2 mb-4">
-            <Activity className="w-6 h-6 text-blue-400" />
-            Sensor Inventory
-          </h2>
-          <SensorInventoryManager />
-        </div>
+        {/* Unified Inventory Section */}
+        <InventoryManager />
 
         {/* Pending Orders Section */}
         <PendingOrdersList onOrderUpdated={() => window.location.reload()} />
 
-        {/* Diabetes Supplies Section */}
-        <div>
-          <h2 className="text-2xl font-semibold text-white flex items-center gap-2 mb-4">
-            <Package className="w-6 h-6 text-blue-400" />
-            Diabetes Supplies
-          </h2>
-          <DiabetesSuppliesInventory />
-        </div>
+        {/* Replacement Tracking Section */}
+        <ReplacementTracker />
       </div>
     </div>
   );

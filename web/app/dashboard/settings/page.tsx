@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/components/providers/auth-provider';
 import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase-client';
@@ -176,14 +177,27 @@ export default function SettingsPage() {
     }
   };
 
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Simulate loading effect when changing tabs
+  useEffect(() => {
+    if (activeTab) {
+      setIsLoading(true);
+      const timer = setTimeout(() => {
+        setIsLoading(false);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [activeTab]);
+
   const tabs = [
-    { id: 'profile', label: 'Profile', icon: User },
-    { id: 'notifications', label: 'Notifications', icon: Bell },
-    { id: 'preferences', label: 'Preferences', icon: Settings },
-    { id: 'calculator', label: 'Insulin Calculator', icon: Calculator },
-    { id: 'integrations', label: 'Integrations', icon: Link },
-    { id: 'api', label: 'API Keys', icon: Key },
-    { id: 'export', label: 'Export Data', icon: BarChart3 },
+    { id: 'profile', label: 'Profile', icon: User, description: 'Personal info' },
+    { id: 'notifications', label: 'Notifications', icon: Bell, description: 'Alert settings' },
+    { id: 'preferences', label: 'Preferences', icon: Settings, description: 'App preferences' },
+    { id: 'calculator', label: 'Insulin Calculator', icon: Calculator, description: 'Dosing settings' },
+    { id: 'integrations', label: 'Integrations', icon: Link, description: 'Connected services' },
+    { id: 'api', label: 'API Keys', icon: Key, description: 'Developer access' },
+    { id: 'export', label: 'Export Data', icon: BarChart3, description: 'Download data' },
   ];
 
   if (loading) {
@@ -194,106 +208,10 @@ export default function SettingsPage() {
     );
   }
 
-  return (
-    <div className="max-w-4xl mx-auto space-y-8">
-      {/* Header */}
-      <div className="px-4 lg:px-6 pb-6 border-b border-gray-200 dark:border-slate-700">
-        <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-slate-100">Settings</h1>
-        <p className="mt-2 text-sm lg:text-base text-gray-600 dark:text-slate-400">
-          Manage your account preferences and data settings
-        </p>
-      </div>
-
-      {/* Quick Actions */}
-      {activeTab === 'profile' && (
-        <div className="px-4 lg:px-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-          <button
-            onClick={() => setActiveTab('api')}
-            className="p-4 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg hover:border-blue-300 dark:hover:border-blue-600 transition-colors text-left group"
-          >
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg group-hover:bg-blue-200 dark:group-hover:bg-blue-900/50 transition-colors">
-                <Key className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-              </div>
-              <div>
-                <h3 className="font-medium text-gray-900 dark:text-slate-100">API Keys</h3>
-                <p className="text-sm text-gray-600 dark:text-slate-400">Manage programmatic access</p>
-              </div>
-            </div>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('integrations')}
-            className="p-4 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg hover:border-blue-300 dark:hover:border-blue-600 transition-colors text-left group"
-          >
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg group-hover:bg-green-200 dark:group-hover:bg-green-900/50 transition-colors">
-                <Link className="w-5 h-5 text-green-600 dark:text-green-400" />
-              </div>
-              <div>
-                <h3 className="font-medium text-gray-900 dark:text-slate-100">Integrations</h3>
-                <p className="text-sm text-gray-600 dark:text-slate-400">Connect external services</p>
-              </div>
-            </div>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('calculator')}
-            className="p-4 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg hover:border-blue-300 dark:hover:border-blue-600 transition-colors text-left group"
-          >
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg group-hover:bg-orange-200 dark:group-hover:bg-orange-900/50 transition-colors">
-                <Calculator className="w-5 h-5 text-orange-600 dark:text-orange-400" />
-              </div>
-              <div>
-                <h3 className="font-medium text-gray-900 dark:text-slate-100">Insulin Calculator</h3>
-                <p className="text-sm text-gray-600 dark:text-slate-400">Configure dosing parameters</p>
-              </div>
-            </div>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('export')}
-            className="p-4 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg hover:border-blue-300 dark:hover:border-blue-600 transition-colors text-left group"
-          >
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg group-hover:bg-purple-200 dark:group-hover:bg-purple-900/50 transition-colors">
-                <BarChart3 className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-              </div>
-              <div>
-                <h3 className="font-medium text-gray-900 dark:text-slate-100">Export Data</h3>
-                <p className="text-sm text-gray-600 dark:text-slate-400">Download your information</p>
-              </div>
-            </div>
-          </button>
-        </div>
-      )}
-
-      {/* Tab Navigation - Improved Design */}
-      <div className="px-4 lg:px-6">
-        <div className="bg-slate-800/30 rounded-xl border border-slate-700/30 p-2">
-          <nav className="flex flex-wrap gap-2">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all ${
-                  activeTab === tab.id
-                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
-                    : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
-                }`}
-              >
-                <tab.icon className="w-4 h-4" />
-                <span className="hidden sm:inline">{tab.label}</span>
-              </button>
-            ))}
-          </nav>
-        </div>
-      </div>
-
-      {/* Tab Content */}
-      <div className="px-4 lg:px-6 mt-8">
-        {activeTab === 'profile' && (
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'profile':
+        return (
           <div className="space-y-8">
             <ProfileSettings 
               profile={profile} 
@@ -308,26 +226,17 @@ export default function SettingsPage() {
               <ApiShortcutCard variant="compact" />
             </div>
           </div>
-        )}
-        {activeTab === 'notifications' && (
-          <NotificationSettings 
-            profile={profile} 
-            onUpdate={updateProfile} 
-          />
-        )}
-        {activeTab === 'preferences' && (
-          <TimezoneSettings 
-            profile={profile} 
-            onUpdate={updateProfile} 
-          />
-        )}
-        {activeTab === 'calculator' && (
-          <InsulinCalculatorSettings />
-        )}
-        {activeTab === 'integrations' && (
-          <CgmIntegrations />
-        )}
-        {activeTab === 'api' && (
+        );
+      case 'notifications':
+        return <NotificationSettings profile={profile} onUpdate={updateProfile} />;
+      case 'preferences':
+        return <TimezoneSettings profile={profile} onUpdate={updateProfile} />;
+      case 'calculator':
+        return <InsulinCalculatorSettings />;
+      case 'integrations':
+        return <CgmIntegrations />;
+      case 'api':
+        return (
           <div className="space-y-6">
             {/* API Documentation Link */}
             <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
@@ -354,12 +263,130 @@ export default function SettingsPage() {
             
             <ApiKeyManager />
           </div>
-        )}
-        {activeTab === 'export' && user?.id && (
-          <ExportSettings 
-            userId={user.id} 
-          />
-        )}
+        );
+      case 'export':
+        return user?.id ? <ExportSettings userId={user.id} /> : null;
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="max-w-7xl mx-auto p-6 space-y-6">
+      {/* Header */}
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+          <Settings className="w-8 h-8" />
+          Settings
+        </h1>
+        <p className="text-slate-400 mt-2">
+          Manage your account preferences and data settings
+        </p>
+      </div>
+
+      {/* Tabs Container */}
+      <div className="flex flex-col sm:flex-row gap-6">
+        {/* Sidebar navigation */}
+        <div className="sm:w-64 flex sm:flex-col gap-2 rounded-xl bg-gray-900/30 backdrop-filter backdrop-blur-lg p-2 border border-gray-800">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`relative group flex items-center w-full px-4 py-3 transition-all rounded-lg ${
+                  activeTab === tab.id
+                    ? 'text-white'
+                    : 'text-gray-400 hover:text-gray-300'
+                }`}
+              >
+                {/* Background highlight for active tab */}
+                {activeTab === tab.id && (
+                  <motion.div
+                    layoutId="settingsTabBackground"
+                    className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.2 }}
+                  />
+                )}
+
+                {/* Tab content with icon and text */}
+                <div className="flex items-center gap-3 z-10 flex-1">
+                  <Icon className="w-5 h-5" />
+                  <div className="text-left">
+                    <div className="font-medium">{tab.label}</div>
+                    <div className="text-xs opacity-70">{tab.description}</div>
+                  </div>
+                </div>
+
+                {/* Small dot indicator */}
+                {activeTab === tab.id ? (
+                  <motion.div
+                    layoutId="settingsActiveDot"
+                    className="w-2 h-2 rounded-full bg-white z-10"
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ delay: 0.1 }}
+                  />
+                ) : (
+                  <div className="w-2 h-2 rounded-full bg-gray-600/0 group-hover:bg-gray-600/30 transition-colors" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Content area */}
+        <div className="flex-1 relative rounded-xl overflow-hidden">
+          {/* Loading overlay */}
+          <AnimatePresence>
+            {isLoading && (
+              <motion.div
+                key="loader"
+                className="absolute inset-0 z-20 flex items-center justify-center bg-gray-900/50 backdrop-blur-sm"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                <svg
+                  className="animate-spin h-8 w-8 text-indigo-500"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  ></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
+                </svg>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Tab content with animations */}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, x: 10 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -10 }}
+              transition={{ duration: 0.3 }}
+            >
+              {renderTabContent()}
+            </motion.div>
+          </AnimatePresence>
+        </div>
       </div>
     </div>
   );
