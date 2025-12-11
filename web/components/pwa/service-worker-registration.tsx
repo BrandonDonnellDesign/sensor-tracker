@@ -99,8 +99,8 @@ export function ServiceWorkerRegistration() {
         // Show welcome notification
         new Notification('CGM Tracker', {
           body: 'Notifications enabled! You\'ll get reminders for sensor replacements.',
-          icon: '/icons/icon-192x192.png',
-          badge: '/icons/badge-72x72.png'
+          icon: '/icons/icon-192x192.svg',
+          badge: '/icons/icon-72x72.svg'
         });
       } else {
         console.log('Service Worker: Notification permission denied');

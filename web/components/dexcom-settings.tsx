@@ -248,7 +248,7 @@ export function DexcomSettings({ user: _user }: DexcomSettingsProps) {
     }
   };
 
-  const handleSync = async () => {
+  const handleSync = async (backfillHours?: number) => {
     setIsSyncing(true);
     try {
       if (!user) {
@@ -257,18 +257,26 @@ export function DexcomSettings({ user: _user }: DexcomSettingsProps) {
         return;
       }
 
+      const body: any = { userId: user.id };
+      if (backfillHours) {
+        body.backfillHours = backfillHours;
+      }
+
       const response = await fetch('/api/dexcom/sync', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ userId: user.id }),
+        body: JSON.stringify(body),
       });
 
       const result = await response.json();
 
       if (response.ok) {
-        showToast('Sync completed', result.message);
+        const message = backfillHours 
+          ? `Back-synced last ${backfillHours} hours: ${result.glucose_readings} readings`
+          : result.message;
+        showToast('Sync completed', message);
         loadDexcomData();
       } else {
         showToast(
@@ -427,23 +435,39 @@ export function DexcomSettings({ user: _user }: DexcomSettingsProps) {
               </div>
             )}
           </div>
-          <div className='flex gap-2 justify-center'>
-            <button
-              onClick={handleSync}
-              disabled={isSyncing}
-              className='inline-flex items-center px-4 py-2 border border-gray-300 dark:border-slate-600 text-sm font-medium rounded-lg text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 transition-colors'>
-              {isSyncing ? (
-                <Loader2 className='mr-2 h-4 w-4 animate-spin' />
-              ) : (
-                <RefreshCw className='mr-2 h-4 w-4' />
-              )}
-              Sync Now
-            </button>
-            <button
-              onClick={handleDisconnect}
-              className='inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors'>
-              Disconnect
-            </button>
+          <div className='flex flex-col gap-3'>
+            <div className='flex gap-2 justify-center'>
+              <button
+                onClick={() => handleSync()}
+                disabled={isSyncing}
+                className='inline-flex items-center px-4 py-2 border border-gray-300 dark:border-slate-600 text-sm font-medium rounded-lg text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 transition-colors'>
+                {isSyncing ? (
+                  <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                ) : (
+                  <RefreshCw className='mr-2 h-4 w-4' />
+                )}
+                Sync Now
+              </button>
+              <button
+                onClick={() => handleSync(24)}
+                disabled={isSyncing}
+                className='inline-flex items-center px-4 py-2 border border-blue-300 dark:border-blue-600 text-sm font-medium rounded-lg text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 transition-colors'>
+                {isSyncing ? (
+                  <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                ) : (
+                  <Activity className='mr-2 h-4 w-4' />
+                )}
+                Back-Sync 24h
+              </button>
+              <button
+                onClick={handleDisconnect}
+                className='inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors'>
+                Disconnect
+              </button>
+            </div>
+            <p className='text-xs text-center text-gray-500 dark:text-gray-400'>
+              Use "Back-Sync 24h" to fill gaps in your glucose data from the last 24 hours
+            </p>
           </div>
         </div>
       )}

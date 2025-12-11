@@ -1,21 +1,26 @@
-// Service Worker for Insulin Management System
-const CACHE_NAME = 'insulin-tracker-v1';
-const STATIC_CACHE = 'insulin-static-v1';
-const DYNAMIC_CACHE = 'insulin-dynamic-v1';
+// Service Worker for CGM Sensor Tracker
+const CACHE_NAME = 'cgm-tracker-v1';
+const STATIC_CACHE = 'cgm-static-v1';
+const DYNAMIC_CACHE = 'cgm-dynamic-v1';
 
 // Files to cache for offline functionality
 const STATIC_FILES = [
   '/',
-  '/dashboard/insulin',
-  '/dashboard/insulin/import',
+  '/dashboard',
+  '/dashboard/sensors',
+  '/dashboard/inventory',
+  '/dashboard/glucose-data',
   '/manifest.json',
+  '/offline.html',
   // Add your CSS and JS files here
 ];
 
 // API endpoints to cache
 const API_CACHE_PATTERNS = [
-  /^\/api\/insulin\/logs/,
-  /^\/api\/insulin\/stats/,
+  /^\/api\/sensors/,
+  /^\/api\/inventory/,
+  /^\/api\/glucose/,
+  /^\/api\/dexcom/,
 ];
 
 // Install event - cache static files
@@ -106,7 +111,7 @@ async function handleApiRequest(request) {
     }
     
     // Return offline response for critical API endpoints
-    if (url.pathname.includes('/api/insulin/')) {
+    if (url.pathname.includes('/api/sensors/') || url.pathname.includes('/api/inventory/')) {
       return new Response(
         JSON.stringify({
           error: 'Offline',
@@ -205,25 +210,25 @@ self.addEventListener('push', (event) => {
   console.log('Service Worker: Push notification received');
   
   const options = {
-    body: 'Check your insulin on board (IOB)',
-    icon: '/icons/icon-192x192.png',
-    badge: '/icons/badge-72x72.png',
-    tag: 'iob-reminder',
+    body: 'Time to check your CGM sensor',
+    icon: '/icons/icon-192x192.svg',
+    badge: '/icons/icon-72x72.svg',
+    tag: 'sensor-reminder',
     requireInteraction: true,
     actions: [
       {
-        action: 'check-iob',
-        title: 'Check IOB',
-        icon: '/icons/droplet-96x96.png'
+        action: 'check-sensor',
+        title: 'Check Sensor',
+        icon: '/icons/icon-96x96.svg'
       },
       {
-        action: 'log-dose',
-        title: 'Log Dose',
-        icon: '/icons/syringe-96x96.png'
+        action: 'add-sensor',
+        title: 'Add Sensor',
+        icon: '/icons/icon-96x96.svg'
       }
     ],
     data: {
-      url: '/dashboard/insulin'
+      url: '/dashboard/sensors'
     }
   };
   
@@ -234,7 +239,7 @@ self.addEventListener('push', (event) => {
   }
   
   event.waitUntil(
-    self.registration.showNotification('Insulin Tracker', options)
+    self.registration.showNotification('CGM Tracker', options)
   );
 });
 
@@ -244,9 +249,9 @@ self.addEventListener('notificationclick', (event) => {
   
   event.notification.close();
   
-  const urlToOpen = event.action === 'log-dose' 
-    ? '/dashboard/insulin?action=quick-dose'
-    : event.notification.data?.url || '/dashboard/insulin';
+  const urlToOpen = event.action === 'add-sensor' 
+    ? '/dashboard/sensors?action=add'
+    : event.notification.data?.url || '/dashboard/sensors';
   
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true })

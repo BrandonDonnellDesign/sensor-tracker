@@ -25,9 +25,9 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { userId } = body;
+    const { userId, backfillHours } = body;
     
-    logger.debug('Dexcom sync request', { userId });
+    logger.debug('Dexcom sync request', { userId, backfillHours });
 
     // Verify the user is syncing their own data
     if (userId !== user.id) {
@@ -172,11 +172,15 @@ export async function POST(request: NextRequest) {
     
     logger.debug('Using Dexcom API', { apiBaseUrl });
     
-    // Determine start date based on last sync
+    // Determine start date based on last sync or backfill parameter
     const endDate = new Date();
     let startDate: Date;
     
-    if (token.last_sync_at) {
+    if (backfillHours && typeof backfillHours === 'number' && backfillHours > 0) {
+      // Back-sync for specified hours
+      startDate = new Date(Date.now() - backfillHours * 60 * 60 * 1000);
+      logger.debug(`Back-syncing last ${backfillHours} hours`, { startDate: startDate.toISOString() });
+    } else if (token.last_sync_at) {
       // Fetch from last sync time
       startDate = new Date(token.last_sync_at);
       logger.debug('Syncing from last sync time', { startDate: startDate.toISOString() });

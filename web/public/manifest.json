@@ -1,8 +1,8 @@
 {
-  "name": "Insulin Management System",
-  "short_name": "InsulinTracker",
-  "description": "Comprehensive diabetes management with insulin tracking, IOB calculations, and analytics",
-  "start_url": "/dashboard/insulin",
+  "name": "CGM Sensor Tracker",
+  "short_name": "CGM Tracker",
+  "description": "Track your CGM sensors, glucose data, and diabetes supplies with comprehensive analytics",
+  "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#0f172a",
   "theme_color": "#3b82f6",
@@ -11,22 +11,22 @@
   "lang": "en-US",
   "icons": [
     {
-      "src": "/icons/icon-72x72.png",
+      "src": "/icons/icon-72x72.svg",
       "sizes": "72x72",
-      "type": "image/png",
-      "purpose": "maskable any"
+      "type": "image/svg+xml",
+      "purpose": "any"
     },
     {
-      "src": "/icons/icon-96x96.png",
+      "src": "/icons/icon-96x96.svg",
       "sizes": "96x96",
-      "type": "image/png",
-      "purpose": "maskable any"
+      "type": "image/svg+xml",
+      "purpose": "any"
     },
     {
-      "src": "/icons/icon-128x128.png",
+      "src": "/icons/icon-128x128.svg",
       "sizes": "128x128",
-      "type": "image/png",
-      "purpose": "maskable any"
+      "type": "image/svg+xml",
+      "purpose": "any"
     },
     {
       "src": "/icons/icon-144x144.png",
@@ -35,63 +35,63 @@
       "purpose": "maskable any"
     },
     {
-      "src": "/icons/icon-152x152.png",
+      "src": "/icons/icon-152x152.svg",
       "sizes": "152x152",
-      "type": "image/png",
-      "purpose": "maskable any"
+      "type": "image/svg+xml",
+      "purpose": "any"
     },
     {
-      "src": "/icons/icon-192x192.png",
+      "src": "/icons/icon-192x192.svg",
       "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "maskable any"
+      "type": "image/svg+xml",
+      "purpose": "any"
     },
     {
-      "src": "/icons/icon-384x384.png",
+      "src": "/icons/icon-384x384.svg",
       "sizes": "384x384",
-      "type": "image/png",
-      "purpose": "maskable any"
+      "type": "image/svg+xml",
+      "purpose": "any"
     },
     {
-      "src": "/icons/icon-512x512.png",
+      "src": "/icons/icon-512x512.svg",
       "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable any"
+      "type": "image/svg+xml",
+      "purpose": "any"
     }
   ],
   "shortcuts": [
     {
-      "name": "Quick Dose",
-      "short_name": "Dose",
-      "description": "Log insulin dose quickly",
-      "url": "/dashboard/insulin?action=quick-dose",
+      "name": "Add Sensor",
+      "short_name": "Sensor",
+      "description": "Add a new CGM sensor",
+      "url": "/dashboard/sensors?action=add",
       "icons": [
         {
-          "src": "/icons/syringe-96x96.png",
+          "src": "/icons/icon-96x96.svg",
           "sizes": "96x96"
         }
       ]
     },
     {
-      "name": "IOB Check",
-      "short_name": "IOB",
-      "description": "Check insulin on board",
-      "url": "/dashboard/insulin?action=iob",
+      "name": "Glucose Data",
+      "short_name": "Glucose",
+      "description": "View glucose readings",
+      "url": "/dashboard/glucose-data",
       "icons": [
         {
-          "src": "/icons/droplet-96x96.png",
+          "src": "/icons/icon-96x96.svg",
           "sizes": "96x96"
         }
       ]
     },
     {
-      "name": "Import Data",
-      "short_name": "Import",
-      "description": "Import insulin data",
-      "url": "/dashboard/insulin/import",
+      "name": "Inventory",
+      "short_name": "Inventory",
+      "description": "Check supply inventory",
+      "url": "/dashboard/inventory",
       "icons": [
         {
-          "src": "/icons/upload-96x96.png",
+          "src": "/icons/icon-96x96.svg",
           "sizes": "96x96"
         }
       ]

@@ -219,6 +219,97 @@ export function InventoryManager() {
     }
   };
 
+  const usePod = async (itemName: string) => {
+    if (!user?.id) {
+      toast.error('User not authenticated');
+      return;
+    }
+
+    try {
+      const supabase = createClient();
+      
+      // Find individual pods and boxes for this item
+      const { data: allItems } = await (supabase as any)
+        .from('diabetes_supplies_inventory')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('category', 'pump_supplies')
+        .ilike('item_name', `%${itemName}%`);
+
+      if (!allItems || allItems.length === 0) {
+        toast.error('No pods found');
+        return;
+      }
+
+      // Separate pods and boxes
+      const podItems = allItems.filter((item: any) => item.unit === 'pods' || item.unit === 'pcs');
+      const boxItems = allItems.filter((item: any) => item.unit === 'boxes' || item.unit === 'box');
+
+      let podItem = podItems[0];
+
+      if (podItem && podItem.quantity > 0) {
+        // Use an individual pod - just decrement quantity
+        const { error } = await (supabase as any)
+          .from('diabetes_supplies_inventory')
+          .update({ quantity: Math.max(0, podItem.quantity - 1) })
+          .eq('id', podItem.id)
+          .eq('user_id', user.id);
+
+        if (error) throw error;
+        toast.success('Used 1 pod');
+      } else if (boxItems.length > 0 && boxItems[0].quantity > 0) {
+        // No individual pods, convert from a box (5 pods per box)
+        const boxItem = boxItems[0];
+        
+        // Decrement box by 1
+        const { error: boxError } = await (supabase as any)
+          .from('diabetes_supplies_inventory')
+          .update({ quantity: Math.max(0, boxItem.quantity - 1) })
+          .eq('id', boxItem.id)
+          .eq('user_id', user.id);
+
+        if (boxError) throw boxError;
+
+        // Add or update individual pods entry (4 remaining from the box after using 1)
+        if (podItem) {
+          // Update existing pod item - add 4 more pods
+          const { error: podError } = await (supabase as any)
+            .from('diabetes_supplies_inventory')
+            .update({ quantity: podItem.quantity + 4 })
+            .eq('id', podItem.id)
+            .eq('user_id', user.id);
+
+          if (podError) throw podError;
+        } else {
+          // Create new pod item with 4 remaining
+          const { error: createError } = await (supabase as any)
+            .from('diabetes_supplies_inventory')
+            .insert({
+              user_id: user.id,
+              category: 'pump_supplies',
+              item_name: boxItem.item_name,
+              brand: boxItem.brand,
+              quantity: 4,
+              unit: 'pods',
+              notes: 'Auto-created from box'
+            });
+
+          if (createError) throw createError;
+        }
+        
+        toast.success('Used 1 pod (converted from box, 4 remaining)');
+      } else {
+        toast.error('No pods available. Please add boxes or individual pods first.');
+        return;
+      }
+
+      await loadInventory();
+    } catch (error) {
+      console.error('Error using pod:', error);
+      toast.error('Failed to use pod');
+    }
+  };
+
   if (loading) {
     return (
       <div className="bg-slate-800/30 rounded-xl border border-slate-700/30 p-6">
@@ -364,6 +455,19 @@ export function InventoryManager() {
                     </td>
                     <td className="py-4 px-6">
                       <div className="flex gap-2">
+                        {/* Show "Use Pod" button for pump supplies */}
+                        {item.category === 'Pump Supplies' && item.type === 'supply' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => usePod(item.name)}
+                            disabled={item.quantity === 0}
+                            className="bg-green-900/20 hover:bg-green-900/40 border-green-800 text-green-400 hover:text-green-300 h-8 px-3"
+                            title="Use 1 pod (auto-converts from box if needed)"
+                          >
+                            Use Pod
+                          </Button>
+                        )}
                         <Button
                           variant="outline"
                           size="sm"
