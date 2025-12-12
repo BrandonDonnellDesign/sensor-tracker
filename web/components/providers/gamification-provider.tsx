@@ -291,18 +291,73 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
     try {
       const supabase = createClient();
       console.log('Recording activity:', { activity, userId: user.id });
-      const { error } = await (supabase as any).rpc('update_daily_activity', {
+      
+      // Try RPC function first
+      const { error: rpcError } = await (supabase as any).rpc('update_daily_activity', {
         p_activity: activity,
         p_user_id: user.id
       });
 
-      if (error) {
-        console.error('Error recording activity:', error);
-        console.error('Error details:', JSON.stringify(error, null, 2));
-        return;
-      }
-      console.log('Activity recorded successfully');
+      if (rpcError) {
+        console.log('RPC function failed, using fallback method:', rpcError);
+        
+        // Fallback: manually update tables
+        const points = getPointsForActivity(activity);
+        const today = new Date().toISOString().split('T')[0];
 
+        // Insert daily activity (ignore if exists)
+        await (supabase as any)
+          .from('daily_activities')
+          .upsert({
+            user_id: user.id,
+            activity_type: activity,
+            activity_date: today,
+            points_earned: points
+          }, { onConflict: 'user_id,activity_type,activity_date' });
+
+        // Update or create user stats
+        const { data: existingStats } = await (supabase as any)
+          .from('user_gamification_stats')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
+
+        if (existingStats) {
+          // Update existing stats with core columns only
+          const updateData: any = {
+            total_points: existingStats.total_points + points,
+            last_activity_date: today
+          };
+
+          // Update level if points changed significantly
+          const newLevel = Math.max(1, Math.floor((existingStats.total_points + points) / 100) + 1);
+          if (newLevel !== existingStats.level) {
+            updateData.level = newLevel;
+          }
+
+          await (supabase as any)
+            .from('user_gamification_stats')
+            .update(updateData)
+            .eq('user_id', user.id);
+        } else {
+          // Create new stats with core columns only
+          await (supabase as any)
+            .from('user_gamification_stats')
+            .insert({
+              user_id: user.id,
+              total_points: points,
+              current_streak: 1,
+              longest_streak: 1,
+              level: Math.max(1, Math.floor(points / 100) + 1),
+              last_activity_date: today,
+              sensors_tracked: 0,
+              successful_sensors: 0,
+              achievements_earned: 0
+            });
+        }
+      }
+
+      console.log('Activity recorded successfully');
       // Refresh stats after recording activity
       await fetchUserStats();
     } catch (error) {
@@ -310,41 +365,28 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
     }
   }, [user?.id, fetchUserStats]);
 
+  // Helper function to get points for activity type
+  const getPointsForActivity = (activity: string): number => {
+    switch (activity) {
+      case 'login': return 5;
+      case 'sensor_added': return 20;
+      case 'glucose_sync': return 10;
+      case 'inventory_updated': return 5;
+      case 'profile_updated': return 10;
+      default: return 1;
+    }
+  };
+
   const recordLoginActivity = useCallback(async () => {
     if (!user?.id) return;
     
     try {
-      const supabase = createClient();
-      // Ensure user has gamification stats first
-      const { data: existingStats } = await (supabase as any)
-        .from('user_gamification_stats')
-        .select('id')
-        .eq('user_id', user.id)
-        .single();
-
-      if (!existingStats) {
-        // Create initial gamification stats
-        await (supabase as any)
-          .from('user_gamification_stats')
-          .insert({ user_id: user.id });
-      }
-
-      const { error } = await (supabase as any).rpc('update_daily_activity', {
-        p_activity: 'login',
-        p_user_id: user.id
-      });
-
-      if (error) {
-        console.error('Error recording login activity:', error);
-        return;
-      }
-
-      // Refresh stats after recording login activity
-      await fetchUserStats();
+      // Use the same recordActivity function with fallback
+      await recordActivity('login');
     } catch (error) {
       console.error('Error in recordLoginActivity:', error);
     }
-  }, [user?.id, fetchUserStats]);
+  }, [user?.id, recordActivity]);
 
   const showAchievementNotification = useCallback((achievement: Achievement) => {
     setAchievementNotifications(prev => [...prev, achievement]);

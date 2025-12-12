@@ -48,6 +48,32 @@ export function CompactGamification({ className = '' }: CompactGamificationProps
     loadProfile();
   }, [user?.id]);
 
+  // Handle backfilling missing activities
+  const handleBackfillActivities = async () => {
+    if (!user?.id) return;
+    
+    try {
+      const response = await fetch('/api/gamification/backfill', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        alert('Activity backfill completed! Your points and stats have been restored.');
+        // Refresh the page to show updated stats
+        window.location.reload();
+      } else {
+        console.error('Failed to backfill activities:', result);
+        alert(`Failed to backfill activities: ${result.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error backfilling activities:', error);
+      alert('Error connecting to backfill service. Please try again.');
+    }
+  };
+
   if (loading || !userStats) {
     return (
       <div className={`bg-[#1e293b] rounded-lg p-6 border border-slate-700/30 ${className}`}>
@@ -282,6 +308,15 @@ export function CompactGamification({ className = '' }: CompactGamificationProps
         </div>
         
         <div className="flex items-center space-x-2">
+          {(userStats.total_points === 0 || userStats.total_points < 10) && (
+            <button
+              onClick={handleBackfillActivities}
+              className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white rounded-xl px-3 py-2 text-xs font-medium transition-all duration-200 hover:scale-105 shadow-md"
+              title="Restore missing activity from Dec 3-11"
+            >
+              Fix Activity
+            </button>
+          )}
           <button
             onClick={() => setShowAchievements(true)}
             className="bg-gradient-to-r from-teal-500 to-blue-600 hover:from-teal-600 hover:to-blue-700 text-white rounded-xl px-4 py-2 text-sm font-medium transition-all duration-200 hover:scale-105 shadow-md"
