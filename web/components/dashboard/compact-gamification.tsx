@@ -18,8 +18,11 @@ export function CompactGamification({ className = '' }: CompactGamificationProps
     userStats, 
     userAchievements, 
     allAchievements, 
+    streakStatus,
     loading, 
-    getPointsForNextLevel 
+    getPointsForNextLevel,
+    backfillStreaks,
+    recalculateStreaks
   } = useGamification();
   const [showAchievements, setShowAchievements] = useState(false);
   const [userProfile, setUserProfile] = useState<Profile | null>(null);
@@ -48,29 +51,21 @@ export function CompactGamification({ className = '' }: CompactGamificationProps
     loadProfile();
   }, [user?.id]);
 
-  // Handle backfilling missing activities
+  // Handle backfilling missing activities with new streak system
   const handleBackfillActivities = async () => {
     if (!user?.id) return;
     
     try {
-      const response = await fetch('/api/gamification/backfill', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-
-      const result = await response.json();
-
-      if (response.ok) {
-        alert('Activity backfill completed! Your points and stats have been restored.');
-        // Refresh the page to show updated stats
-        window.location.reload();
-      } else {
-        console.error('Failed to backfill activities:', result);
-        alert(`Failed to backfill activities: ${result.error || 'Unknown error'}`);
-      }
+      // Use the new streak system to backfill from Oct 4th to today
+      const startDate = '2025-10-04';
+      const endDate = new Date().toISOString().split('T')[0];
+      
+      await backfillStreaks(startDate, endDate);
+      
+      alert('Activity backfill completed! Your streak has been restored using the new tracking system.');
     } catch (error) {
       console.error('Error backfilling activities:', error);
-      alert('Error connecting to backfill service. Please try again.');
+      alert('Error during backfill. Please try again.');
     }
   };
 
@@ -115,6 +110,13 @@ export function CompactGamification({ className = '' }: CompactGamificationProps
   const renderTrackingWidget = () => {
     switch (trackingPreference) {
       case 'current_streak':
+        const currentStreak = streakStatus?.streakData.currentStreak || userStats.current_streak || 0;
+        const streakMessage = streakStatus?.message || (
+          currentStreak === 0 ? 'Start tracking to begin your streak!' : 
+          currentStreak === 1 ? 'Great start! Keep it going tomorrow.' :
+          `Amazing! ${currentStreak} days in a row!`
+        );
+        
         return (
           <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-xl p-4 mb-4">
             <div className="flex items-center justify-between mb-2">
@@ -122,14 +124,24 @@ export function CompactGamification({ className = '' }: CompactGamificationProps
                 <Flame className="w-5 h-5 text-orange-500" />
                 <span className="text-sm font-medium text-orange-900 dark:text-orange-300">Current Streak</span>
               </div>
-              <span className="text-2xl font-bold text-orange-600 dark:text-orange-400">
-                {userStats.current_streak}
-              </span>
+              <div className="flex items-center space-x-2">
+                <span className="text-2xl font-bold text-orange-600 dark:text-orange-400">
+                  {currentStreak}
+                </span>
+                {streakStatus?.status === 'at_risk' && (
+                  <span className="text-xs bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-2 py-1 rounded-full">
+                    At Risk!
+                  </span>
+                )}
+                {streakStatus?.status === 'active' && streakStatus.streakData.isActiveToday && (
+                  <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 px-2 py-1 rounded-full">
+                    Active
+                  </span>
+                )}
+              </div>
             </div>
             <p className="text-xs text-orange-700 dark:text-orange-300">
-              {userStats.current_streak === 0 ? 'Start tracking to begin your streak!' : 
-               userStats.current_streak === 1 ? 'Great start! Keep it going tomorrow.' :
-               `Amazing! ${userStats.current_streak} days in a row!`}
+              {streakMessage}
             </p>
           </div>
         );
@@ -350,8 +362,15 @@ export function CompactGamification({ className = '' }: CompactGamificationProps
           <div className="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center mx-auto mb-2">
             <Flame className="w-4 h-4 text-white" />
           </div>
-          <p className="text-xl font-bold text-gray-900 dark:text-slate-100">{userStats.current_streak}</p>
-          <p className="text-xs text-orange-600 dark:text-orange-400">Streak</p>
+          <p className="text-xl font-bold text-gray-900 dark:text-slate-100">
+            {streakStatus?.streakData.currentStreak || userStats.current_streak || 0}
+          </p>
+          <p className="text-xs text-orange-600 dark:text-orange-400">
+            Streak
+            {streakStatus?.status === 'at_risk' && (
+              <span className="block text-red-500 font-semibold">At Risk!</span>
+            )}
+          </p>
         </div>
         
         <div className="text-center p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-xl border border-yellow-200 dark:border-yellow-800">
@@ -419,11 +438,23 @@ export function CompactGamification({ className = '' }: CompactGamificationProps
         <div className="flex items-center justify-center space-x-2">
           <Zap className="w-4 h-4 text-yellow-500" />
           <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
-            {userStats.current_streak > 0 
-              ? `${userStats.current_streak} day streak! Keep it up!` 
-              : 'Start your tracking streak today!'}
+            {streakStatus?.message || (
+              userStats.current_streak > 0 
+                ? `${userStats.current_streak} day streak! Keep it up!` 
+                : 'Start your tracking streak today!'
+            )}
           </span>
         </div>
+        {streakStatus?.status === 'at_risk' && (
+          <div className="mt-2 text-center">
+            <button
+              onClick={recalculateStreaks}
+              className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-500 underline"
+            >
+              Recalculate Streak
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Achievement Modal */}

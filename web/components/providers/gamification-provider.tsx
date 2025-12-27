@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { createClient } from '@/lib/supabase-client';
 import { useAuth } from './auth-provider';
+import { StreakTracker, StreakData, StreakUtils } from '@/lib/streak-tracker';
 
 interface Achievement {
   id: string;
@@ -40,10 +41,18 @@ interface UserStats {
   achievements_earned: number;
 }
 
+interface StreakStatus {
+  streakData: StreakData;
+  status: 'active' | 'at_risk' | 'broken';
+  message: string;
+  daysUntilRisk: number;
+}
+
 interface GamificationContextType {
   userStats: UserStats | null;
   userAchievements: UserAchievement[];
   allAchievements: Achievement[];
+  streakStatus: StreakStatus | null;
   loading: boolean;
   refreshStats: () => Promise<void>;
   updateSensorCount: () => Promise<void>;
@@ -57,6 +66,10 @@ interface GamificationContextType {
   achievementNotifications: Achievement[];
   clearAchievementNotification: (achievementId: string) => void;
   testHiddenAchievement: (achievementName: string) => void;
+  // New streak-specific methods
+  getStreakAnalytics: () => Promise<any>;
+  recalculateStreaks: () => Promise<void>;
+  backfillStreaks: (startDate: string, endDate: string) => Promise<void>;
 }
 
 const GamificationContext = createContext<GamificationContextType | undefined>(undefined);
@@ -85,8 +98,20 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [userAchievements, setUserAchievements] = useState<UserAchievement[]>([]);
   const [allAchievements, setAllAchievements] = useState<Achievement[]>([]);
+  const [streakStatus, setStreakStatus] = useState<StreakStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [achievementNotifications, setAchievementNotifications] = useState<Achievement[]>([]);
+  const [streakTracker, setStreakTracker] = useState<StreakTracker | null>(null);
+
+  // Initialize streak tracker when user changes
+  useEffect(() => {
+    if (user?.id) {
+      const timezone = StreakUtils.getUserTimezone();
+      setStreakTracker(new StreakTracker(user.id, timezone));
+    } else {
+      setStreakTracker(null);
+    }
+  }, [user?.id]);
 
   const fetchUserStats = useCallback(async () => {
     if (!user?.id) return;
@@ -190,6 +215,18 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
     }
   }, [user?.id]);
 
+  const fetchStreakStatus = useCallback(async () => {
+    if (!streakTracker) return;
+
+    try {
+      const status = await streakTracker.getStreakStatus('login');
+      setStreakStatus(status);
+    } catch (error) {
+      console.error('Error fetching streak status:', error);
+      setStreakStatus(null);
+    }
+  }, [streakTracker]);
+
   const fetchUserAchievements = useCallback(async () => {
     if (!user?.id) return;
 
@@ -204,14 +241,24 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
         .eq('user_id', user.id)
         .order('earned_at', { ascending: false });
 
+      // Handle table not existing
+      if (error?.message?.includes('relation "public.user_achievements" does not exist') ||
+          error?.message?.includes('relation "public.achievements" does not exist')) {
+        console.warn('Gamification achievement tables not yet created. Run migrations to enable achievement features.');
+        setUserAchievements([]);
+        return;
+      }
+
       if (error) {
         console.error('Error fetching user achievements:', error);
+        setUserAchievements([]);
         return;
       }
 
       setUserAchievements(data || []);
     } catch (error) {
       console.error('Error in fetchUserAchievements:', error);
+      setUserAchievements([]);
     }
   }, [user?.id]);
 
@@ -224,14 +271,23 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
         .eq('is_active', true)
         .order('category', { ascending: true });
 
+      // Handle table not existing
+      if (error?.message?.includes('relation "public.achievements" does not exist')) {
+        console.warn('Gamification achievements table not yet created. Run migrations to enable achievement features.');
+        setAllAchievements([]);
+        return;
+      }
+
       if (error) {
         console.error('Error fetching achievements:', error);
+        setAllAchievements([]);
         return;
       }
 
       setAllAchievements(data || []);
     } catch (error) {
       console.error('Error in fetchAllAchievements:', error);
+      setAllAchievements([]);
     }
   }, []);
 
@@ -280,90 +336,75 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
     await Promise.all([
       fetchUserStats(),
       fetchUserAchievements(),
-      fetchAllAchievements()
+      fetchAllAchievements(),
+      fetchStreakStatus()
     ]);
     setLoading(false);
-  }, [updateSensorCount, fetchUserStats, fetchUserAchievements, fetchAllAchievements]);
+  }, [updateSensorCount, fetchUserStats, fetchUserAchievements, fetchAllAchievements, fetchStreakStatus]);
 
   const recordActivity = useCallback(async (activity: string) => {
-    if (!user?.id) return;
+    if (!user?.id || !streakTracker) return;
 
     try {
-      const supabase = createClient();
-      console.log('Recording activity:', { activity, userId: user.id });
+      console.log('Recording activity with new streak system:', { activity, userId: user.id });
       
-      // Try RPC function first
-      const { error: rpcError } = await (supabase as any).rpc('update_daily_activity', {
-        p_activity: activity,
-        p_user_id: user.id
-      });
+      const points = getPointsForActivity(activity);
+      
+      // Use new streak tracker
+      const streakData = await streakTracker.recordActivity(activity, points);
+      
+      // Update user stats in database
+      const supabase = createClient();
+      const { data: existingStats } = await (supabase as any)
+        .from('user_gamification_stats')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
 
-      if (rpcError) {
-        console.log('RPC function failed, using fallback method:', rpcError);
-        
-        // Fallback: manually update tables
-        const points = getPointsForActivity(activity);
-        const today = new Date().toISOString().split('T')[0];
+      if (existingStats) {
+        // Update existing stats
+        const updateData: any = {
+          total_points: existingStats.total_points + points,
+          current_streak: streakData.currentStreak,
+          longest_streak: Math.max(existingStats.longest_streak, streakData.longestStreak),
+          last_activity_date: streakData.lastActivityDate || new Date().toISOString().split('T')[0]
+        };
 
-        // Insert daily activity (ignore if exists)
-        await (supabase as any)
-          .from('daily_activities')
-          .upsert({
-            user_id: user.id,
-            activity_type: activity,
-            activity_date: today,
-            points_earned: points
-          }, { onConflict: 'user_id,activity_type,activity_date' });
-
-        // Update or create user stats
-        const { data: existingStats } = await (supabase as any)
-          .from('user_gamification_stats')
-          .select('*')
-          .eq('user_id', user.id)
-          .single();
-
-        if (existingStats) {
-          // Update existing stats with core columns only
-          const updateData: any = {
-            total_points: existingStats.total_points + points,
-            last_activity_date: today
-          };
-
-          // Update level if points changed significantly
-          const newLevel = Math.max(1, Math.floor((existingStats.total_points + points) / 100) + 1);
-          if (newLevel !== existingStats.level) {
-            updateData.level = newLevel;
-          }
-
-          await (supabase as any)
-            .from('user_gamification_stats')
-            .update(updateData)
-            .eq('user_id', user.id);
-        } else {
-          // Create new stats with core columns only
-          await (supabase as any)
-            .from('user_gamification_stats')
-            .insert({
-              user_id: user.id,
-              total_points: points,
-              current_streak: 1,
-              longest_streak: 1,
-              level: Math.max(1, Math.floor(points / 100) + 1),
-              last_activity_date: today,
-              sensors_tracked: 0,
-              successful_sensors: 0,
-              achievements_earned: 0
-            });
+        // Update level if points changed significantly
+        const newLevel = calculateLevel(existingStats.total_points + points);
+        if (newLevel !== existingStats.level) {
+          updateData.level = newLevel;
         }
+
+        await (supabase as any)
+          .from('user_gamification_stats')
+          .update(updateData)
+          .eq('user_id', user.id);
+      } else {
+        // Create new stats
+        await (supabase as any)
+          .from('user_gamification_stats')
+          .insert({
+            user_id: user.id,
+            total_points: points,
+            current_streak: streakData.currentStreak,
+            longest_streak: streakData.longestStreak,
+            level: calculateLevel(points),
+            last_activity_date: streakData.lastActivityDate || new Date().toISOString().split('T')[0],
+            sensors_tracked: 0,
+            successful_sensors: 0,
+            achievements_earned: 0
+          });
       }
 
-      console.log('Activity recorded successfully');
-      // Refresh stats after recording activity
-      await fetchUserStats();
+      console.log('Activity recorded successfully with new streak system');
+      
+      // Refresh stats and streak status
+      await Promise.all([fetchUserStats(), fetchStreakStatus()]);
     } catch (error) {
       console.error('Error in recordActivity:', error);
     }
-  }, [user?.id, fetchUserStats]);
+  }, [user?.id, streakTracker, fetchUserStats, fetchStreakStatus]);
 
   // Helper function to get points for activity type
   const getPointsForActivity = (activity: string): number => {
@@ -381,12 +422,47 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
     if (!user?.id) return;
     
     try {
-      // Use the same recordActivity function with fallback
       await recordActivity('login');
     } catch (error) {
       console.error('Error in recordLoginActivity:', error);
     }
   }, [user?.id, recordActivity]);
+
+  const getStreakAnalytics = useCallback(async () => {
+    if (!streakTracker) return null;
+    
+    try {
+      return await streakTracker.getStreakAnalytics('login');
+    } catch (error) {
+      console.error('Error getting streak analytics:', error);
+      return null;
+    }
+  }, [streakTracker]);
+
+  const recalculateStreaks = useCallback(async () => {
+    if (!streakTracker) return;
+    
+    try {
+      const streakData = await streakTracker.calculateStreaks('login');
+      await streakTracker.updateUserStats(streakData);
+      await Promise.all([fetchUserStats(), fetchStreakStatus()]);
+    } catch (error) {
+      console.error('Error recalculating streaks:', error);
+    }
+  }, [streakTracker, fetchUserStats, fetchStreakStatus]);
+
+  const backfillStreaks = useCallback(async (startDate: string, endDate: string) => {
+    if (!streakTracker) return;
+    
+    try {
+      await streakTracker.backfillActivities(startDate, endDate, 'login', 5);
+      const streakData = await streakTracker.calculateStreaks('login');
+      await streakTracker.updateUserStats(streakData);
+      await Promise.all([fetchUserStats(), fetchStreakStatus()]);
+    } catch (error) {
+      console.error('Error backfilling streaks:', error);
+    }
+  }, [streakTracker, fetchUserStats, fetchStreakStatus]);
 
   const showAchievementNotification = useCallback((achievement: Achievement) => {
     setAchievementNotifications(prev => [...prev, achievement]);
@@ -409,6 +485,14 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
       const { data, error } = await (supabase as any).rpc('check_and_award_achievements', {
         p_user_id: user.id
       });
+
+      // Handle function or tables not existing
+      if (error?.message?.includes('function "check_and_award_achievements" does not exist') ||
+          error?.message?.includes('relation "public.achievements" does not exist') ||
+          error?.message?.includes('relation "public.user_achievements" does not exist')) {
+        console.warn('Gamification system not fully initialized. Run migrations to enable achievement checking.');
+        return [];
+      }
 
       if (error) {
         console.error('Error checking achievements:', error);
@@ -464,6 +548,7 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
       setUserStats(null);
       setUserAchievements([]);
       setAllAchievements([]);
+      setStreakStatus(null);
       setLoading(false);
     }
   }, [user, refreshStats]);
@@ -481,6 +566,7 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
     userStats,
     userAchievements,
     allAchievements,
+    streakStatus,
     loading,
     refreshStats,
     updateSensorCount,
@@ -494,6 +580,10 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
     achievementNotifications,
     clearAchievementNotification,
     testHiddenAchievement,
+    // New streak methods
+    getStreakAnalytics,
+    recalculateStreaks,
+    backfillStreaks,
   };
 
   return (
