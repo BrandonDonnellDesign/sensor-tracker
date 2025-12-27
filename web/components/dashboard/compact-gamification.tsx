@@ -21,7 +21,6 @@ export function CompactGamification({ className = '' }: CompactGamificationProps
     streakStatus,
     loading, 
     getPointsForNextLevel,
-    backfillStreaks,
     recalculateStreaks
   } = useGamification();
   const [showAchievements, setShowAchievements] = useState(false);
@@ -50,24 +49,6 @@ export function CompactGamification({ className = '' }: CompactGamificationProps
 
     loadProfile();
   }, [user?.id]);
-
-  // Handle backfilling missing activities with new streak system
-  const handleBackfillActivities = async () => {
-    if (!user?.id) return;
-    
-    try {
-      // Use the new streak system to backfill from Oct 4th to today
-      const startDate = '2025-10-04';
-      const endDate = new Date().toISOString().split('T')[0];
-      
-      await backfillStreaks(startDate, endDate);
-      
-      alert('Activity backfill completed! Your streak has been restored using the new tracking system.');
-    } catch (error) {
-      console.error('Error backfilling activities:', error);
-      alert('Error during backfill. Please try again.');
-    }
-  };
 
   if (loading || !userStats) {
     return (
@@ -110,7 +91,7 @@ export function CompactGamification({ className = '' }: CompactGamificationProps
   const renderTrackingWidget = () => {
     switch (trackingPreference) {
       case 'current_streak':
-        const currentStreak = streakStatus?.streakData.currentStreak || userStats.current_streak || 0;
+        const currentStreak = streakStatus?.streakData?.currentStreak || userStats.current_streak || 0;
         const streakMessage = streakStatus?.message || (
           currentStreak === 0 ? 'Start tracking to begin your streak!' : 
           currentStreak === 1 ? 'Great start! Keep it going tomorrow.' :
@@ -320,15 +301,6 @@ export function CompactGamification({ className = '' }: CompactGamificationProps
         </div>
         
         <div className="flex items-center space-x-2">
-          {(userStats.total_points === 0 || userStats.total_points < 10) && (
-            <button
-              onClick={handleBackfillActivities}
-              className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white rounded-xl px-3 py-2 text-xs font-medium transition-all duration-200 hover:scale-105 shadow-md"
-              title="Restore missing activity from Dec 3-11"
-            >
-              Fix Activity
-            </button>
-          )}
           <button
             onClick={() => setShowAchievements(true)}
             className="bg-gradient-to-r from-teal-500 to-blue-600 hover:from-teal-600 hover:to-blue-700 text-white rounded-xl px-4 py-2 text-sm font-medium transition-all duration-200 hover:scale-105 shadow-md"
@@ -363,7 +335,7 @@ export function CompactGamification({ className = '' }: CompactGamificationProps
             <Flame className="w-4 h-4 text-white" />
           </div>
           <p className="text-xl font-bold text-gray-900 dark:text-slate-100">
-            {streakStatus?.streakData.currentStreak || userStats.current_streak || 0}
+            {streakStatus?.streakData?.currentStreak || userStats.current_streak || 0}
           </p>
           <p className="text-xs text-orange-600 dark:text-orange-400">
             Streak

@@ -53,35 +53,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
-  // Record login activity for gamification
+  // Record login activity for gamification using new streak system (DISABLED)
   const recordLoginActivity = async (userId: string) => {
-    try {
-      // Ensure user has gamification stats first
-      const { data: existingStats } = await (supabase as any)
-        .from('user_gamification_stats')
-        .select('id')
-        .eq('user_id', userId)
-        .single();
-
-      if (!existingStats) {
-        // Create initial gamification stats
-        await (supabase as any)
-          .from('user_gamification_stats')
-          .insert({ user_id: userId });
-      }
-
-      // Record login activity
-      const { error } = await (supabase as any).rpc('update_daily_activity', {
-        p_activity: 'login',
-        p_user_id: userId
-      });
-
-      if (error) {
-        // Silently handle login activity recording errors
-      }
-    } catch (error) {
-      // Silently handle login activity recording errors
-    }
+    // Disabled to prevent RLS errors since we have correct streak in database
+    return;
   };
 
   useEffect(() => {

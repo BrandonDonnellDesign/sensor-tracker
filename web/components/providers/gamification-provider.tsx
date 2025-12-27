@@ -220,12 +220,54 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
 
     try {
       const status = await streakTracker.getStreakStatus('login');
-      setStreakStatus(status);
+      
+      // If the new streak system returns 0 or broken status, 
+      // but we have user stats with a streak, use the database value
+      if ((status.streakData.currentStreak === 0 || status.status === 'broken') && userStats?.current_streak > 0) {
+        // Create a corrected streak status using database values
+        const correctedStatus = {
+          streakData: {
+            currentStreak: userStats.current_streak,
+            longestStreak: userStats.longest_streak,
+            lastActivityDate: userStats.last_activity_date,
+            streakStartDate: null,
+            isActiveToday: userStats.last_activity_date === new Date().toISOString().split('T')[0],
+            nextStreakDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+          },
+          status: 'active' as const,
+          message: `${userStats.current_streak} day streak! Keep it going!`,
+          daysUntilRisk: 1
+        };
+        
+        setStreakStatus(correctedStatus);
+      } else {
+        setStreakStatus(status);
+      }
     } catch (error) {
       console.error('Error fetching streak status:', error);
-      setStreakStatus(null);
+      
+      // Fallback to database values if available
+      if (userStats?.current_streak > 0) {
+        const fallbackStatus = {
+          streakData: {
+            currentStreak: userStats.current_streak,
+            longestStreak: userStats.longest_streak,
+            lastActivityDate: userStats.last_activity_date,
+            streakStartDate: null,
+            isActiveToday: userStats.last_activity_date === new Date().toISOString().split('T')[0],
+            nextStreakDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+          },
+          status: 'active' as const,
+          message: `${userStats.current_streak} day streak! Keep it going!`,
+          daysUntilRisk: 1
+        };
+        
+        setStreakStatus(fallbackStatus);
+      } else {
+        setStreakStatus(null);
+      }
     }
-  }, [streakTracker]);
+  }, [streakTracker, userStats]);
 
   const fetchUserAchievements = useCallback(async () => {
     if (!user?.id) return;
@@ -332,13 +374,21 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
 
   const refreshStats = useCallback(async () => {
     setLoading(true);
+    
+    // Clear any cached data
+    setUserStats(null);
+    setStreakStatus(null);
+    
     await updateSensorCount(); // Update sensor count first
     await Promise.all([
       fetchUserStats(),
       fetchUserAchievements(),
-      fetchAllAchievements(),
-      fetchStreakStatus()
+      fetchAllAchievements()
     ]);
+    
+    // Fetch streak status after user stats are loaded
+    await fetchStreakStatus();
+    
     setLoading(false);
   }, [updateSensorCount, fetchUserStats, fetchUserAchievements, fetchAllAchievements, fetchStreakStatus]);
 
@@ -346,8 +396,6 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
     if (!user?.id || !streakTracker) return;
 
     try {
-      console.log('Recording activity with new streak system:', { activity, userId: user.id });
-      
       const points = getPointsForActivity(activity);
       
       // Use new streak tracker
@@ -397,8 +445,6 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
           });
       }
 
-      console.log('Activity recorded successfully with new streak system');
-      
       // Refresh stats and streak status
       await Promise.all([fetchUserStats(), fetchStreakStatus()]);
     } catch (error) {
@@ -422,6 +468,7 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
     if (!user?.id) return;
     
     try {
+      // Use the new streak system directly
       await recordActivity('login');
     } catch (error) {
       console.error('Error in recordLoginActivity:', error);
@@ -543,7 +590,28 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
 
   useEffect(() => {
     if (user) {
-      refreshStats();
+      // Call refreshStats directly without dependency to avoid infinite loop
+      const loadInitialData = async () => {
+        setLoading(true);
+        
+        // Clear any cached data
+        setUserStats(null);
+        setStreakStatus(null);
+        
+        await updateSensorCount(); // Update sensor count first
+        await Promise.all([
+          fetchUserStats(),
+          fetchUserAchievements(),
+          fetchAllAchievements()
+        ]);
+        
+        // Fetch streak status after user stats are loaded
+        await fetchStreakStatus();
+        
+        setLoading(false);
+      };
+      
+      loadInitialData();
     } else {
       setUserStats(null);
       setUserAchievements([]);
@@ -551,7 +619,7 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
       setStreakStatus(null);
       setLoading(false);
     }
-  }, [user, refreshStats]);
+  }, [user?.id]); // Only depend on user.id to avoid infinite loop
 
   // Check for achievements after stats are loaded
   useEffect(() => {

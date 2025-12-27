@@ -35,8 +35,8 @@ export async function POST(request: NextRequest) {
       const sensorCount = sensors?.length || 0;
       const glucoseCount = Math.min(1000, glucoseReadings?.length || 0);
       
-      // Backfill activities from Oct 4th to today using new system
-      const startDate = '2025-10-04';
+      // Backfill activities from Oct 14th to today using new system
+      const startDate = '2025-10-14';
       const endDate = new Date().toISOString().split('T')[0];
       
       console.log(`Backfilling activities from ${startDate} to ${endDate}`);
@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({ 
         success: true,
-        message: `Modern streak tracking activated! Added ${backfillResult.added} activities. Your ${streakData.currentStreak}-day streak has been restored.`,
+        message: `Modern streak tracking activated! Added ${backfillResult.added} activities. Your ${streakData.currentStreak}-day streak has been restored (Oct 14 - today).`,
         stats: {
           activitiesAdded: backfillResult.added,
           activitiesSkipped: backfillResult.skipped,

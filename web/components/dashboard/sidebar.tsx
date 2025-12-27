@@ -112,7 +112,7 @@ const secondaryNavigation = [
 export function Sidebar() {
   const pathname = usePathname();
   const { user, signOut } = useAuth();
-  const { userStats } = useGamification();
+  const { userStats, streakStatus } = useGamification();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -454,7 +454,7 @@ export function Sidebar() {
                     <div className='flex items-center space-x-1'>
                       <Target className='w-4 h-4 text-green-600 dark:text-green-400' />
                       <span className='text-gray-600 dark:text-slate-400'>
-                        {userStats.current_streak} streak
+                        {streakStatus?.streakData.currentStreak || userStats.current_streak || 0} streak
                       </span>
                     </div>
                   </div>

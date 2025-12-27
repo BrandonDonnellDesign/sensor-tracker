@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fix Streak - Sensor Tracker</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #2196f3;
+        }
+        .success {
+            background: #e8f5e8;
+            border-left-color: #4caf50;
+        }
+        .error {
+            background: #ffebee;
+            border-left-color: #f44336;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px 0;
+            transition: transform 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+        }
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔥 Fix Your Streak</h1>
+        
+        <div class="info">
+            <strong>What this does:</strong><br>
+            Updates your database to give you credit for all 75 days from October 14, 2025 to December 27, 2025.
+            <br><br>
+            <strong>Expected results:</strong><br>
+            • Current streak: 75 days<br>
+            • Additional points: +375 (75 days × 5 points)<br>
+            • Daily activities: Oct 14 - Dec 27, 2025
+        </div>
+
+        <button id="fixButton" onclick="fixStreak()">
+            Fix My Streak (75 Days)
+        </button>
+
+        <div id="result"></div>
+    </div>
+
+    <script>
+        async function fixStreak() {
+            const button = document.getElementById('fixButton');
+            const result = document.getElementById('result');
+            
+            button.disabled = true;
+            button.textContent = 'Fixing streak...';
+            result.innerHTML = '';
+
+            try {
+                const response = await fetch('/api/streak/fix', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    result.className = 'result info success';
+                    result.textContent = `✅ Success!\n\n${data.message}\n\nDetails:\n• Expected days: ${data.stats.expectedDays}\n• Actual streak: ${data.stats.actualStreak}\n• Activities added: ${data.stats.activitiesAdded}\n• Date range: ${data.stats.startDate} to ${data.stats.endDate}\n• Active today: ${data.stats.isActiveToday ? 'Yes' : 'No'}`;
+                    
+                    button.textContent = '✅ Streak Fixed!';
+                    
+                    // Redirect to dashboard after 3 seconds
+                    setTimeout(() => {
+                        window.location.href = '/dashboard';
+                    }, 3000);
+                } else {
+                    throw new Error(data.error || 'Unknown error');
+                }
+            } catch (error) {
+                result.className = 'result info error';
+                result.textContent = `❌ Error: ${error.message}\n\nPlease try again or contact support.`;
+                
+                button.disabled = false;
+                button.textContent = 'Try Again';
+            }
+        }
+
+        // Check if user is logged in
+        window.addEventListener('load', () => {
+            // You might want to add authentication check here
+            console.log('Streak fix page loaded');
+        });
+    </script>
+</body>
+</html>

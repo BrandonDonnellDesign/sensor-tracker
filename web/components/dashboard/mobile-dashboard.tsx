@@ -27,7 +27,7 @@ interface MobileDashboardProps {
 
 export function MobileDashboard({ className }: MobileDashboardProps) {
   const { user } = useAuth();
-  const { userStats } = useGamification();
+  const { userStats, streakStatus } = useGamification();
   const [sensors, setSensors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -358,9 +358,9 @@ export function MobileDashboard({ className }: MobileDashboardProps) {
             />
           )}
 
-          {userStats && userStats.current_streak > 0 && (
+          {userStats && (streakStatus?.streakData.currentStreak || userStats.current_streak || 0) > 0 && (
             <MobileOptimizedCard
-              title={`${userStats.current_streak} Day Streak`}
+              title={`${streakStatus?.streakData.currentStreak || userStats.current_streak || 0} Day Streak`}
               subtitle="Keep up the great tracking!"
               icon={<CheckCircle className="w-5 h-5 text-green-600" />}
               status="success"
