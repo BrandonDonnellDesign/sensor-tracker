@@ -48,6 +48,13 @@ export const OpenFoodFactsAPI = {
   
   productUrl: (barcode: string) => 
     `https://world.openfoodfacts.org/api/v2/product/${barcode}.json`,
+    
+  // Alternative product URLs for fallback
+  productUrlUS: (barcode: string) => 
+    `https://us.openfoodfacts.org/api/v2/product/${barcode}.json`,
+    
+  productUrlV0: (barcode: string) => 
+    `https://world.openfoodfacts.org/api/v0/product/${barcode}.json`,
   
   // No authentication required for OpenFoodFacts
   isConfigured: () => true,

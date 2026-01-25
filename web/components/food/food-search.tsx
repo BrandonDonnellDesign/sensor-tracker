@@ -10,6 +10,7 @@ import { MultiItemCustomFoodForm } from './multi-item-custom-food-form';
 import { FavoritesList } from './favorites-list';
 import { FavoriteButton } from './favorite-button';
 import { MyCustomFoods } from './my-custom-foods';
+import { BarcodeManualEntry } from './barcode-manual-entry';
 import { CameraPermissionDialog } from '@/components/ui/camera-permission-dialog';
 import { useCameraPermission } from '@/lib/hooks/use-camera-permission';
 import { logger } from '@/lib/logger';
@@ -33,6 +34,9 @@ export function FoodSearch({ onFoodLogged }: FoodSearchProps) {
   const [searchMode, setSearchMode] = useState<SearchModeValue>('search');
   const [showPermissionDialog, setShowPermissionDialog] = useState(false);
   const [useIntegratedLogger, setUseIntegratedLogger] = useState(true);
+  const [barcodeError, setBarcodeError] = useState<string | null>(null);
+  const [showBarcodeManualEntry, setShowBarcodeManualEntry] = useState(false);
+  const [failedBarcode, setFailedBarcode] = useState<string | null>(null);
 
   const { permission, requestPermission, hasCamera, isLoading: permissionLoading, error: permissionError } = useCameraPermission();
 
@@ -56,6 +60,7 @@ export function FoodSearch({ onFoodLogged }: FoodSearchProps) {
 
   const handleBarcodeSearch = async (code: string) => {
     setBarcode(code);
+    setBarcodeError(null);
     setIsSearching(true);
     try {
       const response = await fetch(`/api/food/barcode?barcode=${code}`);
@@ -64,9 +69,17 @@ export function FoodSearch({ onFoodLogged }: FoodSearchProps) {
       if (data.product) {
         setSelectedFood(data.product);
         setShowScanner(false);
+        setBarcodeError(null);
+      } else {
+        // Show helpful error message and offer manual entry
+        const errorMessage = data.message || `Product not found for barcode ${code}`;
+        setBarcodeError(errorMessage);
+        setFailedBarcode(code);
       }
     } catch (error) {
       logger.error('Barcode lookup error:', error);
+      setBarcodeError('Error looking up barcode. Please check your internet connection and try again.');
+      setFailedBarcode(code);
     } finally {
       setIsSearching(false);
     }
@@ -110,6 +123,25 @@ export function FoodSearch({ onFoodLogged }: FoodSearchProps) {
     setSearchQuery('');
     setShowMealReview(false);
   };
+
+  if (showBarcodeManualEntry && failedBarcode) {
+    return (
+      <BarcodeManualEntry
+        barcode={failedBarcode}
+        onCancel={() => {
+          setShowBarcodeManualEntry(false);
+          setFailedBarcode(null);
+          setBarcodeError(null);
+        }}
+        onSuccess={(food) => {
+          setSelectedFood(food);
+          setShowBarcodeManualEntry(false);
+          setFailedBarcode(null);
+          setBarcodeError(null);
+        }}
+      />
+    );
+  }
 
   if (showMealReview && mealItems.length > 0) {
     return (
@@ -555,7 +587,10 @@ export function FoodSearch({ onFoodLogged }: FoodSearchProps) {
                 <input
                   type="text"
                   value={barcode}
-                  onChange={(e) => setBarcode(e.target.value)}
+                  onChange={(e) => {
+                    setBarcode(e.target.value);
+                    setBarcodeError(null); // Clear error when user types
+                  }}
                   onKeyPress={(e) => e.key === 'Enter' && handleBarcodeSearch(barcode)}
                   placeholder="Enter barcode..."
                   inputMode="numeric"
@@ -568,9 +603,53 @@ export function FoodSearch({ onFoodLogged }: FoodSearchProps) {
                   disabled={!barcode || isSearching}
                   className="px-4 py-3 md:py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50 touch-manipulation min-w-[80px]"
                 >
-                  Lookup
+                  {isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Lookup'}
                 </button>
               </div>
+
+              {/* Barcode Error Display */}
+              {barcodeError && (
+                <div className="mt-4 max-w-md mx-auto">
+                  <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+                    <div className="flex items-start gap-3">
+                      <Barcode className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1">
+                        <p className="text-yellow-800 dark:text-yellow-200 text-sm font-medium mb-2">
+                          Barcode Not Found
+                        </p>
+                        <p className="text-yellow-700 dark:text-yellow-300 text-xs mb-3">
+                          {barcodeError}
+                        </p>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              setShowBarcodeManualEntry(true);
+                              setBarcodeError(null);
+                            }}
+                            className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded-lg transition-colors flex items-center gap-1"
+                          >
+                            <Plus className="w-3 h-3" />
+                            Add This Product
+                          </button>
+                          <button
+                            onClick={() => setSearchMode('custom')}
+                            className="px-3 py-2 bg-yellow-600 hover:bg-yellow-700 text-white text-xs rounded-lg transition-colors"
+                          >
+                            <Plus className="w-3 h-3 inline mr-1" />
+                            Create Custom Food
+                          </button>
+                          <button
+                            onClick={() => setBarcodeError(null)}
+                            className="px-3 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-slate-600 dark:hover:bg-slate-500 text-gray-700 dark:text-slate-300 text-xs rounded-lg transition-colors"
+                          >
+                            Try Again
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <BarcodeScanner

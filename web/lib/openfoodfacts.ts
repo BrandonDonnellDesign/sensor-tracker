@@ -68,31 +68,91 @@ export async function getProductByBarcode(
   barcode: string
 ): Promise<FoodItem | null> {
   try {
-    const url = OpenFoodFactsAPI.productUrl(barcode);
-    const response = await fetch(url);
+    // Try different barcode formats
+    const barcodeVariants = generateBarcodeVariants(barcode);
     
-    if (!response.ok) {
-      logger.error('OpenFoodFacts barcode API error:', response.status, response.statusText);
-      return null;
+    // Try different API endpoints
+    const apiEndpoints = [
+      OpenFoodFactsAPI.productUrl,
+      OpenFoodFactsAPI.productUrlUS,
+      OpenFoodFactsAPI.productUrlV0
+    ];
+    
+    for (const variant of barcodeVariants) {
+      for (const getUrl of apiEndpoints) {
+        try {
+          const url = getUrl(variant);
+          const response = await fetch(url, {
+            headers: {
+              'User-Agent': 'CGMTracker/1.0 (https://cgmtracker.com)'
+            }
+          });
+          
+          if (!response.ok) {
+            logger.error(`OpenFoodFacts API error for ${variant} at ${url}:`, response.status, response.statusText);
+            continue; // Try next endpoint/variant
+          }
+
+          const contentType = response.headers.get('content-type');
+          if (!contentType || !contentType.includes('application/json')) {
+            logger.error(`OpenFoodFacts returned non-JSON response for ${variant} at ${url}`);
+            continue; // Try next endpoint/variant
+          }
+
+          const result = await response.json();
+
+          if (result.product && result.status === 1) {
+            logger.info(`Found product for barcode variant: ${variant} at ${url}`);
+            return convertToFoodItem(result.product);
+          }
+        } catch (endpointError) {
+          logger.error(`Error trying endpoint for ${variant}:`, endpointError);
+          continue; // Try next endpoint/variant
+        }
+      }
     }
-
-    const contentType = response.headers.get('content-type');
-    if (!contentType || !contentType.includes('application/json')) {
-      logger.error('OpenFoodFacts barcode returned non-JSON response');
-      return null;
-    }
-
-    const result = await response.json();
-
-    if (!result.product || result.status === 0) {
-      return null;
-    }
-
-    return convertToFoodItem(result.product);
+    
+    logger.warn(`No product found for barcode ${barcode} and its variants across all endpoints`);
+    return null;
   } catch (error) {
     console.error('Error fetching product by barcode:', error);
     return null;
   }
+}
+
+/**
+ * Generate different barcode variants to try
+ * Some barcodes need leading zeros removed or added
+ */
+function generateBarcodeVariants(barcode: string): string[] {
+  const variants = [barcode];
+  
+  // Remove leading zeros
+  const withoutLeadingZeros = barcode.replace(/^0+/, '');
+  if (withoutLeadingZeros !== barcode && withoutLeadingZeros.length > 0) {
+    variants.push(withoutLeadingZeros);
+  }
+  
+  // Add leading zeros to make it different standard lengths
+  const standardLengths = [8, 12, 13, 14];
+  for (const length of standardLengths) {
+    if (barcode.length < length) {
+      const paddedBarcode = barcode.padStart(length, '0');
+      if (!variants.includes(paddedBarcode)) {
+        variants.push(paddedBarcode);
+      }
+    }
+  }
+  
+  // Try without leading zero if it starts with 0
+  if (barcode.startsWith('0') && barcode.length > 1) {
+    const withoutFirstZero = barcode.substring(1);
+    if (!variants.includes(withoutFirstZero)) {
+      variants.push(withoutFirstZero);
+    }
+  }
+  
+  return variants;
 }
 
 function convertToFoodItem(product: any): FoodItem {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-client';
-import { getProductByBarcode } from '@/lib/openfoodfacts';
+import { getProductByBarcode, searchProducts } from '@/lib/openfoodfacts';
 
 export async function GET(request: NextRequest) {
   try {
@@ -51,8 +51,31 @@ export async function GET(request: NextRequest) {
     const product = await getProductByBarcode(barcode);
 
     if (!product) {
+      // If barcode lookup fails, try searching for the barcode as a text query
+      // This can help find products where the barcode might be stored differently
+      console.log(`Barcode ${barcode} not found, trying text search as fallback`);
+      
+      const searchResults = await searchProducts(barcode);
+      if (searchResults.length > 0) {
+        const fallbackProduct = searchResults[0];
+        // Cache the result with the original barcode
+        cacheProduct({ ...fallbackProduct, barcode }).catch(err => 
+          console.error('Error caching fallback barcode result:', err)
+        );
+        
+        return NextResponse.json({
+          product: { ...fallbackProduct, barcode },
+          source: 'openfoodfacts-search-fallback',
+          message: 'Found via text search fallback'
+        });
+      }
+      
       return NextResponse.json(
-        { error: 'Product not found' },
+        { 
+          error: 'Product not found', 
+          barcode,
+          message: `No product found for barcode ${barcode} in OpenFoodFacts database. Try scanning again or enter product details manually.`
+        },
         { status: 404 }
       );
     }
@@ -69,7 +92,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Error in barcode lookup:', error);
     return NextResponse.json(
-      { error: 'Failed to lookup barcode' },
+      { error: 'Failed to lookup barcode', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }
